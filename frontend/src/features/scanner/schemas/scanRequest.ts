@@ -10,9 +10,9 @@ import { z } from 'zod';
 export const scanRequestSchema = z.object({
   url: z
     .string()
-    .trim()
     .min(1, 'Enter a URL to analyze.')
     .max(2048, 'URL must be at most 2048 characters.')
+    .refine((value) => value === value.trim(), 'Enter a URL without surrounding spaces.')
     .refine((value) => /^https?:\/\//i.test(value), 'Enter a URL starting with http:// or https://'),
 });
 
