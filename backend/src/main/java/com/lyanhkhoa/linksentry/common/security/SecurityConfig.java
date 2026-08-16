@@ -1,6 +1,10 @@
 package com.lyanhkhoa.linksentry.common.security;
 
 import com.lyanhkhoa.linksentry.common.config.CorsProperties;
+import com.lyanhkhoa.linksentry.common.ratelimit.RateLimitBucketStore;
+import com.lyanhkhoa.linksentry.common.ratelimit.RateLimitFilter;
+import com.lyanhkhoa.linksentry.common.ratelimit.RateLimitProperties;
+import com.lyanhkhoa.linksentry.common.ratelimit.RouteClassifier;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -11,6 +15,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.filter.CorsFilter;
 
 /**
  * Stateless security baseline for the scaffold.
@@ -31,10 +36,14 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
  *       defaults from turning a missing configuration into a browser login prompt.
  *   <li><strong>Default response headers kept.</strong> Including
  *       {@code X-Frame-Options: DENY} and {@code X-Content-Type-Options: nosniff}.
+ *   <li><strong>Rate limited.</strong> {@link RateLimitFilter} sits immediately after
+ *       {@link CorsFilter}, so a disallowed origin never reaches it and an allowed
+ *       origin's response — including a {@code 429} — keeps its CORS headers. See
+ *       {@code common.ratelimit} for the single-instance, in-memory token buckets.
  * </ul>
  *
- * <p>Rate limiting and authentication are prerequisites for a public deployment
- * and are deliberately out of scope here.
+ * <p>Authentication remains a prerequisite for a public deployment and is
+ * deliberately out of scope here.
  */
 @Configuration
 @EnableWebSecurity
@@ -42,13 +51,21 @@ class SecurityConfig {
 
     @Bean
     SecurityFilterChain apiSecurityFilterChain(
-            HttpSecurity http, UrlBasedCorsConfigurationSource corsConfigurationSource) throws Exception {
+            HttpSecurity http,
+            UrlBasedCorsConfigurationSource corsConfigurationSource,
+            RateLimitProperties rateLimitProperties,
+            RouteClassifier rateLimitRouteClassifier,
+            RateLimitBucketStore rateLimitBucketStore)
+            throws Exception {
+        RateLimitFilter rateLimitFilter =
+                new RateLimitFilter(rateLimitProperties, rateLimitRouteClassifier, rateLimitBucketStore);
         return http.cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .csrf(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .addFilterAfter(rateLimitFilter, CorsFilter.class)
                 .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
                 .build();
     }

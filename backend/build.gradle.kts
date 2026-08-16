@@ -29,6 +29,8 @@ dependencies {
 
     // --- Security ---
     implementation("org.springframework.boot:spring-boot-starter-security")
+    // Single-instance, in-memory token-bucket rate limiting. See common.ratelimit.
+    implementation("com.bucket4j:bucket4j_jdk17-core:8.19.0")
 
     // --- Persistence ---
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
