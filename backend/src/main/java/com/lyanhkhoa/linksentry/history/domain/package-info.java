@@ -1,9 +1,8 @@
 /**
  * Scan history domain model.
  *
- * <p><strong>Empty by design, and the last milestone.</strong> Exercise 10 — and
- * not before the stateless scan flow works end to end. Designing this table while
- * the analyzer's output is still moving guarantees a rewrite.
+ * <p>Exercise 10 adds the immutable safe snapshot used by the completed scan
+ * flow. The domain type deliberately omits the raw input.
  *
  * <p>When it is time, the governing constraint is what may be stored: the
  * <em>redacted</em> representation only. Never the raw URL, never the query string.

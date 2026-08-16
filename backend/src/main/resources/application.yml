@@ -28,7 +28,6 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
-    # db/migration is intentionally empty until Exercise 10.
     baseline-on-migrate: true
 
 server:
@@ -64,6 +63,9 @@ linksentry:
     # Reported in every scan response so a shared or stored result can be
     # interpreted correctly after the rules or scoring bands change.
     version: ${ENGINE_VERSION:0.1.0}
+  history:
+    # Retained results are shareable by opaque UUID for this many days.
+    retention-days: ${HISTORY_RETENTION_DAYS:30}
   cors:
     # Exact origins only. A wildcard is never acceptable here.
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
