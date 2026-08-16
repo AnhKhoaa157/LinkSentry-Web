@@ -29,7 +29,7 @@ public record RulesProperties(
         @NotNull @Valid SuspiciousKeywords suspiciousKeywords,
         @NotNull @Valid KnownUrlShorteners knownUrlShorteners) {
 
-    /** @param maxLength longest redacted display value tolerated without a finding, in characters */
+    /** @param maxLength longest submitted URL tolerated without a finding, in characters */
     public record ExcessiveUrlLength(@Min(1) int maxLength) {}
 
     /** @param maxDepth deepest subdomain chain tolerated without a finding */

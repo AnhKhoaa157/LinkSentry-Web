@@ -44,7 +44,13 @@ public final class SuspiciousKeywordsRule implements AnalysisRule {
         if (keywords.isEmpty()) {
             throw new IllegalArgumentException("keywords must not be empty");
         }
-        this.keywords = keywords.stream().map(k -> k.toLowerCase(Locale.ROOT)).toList();
+        this.keywords = keywords.stream().map(keyword -> {
+            Objects.requireNonNull(keyword, "keyword");
+            if (keyword.isBlank()) {
+                throw new IllegalArgumentException("keywords must not contain blanks");
+            }
+            return keyword.toLowerCase(Locale.ROOT);
+        }).toList();
     }
 
     @Override

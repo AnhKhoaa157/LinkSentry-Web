@@ -48,7 +48,13 @@ public final class KnownUrlShortenerRule implements AnalysisRule {
             throw new IllegalArgumentException("shortenerDomains must not be empty");
         }
         this.shortenerDomains = shortenerDomains.stream()
-                .map(d -> d.toLowerCase(Locale.ROOT))
+                .map(domain -> {
+                    Objects.requireNonNull(domain, "shortenerDomain");
+                    if (domain.isBlank()) {
+                        throw new IllegalArgumentException("shortenerDomains must not contain blanks");
+                    }
+                    return domain.toLowerCase(Locale.ROOT);
+                })
                 .collect(Collectors.toUnmodifiableSet());
     }
 
