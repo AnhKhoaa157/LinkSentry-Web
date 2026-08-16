@@ -42,4 +42,10 @@ class PublicSuffixDomainResolverTest {
         assertThat(result.registrableDomain()).isNull();
         assertThat(result.subdomains()).isEmpty();
     }
+
+    @Test
+    void returnsNoRegistrableDomainForIpLiterals() {
+        assertThat(resolver.resolve("192.0.2.1").registrableDomain()).isNull();
+        assertThat(resolver.resolve("[2001:db8::1]").registrableDomain()).isNull();
+    }
 }
