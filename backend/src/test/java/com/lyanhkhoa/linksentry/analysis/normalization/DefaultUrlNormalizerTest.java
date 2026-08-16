@@ -145,6 +145,13 @@ class DefaultUrlNormalizerTest {
         assertThat(result.registrableDomain()).isNull();
     }
 
+    @Test
+    void rejectsAnIpv6LiteralThatExceedsThePersistedHostLimit() {
+        String oversizedZone = "a".repeat(253);
+
+        assertInvalidUrl("https://[fe80::1%25" + oversizedZone + "]/login");
+    }
+
     private void assertInvalidUrl(String input) {
         assertThatThrownBy(() -> normalizer.normalize(input))
                 .isInstanceOf(InvalidUrlException.class)

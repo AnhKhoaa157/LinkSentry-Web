@@ -8,6 +8,7 @@ import java.util.Locale;
 
 public final class DefaultUrlNormalizer implements UrlNormalizer {
 
+    private static final int MAX_HOST_LENGTH = 253;
     private static final int MAX_PORT = 65_535;
 
     private final PublicSuffixDomainResolver domainResolver =
@@ -170,7 +171,7 @@ public final class DefaultUrlNormalizer implements UrlNormalizer {
         }
 
         if (host.startsWith("[") || host.endsWith("]")) {
-            if (!isValidIpv6Literal(host)) {
+            if (!isValidIpv6Literal(host) || host.length() > MAX_HOST_LENGTH) {
                 throw new InvalidUrlException("URL must have a valid host");
             }
             return host;
@@ -183,7 +184,7 @@ public final class DefaultUrlNormalizer implements UrlNormalizer {
     }
 
     private void validateAsciiHost(String asciiHost) {
-        if (asciiHost.length() > 253) {
+        if (asciiHost.length() > MAX_HOST_LENGTH) {
             throw new IllegalArgumentException("host is too long");
         }
 
