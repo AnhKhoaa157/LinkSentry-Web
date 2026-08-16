@@ -3,9 +3,12 @@ package com.lyanhkhoa.linksentry.history.persistence;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.jayway.jsonpath.DocumentContext;
+import com.jayway.jsonpath.JsonPath;
 import com.lyanhkhoa.linksentry.analysis.domain.InvalidUrlException;
 import com.lyanhkhoa.linksentry.history.application.ScanHistoryRetentionService;
 import com.lyanhkhoa.linksentry.history.application.ScanHistoryService;
@@ -14,6 +17,7 @@ import com.lyanhkhoa.linksentry.history.domain.StoredFinding;
 import com.lyanhkhoa.linksentry.history.domain.StoredNormalizedUrl;
 import com.lyanhkhoa.linksentry.scan.application.ScanService;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -25,11 +29,13 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -134,23 +140,35 @@ class ScanHistoryPostgresIntegrationTest {
     }
 
     @Test
-    @DisplayName("expired records are unavailable and removed by the retention service")
+    @DisplayName("expired records are unavailable and purge cascades to finding rows")
     void expiredRecordsAreUnavailableAndPurged() {
         UUID scanId = UUID.fromString("9f3d7a0c-421f-4d38-bc5d-5a57f2d4f3c1");
         historyService.save(snapshot(scanId, Instant.now().minusSeconds(31L * 24 * 60 * 60)));
 
         assertThat(historyService.findRetained(scanId)).isEmpty();
+        // The parent row exists but is outside the retention window; the two findings from
+        // snapshot() must actually be present before purge, or the post-purge zero below would
+        // be a false positive (never inserted, rather than deleted by the cascade).
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM scan_history_finding WHERE scan_id = ?", Integer.class, scanId))
+                .isEqualTo(2);
 
         retentionService.purgeExpired();
 
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM scan_history WHERE scan_id = ?", Integer.class, scanId))
                 .isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM scan_history_finding WHERE scan_id = ?", Integer.class, scanId))
+                .isZero();
     }
 
     @Test
-    @DisplayName("missing and malformed IDs return the documented safe 404")
-    void missingAndMalformedIdsReturnSafeNotFound() throws Exception {
+    @DisplayName("missing, malformed, and expired IDs all return an identical safe 404")
+    void missingMalformedAndExpiredIdsReturnIdenticalSafeNotFound() throws Exception {
+        UUID expiredScanId = UUID.fromString("5b1e9c3a-6f2d-4a7b-9e3c-2d1f8a6b4c0e");
+        historyService.save(snapshot(expiredScanId, Instant.now().minusSeconds(31L * 24 * 60 * 60)));
+
         mockMvc.perform(get("/api/v1/scans/{scanId}", UUID.randomUUID()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("SCAN_NOT_FOUND"))
@@ -160,6 +178,97 @@ class ScanHistoryPostgresIntegrationTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("SCAN_NOT_FOUND"))
                 .andExpect(jsonPath("$.message").value("The requested scan could not be found."));
+
+        // A record that genuinely existed but expired must be indistinguishable from one that
+        // never existed at all: same status, same code, same message.
+        mockMvc.perform(get("/api/v1/scans/{scanId}", expiredScanId))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("SCAN_NOT_FOUND"))
+                .andExpect(jsonPath("$.message").value("The requested scan could not be found."));
+    }
+
+    @Test
+    @DisplayName("POST then GET round-trip every public response field through the real schema")
+    void postThenGetRoundTripsEveryResponseField() throws Exception {
+        String querySecret = "roundtrip-query-secret";
+        String fragmentSecret = "roundtrip-fragment-secret";
+        // Host mirrors PublicSuffixDomainResolverTest.keepsDeceptiveBrandLabelsAsSubdomains(),
+        // a verified case with 4 subdomains under a real public suffix (evil-domain.xyz) —
+        // deterministically over the default max-depth of 3, so EXCESSIVE_SUBDOMAINS fires
+        // alongside MISSING_HTTPS (http scheme) without depending on an unverified TLD.
+        String requestBody = "{\"url\":\"http://login.vietcombank.com.vn.evil-domain.xyz/account?token="
+                + querySecret + "#" + fragmentSecret + "\"}";
+
+        MvcResult postResult = mockMvc.perform(post("/api/v1/scans")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isOk())
+                .andReturn();
+        String postBody = postResult.getResponse().getContentAsString();
+        DocumentContext post = JsonPath.parse(postBody);
+        String scanId = post.read("$.data.scanId", String.class);
+
+        MvcResult getResult = mockMvc.perform(get("/api/v1/scans/{scanId}", scanId))
+                .andExpect(status().isOk())
+                .andReturn();
+        String getBody = getResult.getResponse().getContentAsString();
+        DocumentContext get = JsonPath.parse(getBody);
+
+        assertThat(get.read("$.data.scanId", String.class)).isEqualTo(scanId);
+        assertThat(get.read("$.data.input", String.class)).isEqualTo(post.read("$.data.input", String.class));
+        assertThat(get.<Object>read("$.data.normalized")).isEqualTo(post.<Object>read("$.data.normalized"));
+        assertThat(get.read("$.data.score", Integer.class)).isEqualTo(post.read("$.data.score", Integer.class));
+        assertThat(get.read("$.data.riskLevel", String.class))
+                .isEqualTo(post.read("$.data.riskLevel", String.class));
+        // Deep-equals on the whole array proves both the content AND the order of every
+        // finding round-trip unchanged; this URL deterministically fires at least two rules,
+        // so the ordering proof is non-trivial rather than a one-element list trivially "in
+        // order".
+        assertThat(post.read("$.data.findings", List.class)).hasSizeGreaterThanOrEqualTo(2);
+        assertThat(get.<Object>read("$.data.findings")).isEqualTo(post.<Object>read("$.data.findings"));
+        assertThat(get.read("$.meta.engineVersion", String.class))
+                .isEqualTo(post.read("$.meta.engineVersion", String.class));
+
+        // TIMESTAMPTZ only stores microsecond precision; truncate both sides before comparing
+        // so a clock with finer resolution than Postgres cannot make this assertion flaky.
+        Instant postAnalyzedAt = Instant.parse(post.read("$.data.analyzedAt", String.class));
+        Instant getAnalyzedAt = Instant.parse(get.read("$.data.analyzedAt", String.class));
+        assertThat(getAnalyzedAt.truncatedTo(ChronoUnit.MICROS))
+                .isEqualTo(postAnalyzedAt.truncatedTo(ChronoUnit.MICROS));
+
+        assertThat(postBody).doesNotContain(querySecret, fragmentSecret);
+        assertThat(getBody).doesNotContain(querySecret, fragmentSecret);
+    }
+
+    @Test
+    @DisplayName("multiple retained scans stay isolated from each other")
+    void multipleScansRemainIsolated() throws Exception {
+        MvcResult firstPost = mockMvc.perform(post("/api/v1/scans")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"url\":\"https://example.com/first-account\"}"))
+                .andExpect(status().isOk())
+                .andReturn();
+        MvcResult secondPost = mockMvc.perform(post("/api/v1/scans")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"url\":\"http://other-example.org/second-page\"}"))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String firstScanId = JsonPath.parse(firstPost.getResponse().getContentAsString())
+                .read("$.data.scanId", String.class);
+        String secondScanId = JsonPath.parse(secondPost.getResponse().getContentAsString())
+                .read("$.data.scanId", String.class);
+        assertThat(firstScanId).isNotEqualTo(secondScanId);
+
+        mockMvc.perform(get("/api/v1/scans/{scanId}", firstScanId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.input").value("https://example.com/first-account"))
+                .andExpect(jsonPath("$.data.normalized.host").value("example.com"));
+
+        mockMvc.perform(get("/api/v1/scans/{scanId}", secondScanId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.input").value("http://other-example.org/second-page"))
+                .andExpect(jsonPath("$.data.normalized.host").value("other-example.org"));
     }
 
     private ScanHistory snapshot(UUID scanId, Instant analyzedAt) {
