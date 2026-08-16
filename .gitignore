@@ -69,3 +69,8 @@ $RECYCLE.BIN/
 .agents/
 .claude/
 docs/
+
+# ---------- Local LinkSentry agent harness ----------
+/AGENTS.md
+/CLAUDE.md
+/harness/
