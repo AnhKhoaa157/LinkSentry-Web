@@ -98,13 +98,36 @@ describe('ScanPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/could not load this saved scan/i);
     expect(screen.getByRole('alert')).not.toHaveTextContent('trace-2');
   });
+
+  it('treats a malformed scan id in the URL the same as a missing one, accessibly', async () => {
+    // The backend collapses missing, malformed, and expired IDs into the same
+    // SCAN_NOT_FOUND response; a non-UUID route param must reach the same
+    // accessible state as an out-of-range UUID, not a crash or a blank page.
+    const getSpy = vi.spyOn(apiClient, 'get').mockRejectedValue(
+      axiosErrorWithResponse(404, {
+        code: 'SCAN_NOT_FOUND',
+        message: 'The requested scan could not be found.',
+        traceId: 'trace-3',
+      }),
+    );
+
+    renderScanPage('not-a-uuid');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/retention policy/i);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Saved scan unavailable');
+    expect(screen.getByRole('link', { name: /back to scanner/i })).toHaveAttribute('href', '/');
+    expect(getSpy).toHaveBeenCalledWith(
+      '/api/v1/scans/not-a-uuid',
+      expect.objectContaining({ signal: expect.anything() }),
+    );
+  });
 });
 
-function renderScanPage() {
+function renderScanPage(id: string = scanId) {
   return renderWithProviders(
     <Routes>
       <Route path="scans/:scanId" element={<ScanPage />} />
     </Routes>,
-    { route: `/scans/${scanId}` },
+    { route: `/scans/${id}` },
   );
 }

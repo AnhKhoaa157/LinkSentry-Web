@@ -61,4 +61,20 @@ describe('ScanResult', () => {
     expect(screen.getByText(/No signals were detected by the current rules/i)).toBeInTheDocument();
     expect(screen.getByText(/does not mean the link is safe/i)).toBeInTheDocument();
   });
+
+  it('renders HTML-shaped submitted content as inert plain text, never markup, a link, or an iframe', () => {
+    // Backend redaction should already strip anything hostile, but the frontend
+    // must never trust that: rendering this verbatim must not produce a live
+    // element. If ScanResult ever used dangerouslySetInnerHTML or wrapped input
+    // in an <a>/<iframe>, this is what would catch it.
+    const hostileInput = '<img src=x onerror=alert(1)>https://example.com/<script>alert(2)</script>';
+    const { container } = renderWithProviders(<ScanResult data={{ ...baseData, input: hostileInput }} />);
+
+    const rendered = screen.getByText(hostileInput);
+    expect(rendered.tagName).toBe('P');
+    expect(container.querySelector('img')).toBeNull();
+    expect(container.querySelector('script')).toBeNull();
+    expect(container.querySelector('iframe')).toBeNull();
+    expect(container.querySelector('a')).toBeNull();
+  });
 });

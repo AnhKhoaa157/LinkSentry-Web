@@ -69,10 +69,11 @@ describe('Scanner', () => {
     expect(screen.getByText('Moderate risk')).toBeInTheDocument();
     expect(screen.getByText('Connection is not encrypted')).toBeInTheDocument();
     expect(screen.getByText('security-check.invalid')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /open shareable result/i })).toHaveAttribute(
-      'href',
-      '/scans/2ce16fb9-d52d-4310-8d45-a4e48f31889e',
-    );
+    const shareLink = screen.getByRole('link', { name: /open shareable result/i });
+    expect(shareLink).toHaveAttribute('href', '/scans/2ce16fb9-d52d-4310-8d45-a4e48f31889e');
+    // The share link must carry only the opaque scan id — never the submitted or
+    // redacted URL text, which would defeat the point of an opaque permalink.
+    expect(shareLink.getAttribute('href')).not.toMatch(/login|example|security-check|http/i);
   });
 
   it('rejects an invalid URL client-side without calling the API', async () => {
