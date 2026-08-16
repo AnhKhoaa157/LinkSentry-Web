@@ -1,0 +1,71 @@
+# ---------- Environment ----------
+.env
+.env.local
+.env.*.local
+*.env
+!.env.example
+
+# ---------- Java / Gradle ----------
+build/
+out/
+bin/
+target/
+.gradle/
+gradle-app.setting
+*.class
+*.jar
+*.war
+*.ear
+# The wrapper jar must be committed, or `./gradlew` cannot bootstrap on a fresh
+# clone. Patterns need a leading `**/` to match below the repository root, which
+# is where `backend/gradle/wrapper/` lives.
+!**/gradle/wrapper/gradle-wrapper.jar
+!**/gradle/wrapper/gradle-wrapper.properties
+*.log
+hs_err_pid*
+replay_pid*
+
+# ---------- Node / Vite ----------
+node_modules/
+dist/
+dist-ssr/
+.vite/
+vite.config.ts.timestamp-*
+coverage/
+*.tsbuildinfo
+.eslintcache
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---------- IntelliJ IDEA ----------
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# ---------- VS Code ----------
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json.example
+
+# ---------- Logs ----------
+logs/
+*.log.*
+
+# ---------- OS metadata ----------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ---------- Local agent configuration ----------
+.agents/
+.claude/
+docs/

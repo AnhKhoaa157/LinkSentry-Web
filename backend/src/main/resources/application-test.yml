@@ -1,0 +1,38 @@
+# Test profile.
+#
+# Uses in-memory H2 so `./gradlew test` runs with no Docker daemon and no local
+# PostgreSQL. This is adequate for verifying that the application context starts
+# and that the web layer behaves.
+#
+# It is NOT adequate for verifying SQL. H2 does not share PostgreSQL's dialect,
+# column types, or constraint behaviour, so the repository tests of Exercise 10
+# must use Testcontainers PostgreSQL instead (already on the test classpath).
+
+spring:
+  datasource:
+    url: jdbc:h2:mem:linksentry;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: none
+  flyway:
+    # No migrations exist yet, and the ones that will are PostgreSQL-specific.
+    enabled: false
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+linksentry:
+  cors:
+    allowed-origins: http://localhost:5173
+    allowed-methods: GET,POST,OPTIONS
+
+logging:
+  level:
+    root: WARN
+    com.lyanhkhoa.linksentry: INFO

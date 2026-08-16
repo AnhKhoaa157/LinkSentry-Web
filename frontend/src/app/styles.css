@@ -1,0 +1,85 @@
+@import 'tailwindcss';
+
+/*
+ * LinkSentry design tokens.
+ *
+ * Calm, technical, deliberately not alarmist: a security tool that shouts loses
+ * the user's attention exactly when a real finding appears. Risk colours will be
+ * added with the result UI (Exercise 9) and must always be paired with a text
+ * label — colour alone is not an accessible signal.
+ */
+@theme {
+  --color-ink-950: #05080f;
+  --color-ink-900: #0b1220;
+  --color-ink-850: #101a2c;
+  --color-ink-800: #16243c;
+  --color-ink-700: #1f3355;
+  --color-ink-500: #64769a;
+  --color-ink-300: #a8b6d1;
+  --color-ink-100: #e6ecf7;
+
+  --color-accent-400: #22d3ee;
+  --color-accent-500: #06b6d4;
+  --color-accent-600: #0891b2;
+
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Consolas, monospace;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--color-ink-950);
+    color: var(--color-ink-100);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-wrap: pretty;
+  }
+
+  /* A visible focus ring on every focusable element. Keyboard users are not an
+     afterthought, and a security tool that cannot be operated without a mouse is
+     not finished. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent-400);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  ::selection {
+    background-color: var(--color-accent-600);
+    color: white;
+  }
+}
+
+@layer utilities {
+  /* Visible only to assistive technology — used by the skip link. */
+  .sr-only-focusable:not(:focus):not(:focus-within) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border-width: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
