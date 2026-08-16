@@ -5,9 +5,8 @@ import java.util.Optional;
 /**
  * One independent, explainable check against a {@link NormalizedUrl}.
  *
- * <p><strong>Not implemented.</strong> Implementations belong in
- * {@code analysis.rules} — one class per rule, one test class per rule
- * (Exercise 4).
+ * <p>Implementations belong in {@code analysis.rules} — one class per rule, one
+ * test class per rule (Exercise 4).
  *
  * <p>Invariants every implementation must uphold:
  *

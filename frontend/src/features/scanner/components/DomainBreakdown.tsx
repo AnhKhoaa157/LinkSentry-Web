@@ -14,7 +14,7 @@ function splitHost(
   host: string,
   registrableDomain: string | null,
 ): { readonly prefix: string | null; readonly registrable: string | null } {
-  if (!registrableDomain || !host.endsWith(registrableDomain)) {
+  if (!registrableDomain || (host !== registrableDomain && !host.endsWith(`.${registrableDomain}`))) {
     return { prefix: null, registrable: null };
   }
   const prefixEnd = host.length - registrableDomain.length;

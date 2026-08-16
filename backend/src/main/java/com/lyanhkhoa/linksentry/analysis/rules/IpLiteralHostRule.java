@@ -4,6 +4,7 @@ import com.lyanhkhoa.linksentry.analysis.domain.AnalysisRule;
 import com.lyanhkhoa.linksentry.analysis.domain.NormalizedUrl;
 import com.lyanhkhoa.linksentry.analysis.domain.RuleFinding;
 import com.lyanhkhoa.linksentry.analysis.domain.Severity;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -38,6 +39,7 @@ public final class IpLiteralHostRule implements AnalysisRule {
 
     @Override
     public Optional<RuleFinding> analyze(NormalizedUrl url) {
+        Objects.requireNonNull(url, "url");
         if (!url.ipLiteral()) {
             return Optional.empty();
         }

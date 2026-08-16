@@ -37,6 +37,15 @@ class DefaultRiskScorerTest {
     }
 
     @Test
+    @DisplayName("score clamps without overflowing when individual points are very large")
+    void scoreDoesNotOverflowBeforeClamping() {
+        List<RuleFinding> findings = List.of(
+                finding("A", Integer.MAX_VALUE), finding("B", Integer.MAX_VALUE));
+
+        assertThat(scorer.score(findings)).isEqualTo(100);
+    }
+
+    @Test
     @DisplayName("LOW band covers 0 through 9")
     void lowBandBoundaries() {
         assertThat(scorer.levelOf(0)).isEqualTo(RiskLevel.LOW);

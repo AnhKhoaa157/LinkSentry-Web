@@ -20,7 +20,7 @@ const boundaries = [
   },
 ] as const;
 
-/** Landing page: product statement, disabled scanner preview, boundary, health. */
+/** Landing page: product statement, scanner, boundary, and service health. */
 export function HomePage() {
   return (
     <div className="space-y-12">

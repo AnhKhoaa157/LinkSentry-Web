@@ -1,6 +1,6 @@
 import { Card } from '@/components/ui/Card';
 
-const plannedSignals = [
+const signals = [
   {
     id: 'Registrable domain',
     body: 'Which domain was actually registered, separated from the subdomains anyone can invent. This is the signal the rest depends on.',
@@ -66,14 +66,15 @@ export function MethodologyPage() {
 
       <section aria-labelledby="signals-heading" className="space-y-4">
         <h2 id="signals-heading" className="text-xl font-semibold tracking-tight">
-          Planned signals
+          Signals used today
         </h2>
         <p className="text-ink-300 text-sm">
-          None of these are implemented yet. They are the rules the analyzer is being built to apply.
+          These are the deterministic signals the stateless analyzer evaluates. Each finding explains its
+          contribution to the score.
         </p>
 
         <dl className="space-y-3">
-          {plannedSignals.map((signal) => (
+          {signals.map((signal) => (
             <div key={signal.id} className="border-ink-800 bg-ink-900/50 rounded-lg border p-4">
               <dt className="text-ink-100 text-sm font-semibold">{signal.id}</dt>
               <dd className="text-ink-300 mt-1 text-sm">{signal.body}</dd>

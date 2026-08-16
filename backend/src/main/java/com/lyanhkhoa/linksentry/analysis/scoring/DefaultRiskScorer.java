@@ -38,8 +38,11 @@ public final class DefaultRiskScorer implements RiskScorer {
     @Override
     public int score(List<RuleFinding> findings) {
         Objects.requireNonNull(findings, "findings");
-        int total = findings.stream().mapToInt(RuleFinding::points).sum();
-        return Math.clamp(total, AnalysisResult.MIN_SCORE, AnalysisResult.MAX_SCORE);
+        long total = findings.stream().mapToLong(RuleFinding::points).sum();
+        if (total >= AnalysisResult.MAX_SCORE) {
+            return AnalysisResult.MAX_SCORE;
+        }
+        return (int) Math.max(total, AnalysisResult.MIN_SCORE);
     }
 
     @Override

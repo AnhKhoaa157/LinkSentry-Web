@@ -2,7 +2,7 @@
  * Risk scoring: combining findings into a number and a band.
  *
  * <p>Holds the {@link com.lyanhkhoa.linksentry.analysis.scoring.RiskScorer}
- * contract and no implementation (Exercise 5).
+ * contract and its default implementation.
  *
  * <p>The band thresholds live here rather than on
  * {@link com.lyanhkhoa.linksentry.analysis.domain.RiskLevel} because they are

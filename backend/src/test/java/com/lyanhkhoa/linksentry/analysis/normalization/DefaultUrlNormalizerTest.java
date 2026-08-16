@@ -108,6 +108,43 @@ class DefaultUrlNormalizerTest {
         assertThat(result.ipLiteral()).isFalse();
     }
 
+    @Test
+    void canonicalizesAChostTrailingDot() {
+        NormalizedUrl result = normalizer.normalize("https://EXAMPLE.COM./path");
+
+        assertThat(result.host()).isEqualTo("example.com");
+        assertThat(result.asciiHost()).isEqualTo("example.com");
+        assertThat(result.registrableDomain()).isEqualTo("example.com");
+        assertThat(result.redactedDisplayValue()).isEqualTo("https://example.com/path");
+    }
+
+    @Test
+    void acceptsTheFullPortRangeAndRejectsPortsOutsideIt() {
+        assertThat(normalizer.normalize("https://example.com:0").port()).isZero();
+        assertThat(normalizer.normalize("https://example.com:65535").port()).isEqualTo(65535);
+
+        assertInvalidUrl("https://example.com:65536");
+        assertInvalidUrl("https://example.com:");
+        assertInvalidUrl("https://example.com:abc");
+    }
+
+    @Test
+    void rejectsMalformedHostLabelsAndBracketedNonIpv6Hosts() {
+        assertInvalidUrl("https://a..example.com");
+        assertInvalidUrl("https://-example.com");
+        assertInvalidUrl("https://example-.com");
+        assertInvalidUrl("https://256.256.256.256");
+        assertInvalidUrl("https://[not-an-ip]");
+    }
+
+    @Test
+    void acceptsAnIpv4MappedIpv6Literal() {
+        NormalizedUrl result = normalizer.normalize("https://[::ffff:192.0.2.1]/");
+
+        assertThat(result.ipLiteral()).isTrue();
+        assertThat(result.registrableDomain()).isNull();
+    }
+
     private void assertInvalidUrl(String input) {
         assertThatThrownBy(() -> normalizer.normalize(input))
                 .isInstanceOf(InvalidUrlException.class)

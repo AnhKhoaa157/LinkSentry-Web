@@ -9,11 +9,11 @@ version = "0.1.0"
 description = "LinkSentry — explainable phishing URL analysis API"
 
 java {
-    // Java 26 is the JDK configured for this development environment.
+    // Java 26 is the JDK configured for this repository and CI.
     // See docs/ARCHITECTURE.md §7 for why this differs from the original
     // Java 21 specification; changing the number here is the whole migration.
     toolchain {
-        languageVersion = JavaLanguageVersion.of(25)
+        languageVersion = JavaLanguageVersion.of(26)
     }
 }
 

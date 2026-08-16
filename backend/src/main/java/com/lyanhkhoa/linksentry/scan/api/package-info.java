@@ -1,9 +1,9 @@
 /**
  * HTTP boundary of the scan feature.
  *
- * <p><strong>Empty by design.</strong> Exercise 7 adds {@code ScanController} for
- * {@code POST /api/v1/scans} plus its request and response DTOs, against the
- * contract in {@code docs/API_CONTRACT.md}.
+ * <p>Exercise 7 adds {@code ScanController} for {@code POST /api/v1/scans} plus
+ * its request and response DTOs, against the contract in
+ * {@code docs/API_CONTRACT.md}.
  *
  * <p>Rules for this package:
  *

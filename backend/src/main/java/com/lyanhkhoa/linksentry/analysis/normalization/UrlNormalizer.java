@@ -6,7 +6,7 @@ import com.lyanhkhoa.linksentry.analysis.domain.NormalizedUrl;
 /**
  * Converts raw user input into a safe canonical {@link NormalizedUrl}.
  *
- * <p><strong>Not implemented.</strong> This is Exercises 1–3, and it is the most
+ * <p>This is the implementation boundary for Exercises 1–3, and it is the most
  * important code in the product: every rule downstream trusts whatever this
  * produces.
  *
@@ -25,6 +25,11 @@ import com.lyanhkhoa.linksentry.analysis.domain.NormalizedUrl;
  *   <li><strong>Produce a redacted display value.</strong> It is the only
  *       representation the UI, the logs and the database may ever see.
  *   <li><strong>Deterministic.</strong> Same input, same output.
+ *   <li><strong>Canonical host.</strong> Hosts are lowercased; a trailing DNS dot
+ *       is accepted and removed, while embedded credentials are rejected.
+ *   <li><strong>Explicit ports are preserved.</strong> This includes the default
+ *       ports {@code 80} and {@code 443}; the display value keeps the submitted
+ *       connection target visible.
  * </ul>
  *
  * <p>Two traps worth knowing before you start: {@code java.net.URI} accepts plenty

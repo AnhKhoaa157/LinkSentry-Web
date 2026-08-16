@@ -10,9 +10,7 @@
  * tests are plain JUnit with no application context to start — so a table-driven
  * suite of hundreds of URLs stays fast enough to run on every save.
  *
- * <p>Current state: contracts only. {@link
- * com.lyanhkhoa.linksentry.analysis.domain.UrlAnalyzer} and {@link
- * com.lyanhkhoa.linksentry.analysis.domain.AnalysisRule} have no implementations —
- * see {@code docs/MANUAL_IMPLEMENTATION_GUIDE.md}.
+ * <p>The analyzer and rule contracts have framework-free implementations in this
+ * module; Spring wiring remains outside the domain package.
  */
 package com.lyanhkhoa.linksentry.analysis.domain;
