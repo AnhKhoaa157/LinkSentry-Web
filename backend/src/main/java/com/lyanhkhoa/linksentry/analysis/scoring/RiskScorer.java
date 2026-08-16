@@ -7,9 +7,9 @@ import java.util.List;
 /**
  * Turns a set of findings into a transparent score and a {@link RiskLevel}.
  *
- * <p><strong>Not implemented.</strong> This is Exercise 5, including the choice of
- * band thresholds — which are a decision to make and document, not a value to
- * copy.
+ * <p>The default implementation is Exercise 5, including the documented choice
+ * of band thresholds. Keep the policy explicit rather than hiding it in a
+ * comparison chain.
  *
  * <p>Invariants an implementation must uphold:
  *

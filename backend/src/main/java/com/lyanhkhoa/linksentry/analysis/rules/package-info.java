@@ -2,7 +2,7 @@
  * Individual {@link com.lyanhkhoa.linksentry.analysis.domain.AnalysisRule}
  * implementations.
  *
- * <p><strong>Empty by design.</strong> Exercise 4 fills it, one rule at a time:
+ * <p>Exercise 4 fills it, one rule at a time:
  *
  * <ol>
  *   <li>{@code MISSING_HTTPS}

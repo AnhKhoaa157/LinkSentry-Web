@@ -4,7 +4,7 @@ package com.lyanhkhoa.linksentry.analysis.domain;
  * Orchestrates the whole analysis pipeline. The only entry point the application
  * layer should depend on.
  *
- * <p><strong>Not implemented.</strong> Build it in Exercise 6, on top of a
+ * <p>The default implementation builds this pipeline on top of a
  * {@link com.lyanhkhoa.linksentry.analysis.normalization.UrlNormalizer}, an
  * ordered collection of {@link AnalysisRule}s, and a
  * {@link com.lyanhkhoa.linksentry.analysis.scoring.RiskScorer}:

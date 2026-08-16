@@ -12,28 +12,23 @@ The registered domain here is `evil-domain.xyz`. `vietcombank.com.vn` appears on
 inside the subdomain, where anyone can put anything. Explaining that clearly, and
 in a way a non-expert can act on, is the whole point of the product.
 
-## Status: scaffold
+## Status: stateless MVP
 
-This repository is a **runnable foundation**, not a finished product. The frontend
-shell, the API, the health endpoint, the security baseline, the error contract, the
-build and the CI all work. The analyzer does not exist yet.
+The stateless analyzer, scan API, and explainable scanner UI are implemented and
+covered by backend and frontend tests. The service parses URLs as text only: it
+does not visit submitted targets, resolve DNS, or persist scan history.
 
-| Working                                            | Deliberately not implemented                        |
-| -------------------------------------------------- | --------------------------------------------------- |
-| React shell: home, methodology, 404, navigation     | URL parsing and normalisation                        |
-| `GET /api/v1/health` + live health widget           | Registrable-domain extraction (Public Suffix List)   |
-| Stateless Spring Security, configured CORS          | Detection rules, risk scoring, thresholds            |
-| Global error envelope with a `traceId`              | `POST /api/v1/scans`                                 |
-| Framework-free domain contracts                     | Scanner submission and result UI                     |
-| PostgreSQL + Flyway wired (no migrations yet)        | Scan history persistence                             |
-| 32 backend tests, 17 frontend tests, 2 CI workflows | Authentication, rate limiting                        |
+| Working                                                  | Deliberately out of scope                         |
+| -------------------------------------------------------- | ------------------------------------------------- |
+| URL validation, IDNA normalisation, and Public Suffix List | Scan history persistence                         |
+| Eight deterministic, explainable analysis rules           | Authentication and rate limiting                 |
+| Transparent `0..100` scoring and risk levels              | Threat-intelligence and destination fetching     |
+| `POST /api/v1/scans` with redacted response DTOs           | Brand impersonation and Unicode homograph rules  |
+| Scanner submission, result UI, and health widget           |                                                 |
+| Stateless Spring Security, CORS, CI, and regression tests  |                                                 |
 
-The analyzer is left unbuilt on purpose: it is the part worth writing by hand.
-[`docs/MANUAL_IMPLEMENTATION_GUIDE.md`](docs/MANUAL_IMPLEMENTATION_GUIDE.md) is a
-ten-exercise plan for building it, in order, with tests.
-
-**The UI shows no fabricated results.** The scanner input on the home page is a
-genuinely disabled preview, labelled as such.
+[`docs/MANUAL_IMPLEMENTATION_GUIDE.md`](docs/MANUAL_IMPLEMENTATION_GUIDE.md)
+records the implementation decisions and the remaining persistence exercise.
 
 ## Security boundary
 
@@ -41,6 +36,10 @@ LinkSentry analyses URLs **as text only**. It never visits a submitted URL,
 resolves its DNS, follows its redirects, downloads its content, renders it in an
 iframe, or turns it into a clickable link. That is what keeps the service from
 becoming an SSRF tool aimed by whoever fills in the form.
+
+Embedded URL credentials are rejected. Explicit ports are preserved, including
+the default HTTP and HTTPS ports, so the submitted connection target remains
+visible in the redacted display value.
 
 The consequence is stated everywhere it matters: **a low score is not evidence that
 a link is safe.** Full rationale in
@@ -227,7 +226,7 @@ Everything below is pinned in `backend/build.gradle.kts`,
 
 Two version choices are worth explaining:
 
-- **Java 25, not 21.** The repository and CI use JDK 25. Changing it is one line
+- **Java 26, not 21.** The repository and CI use JDK 26. Changing it is one line
   in `backend/build.gradle.kts`.
 - **TypeScript 6.0.x, not 7.** TypeScript 7 is released, but `typescript-eslint`
   still declares a peer range of `<6.1.0`. Pinning to 6.0.x keeps lint and type
