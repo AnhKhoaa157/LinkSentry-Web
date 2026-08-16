@@ -12,23 +12,25 @@ The registered domain here is `evil-domain.xyz`. `vietcombank.com.vn` appears on
 inside the subdomain, where anyone can put anything. Explaining that clearly, and
 in a way a non-expert can act on, is the whole point of the product.
 
-## Status: stateless MVP
+## Status: persisted stateless MVP
 
 The stateless analyzer, scan API, and explainable scanner UI are implemented and
 covered by backend and frontend tests. The service parses URLs as text only: it
-does not visit submitted targets, resolve DNS, or persist scan history.
+does not visit submitted targets or resolve DNS. Successful scans persist only a
+safe response snapshot for 30 days by default, addressable by an opaque UUID.
 
 | Working                                                  | Deliberately out of scope                         |
 | -------------------------------------------------------- | ------------------------------------------------- |
-| URL validation, IDNA normalisation, and Public Suffix List | Scan history persistence                         |
-| Eight deterministic, explainable analysis rules           | Authentication and rate limiting                 |
-| Transparent `0..100` scoring and risk levels              | Threat-intelligence and destination fetching     |
-| `POST /api/v1/scans` with redacted response DTOs           | Brand impersonation and Unicode homograph rules  |
-| Scanner submission, result UI, and health widget           |                                                 |
+| URL validation, IDNA normalisation, and Public Suffix List | Authentication and rate limiting                 |
+| Eight deterministic, explainable analysis rules           | Threat-intelligence and destination fetching     |
+| Transparent `0..100` scoring and risk levels              | Brand impersonation and Unicode homograph rules  |
+| `POST /api/v1/scans` with redacted response DTOs           | Global history/list endpoint                    |
+| `GET /api/v1/scans/{scanId}` with 30-day retention         |                                                 |
+| Scanner submission, retrieval permalink, and health widget |                                                 |
 | Stateless Spring Security, CORS, CI, and regression tests  |                                                 |
 
 [`docs/MANUAL_IMPLEMENTATION_GUIDE.md`](docs/MANUAL_IMPLEMENTATION_GUIDE.md)
-records the implementation decisions and the remaining persistence exercise.
+records the persistence decisions and the remaining security milestones.
 
 ## Security boundary
 
@@ -50,7 +52,7 @@ a link is safe.** Full rationale in
 
 | Tool           | Version                | Notes                                              |
 | -------------- | ---------------------- | -------------------------------------------------- |
-| JDK            | **25** (LTS)           | Matches the Gradle toolchain                        |
+| JDK            | **26**                  | Matches the Gradle toolchain and CI                 |
 | Node.js        | **20.19+**, 24 recommended | npm 10+                                        |
 | Docker         | with Compose v2+       | For PostgreSQL                                      |
 | Gradle         | not required           | Use the wrapper (`./gradlew`)                       |
@@ -157,7 +159,7 @@ returned 200.
 | Command                    | Purpose                                        |
 | -------------------------- | ---------------------------------------------- |
 | `./gradlew bootRun`        | Run the API (needs PostgreSQL)                 |
-| `./gradlew test`           | Run all tests (no Docker needed — H2)          |
+| `./gradlew test`           | Run all tests (Docker required for PostgreSQL Testcontainers; H2 covers context tests only) |
 | `./gradlew build`          | Compile, test, and assemble the boot jar       |
 | `./gradlew bootJar`        | Assemble the executable jar only               |
 | `./gradlew clean`          | Delete build output                            |
@@ -199,8 +201,8 @@ Everything below is pinned in `backend/build.gradle.kts`,
 
 | Component            | Version                                    |
 | -------------------- | ------------------------------------------ |
-| Java toolchain       | 25 (LTS)                                   |
-| Gradle               | 9.1.0 (wrapper)                            |
+| Java toolchain       | 26                                         |
+| Gradle               | 9.4.0 (wrapper)                            |
 | Spring Boot          | 4.1.0                                      |
 | springdoc-openapi    | 3.1.0                                      |
 | Flyway               | managed by Spring Boot                     |
