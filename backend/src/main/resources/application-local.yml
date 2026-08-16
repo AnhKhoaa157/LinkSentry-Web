@@ -1,0 +1,30 @@
+# Local development profile.
+#
+# Requires PostgreSQL. Start it first:
+#   docker compose up -d db
+
+spring:
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+
+server:
+  error:
+    # Still never sent to the client — read stack traces from the console instead.
+    include-stacktrace: never
+
+springdoc:
+  # Swagger UI is a development convenience. Disable it before public deployment.
+  swagger-ui:
+    enabled: true
+  api-docs:
+    enabled: true
+
+logging:
+  level:
+    com.lyanhkhoa.linksentry: DEBUG
+    org.flywaydb: INFO
+    # Deliberately not enabling org.springframework.web request logging: it prints
+    # full request URIs, and a submitted URL must never reach the log.

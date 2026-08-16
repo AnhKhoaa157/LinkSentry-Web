@@ -1,0 +1,116 @@
+package com.lyanhkhoa.linksentry.common.exception;
+
+import com.lyanhkhoa.linksentry.analysis.domain.InvalidUrlException;
+import com.lyanhkhoa.linksentry.common.api.ErrorResponse;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.validation.FieldError;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
+
+/**
+ * Translates exceptions into the single documented {@link ErrorResponse} envelope.
+ *
+ * <p>Two rules govern everything here:
+ *
+ * <ol>
+ *   <li><strong>Nothing internal escapes.</strong> Unexpected failures return a
+ *       fixed generic message. The exception itself is logged with a
+ *       {@code traceId} that the client also receives, so an operator can find the
+ *       stack trace without the client ever seeing it.
+ *   <li><strong>Nothing user-submitted is logged.</strong> A rejected value may be
+ *       a URL carrying a session token in its query string. Log the failure and
+ *       the field <em>name</em>, never the value.
+ * </ol>
+ */
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    private static final String GENERIC_MESSAGE = "The request could not be completed. Please try again later.";
+
+    /** Bean Validation failures on a request body. */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException exception) {
+        Map<String, String> fieldErrors = new LinkedHashMap<>();
+        for (FieldError fieldError : exception.getBindingResult().getFieldErrors()) {
+            // Only the field name and the constraint message — never the value.
+            fieldErrors.putIfAbsent(
+                    fieldError.getField(),
+                    fieldError.getDefaultMessage() == null ? "Invalid value." : fieldError.getDefaultMessage());
+        }
+
+        String traceId = newTraceId();
+        log.info("Validation failed [traceId={}] for fields {}", traceId, fieldErrors.keySet());
+
+        return ResponseEntity.badRequest()
+                .body(ErrorResponse.ofFieldErrors(
+                        "VALIDATION_ERROR", "The request contains invalid values.", fieldErrors, traceId));
+    }
+
+    /** Submitted value is not an analysable {@code http}/{@code https} URL. */
+    @ExceptionHandler(InvalidUrlException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidUrl(InvalidUrlException exception) {
+        String traceId = newTraceId();
+        // exception.getMessage() never quotes the offending input; see InvalidUrlException.
+        log.info("Invalid URL rejected [traceId={}]: {}", traceId, exception.getMessage());
+
+        return ResponseEntity.badRequest()
+                .body(ErrorResponse.ofFieldErrors(
+                        "INVALID_URL",
+                        "The submitted value is not a supported HTTP or HTTPS URL.",
+                        Map.of("url", "Enter a valid HTTP or HTTPS URL."),
+                        traceId));
+    }
+
+    /** Unparseable or absent request body. */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleUnreadable(HttpMessageNotReadableException exception) {
+        String traceId = newTraceId();
+        // The exception message can quote the offending payload, so it is not logged.
+        log.info("Unreadable request body [traceId={}]", traceId);
+
+        return ResponseEntity.badRequest()
+                .body(ErrorResponse.of("MALFORMED_REQUEST", "The request body is not valid JSON.", traceId));
+    }
+
+    /** Unknown route. */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNotFound(NoResourceFoundException exception) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ErrorResponse.of("NOT_FOUND", "The requested resource does not exist.", newTraceId()));
+    }
+
+    /** Known route, wrong HTTP method. */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMethodNotAllowed(HttpRequestMethodNotSupportedException exception) {
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+                .body(ErrorResponse.of(
+                        "METHOD_NOT_ALLOWED", "This method is not supported for the requested resource.",
+                        newTraceId()));
+    }
+
+    /** Anything unanticipated. The client learns only that it failed. */
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleUnexpected(Exception exception) {
+        String traceId = newTraceId();
+        log.error("Unhandled exception [traceId={}]", traceId, exception);
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ErrorResponse.of("INTERNAL_ERROR", GENERIC_MESSAGE, traceId));
+    }
+
+    private static String newTraceId() {
+        return UUID.randomUUID().toString();
+    }
+}
