@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * The {@code data} payload of a successful {@code POST /api/v1/scans} response.
+ * The {@code data} payload of a successful scan response.
  *
  * @param scanId     identifier generated for this scan, at the API boundary
  * @param input      the redacted display value — never the raw submission

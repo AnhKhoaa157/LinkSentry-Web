@@ -2,6 +2,7 @@ package com.lyanhkhoa.linksentry.common.exception;
 
 import com.lyanhkhoa.linksentry.analysis.domain.InvalidUrlException;
 import com.lyanhkhoa.linksentry.common.api.ErrorResponse;
+import com.lyanhkhoa.linksentry.history.application.ScanNotFoundException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -62,8 +63,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidUrlException.class)
     public ResponseEntity<ErrorResponse> handleInvalidUrl(InvalidUrlException exception) {
         String traceId = newTraceId();
-        // exception.getMessage() never quotes the offending input; see InvalidUrlException.
-        log.info("Invalid URL rejected [traceId={}]: {}", traceId, exception.getMessage());
+        // Keep the log fixed even if a future validation path changes its exception text.
+        log.info("Invalid URL rejected [traceId={}]", traceId);
 
         return ResponseEntity.badRequest()
                 .body(ErrorResponse.ofFieldErrors(
@@ -71,6 +72,16 @@ public class GlobalExceptionHandler {
                         "The submitted value is not a supported HTTP or HTTPS URL.",
                         Map.of("url", "Enter a valid HTTP or HTTPS URL."),
                         traceId));
+    }
+
+    /** Missing, malformed, and expired opaque scan IDs share one safe response. */
+    @ExceptionHandler(ScanNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleScanNotFound(ScanNotFoundException exception) {
+        String traceId = newTraceId();
+        log.info("Scan not found [traceId={}]", traceId);
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ErrorResponse.of("SCAN_NOT_FOUND", "The requested scan could not be found.", traceId));
     }
 
     /** Unparseable or absent request body. */

@@ -1,6 +1,7 @@
 package com.lyanhkhoa.linksentry.scan.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 import com.lyanhkhoa.linksentry.analysis.domain.AnalysisResult;
 import com.lyanhkhoa.linksentry.analysis.domain.NormalizedUrl;
@@ -9,6 +10,7 @@ import com.lyanhkhoa.linksentry.analysis.domain.RuleFinding;
 import com.lyanhkhoa.linksentry.analysis.domain.Severity;
 import com.lyanhkhoa.linksentry.analysis.domain.UrlAnalyzer;
 import com.lyanhkhoa.linksentry.common.config.EngineProperties;
+import com.lyanhkhoa.linksentry.history.application.ScanHistoryService;
 import com.lyanhkhoa.linksentry.scan.api.ScanResponse;
 import java.time.Clock;
 import java.time.Instant;
@@ -25,7 +27,8 @@ class ScanServiceTest {
     @Test
     @DisplayName("stamps a fresh scan id, the clock's instant, and the configured engine version")
     void stampsScanIdentity() {
-        ScanService service = new ScanService(fixedAnalyzer(), new EngineProperties("0.1.0"), fixedClock);
+        ScanService service = new ScanService(
+                fixedAnalyzer(), new EngineProperties("0.1.0"), fixedClock, mock(ScanHistoryService.class));
 
         ScanResponse response = service.scan("https://example.com/reset-password?token=secret");
 
@@ -37,7 +40,8 @@ class ScanServiceTest {
     @Test
     @DisplayName("two scans of the same input get different scan ids")
     void scanIdsAreUnique() {
-        ScanService service = new ScanService(fixedAnalyzer(), new EngineProperties("0.1.0"), fixedClock);
+        ScanService service = new ScanService(
+                fixedAnalyzer(), new EngineProperties("0.1.0"), fixedClock, mock(ScanHistoryService.class));
 
         ScanResponse first = service.scan("https://example.com/");
         ScanResponse second = service.scan("https://example.com/");
@@ -48,7 +52,8 @@ class ScanServiceTest {
     @Test
     @DisplayName("the response carries only the redacted display value, never the raw submission")
     void responseCarriesOnlyRedactedValue() {
-        ScanService service = new ScanService(fixedAnalyzer(), new EngineProperties("0.1.0"), fixedClock);
+        ScanService service = new ScanService(
+                fixedAnalyzer(), new EngineProperties("0.1.0"), fixedClock, mock(ScanHistoryService.class));
 
         ScanResponse response = service.scan("https://example.com/reset-password?token=secret");
 
@@ -59,7 +64,8 @@ class ScanServiceTest {
     @Test
     @DisplayName("findings and score pass through from the analyzer unchanged")
     void findingsAndScorePassThrough() {
-        ScanService service = new ScanService(fixedAnalyzer(), new EngineProperties("0.1.0"), fixedClock);
+        ScanService service = new ScanService(
+                fixedAnalyzer(), new EngineProperties("0.1.0"), fixedClock, mock(ScanHistoryService.class));
 
         ScanResponse response = service.scan("https://example.com/reset-password?token=secret");
 
