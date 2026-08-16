@@ -1,7 +1,8 @@
 import { z } from 'zod';
 
 /**
- * Response of `POST /api/v1/scans`. Mirrors `docs/API_CONTRACT.md`.
+ * Response of `POST /api/v1/scans` and `GET /api/v1/scans/{scanId}`. Mirrors
+ * `docs/API_CONTRACT.md`.
  *
  * Parsed rather than merely typed: a backend contract change must surface as a
  * clear parse failure, not as `undefined` quietly rendered in the UI.

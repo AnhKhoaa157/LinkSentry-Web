@@ -9,9 +9,8 @@ version = "0.1.0"
 description = "LinkSentry — explainable phishing URL analysis API"
 
 java {
-    // Java 26 is the JDK configured for this repository and CI.
-    // See docs/ARCHITECTURE.md §7 for why this differs from the original
-    // Java 21 specification; changing the number here is the whole migration.
+    // Java 26 is the JDK configured for this repository and CI. Keep the
+    // toolchain version here aligned with docs/ARCHITECTURE.md section 7.
     toolchain {
         languageVersion = JavaLanguageVersion.of(26)
     }
@@ -31,9 +30,9 @@ dependencies {
     // --- Security ---
     implementation("org.springframework.boot:spring-boot-starter-security")
 
-    // --- Persistence foundation (no entity exists yet — see Exercise 10) ---
+    // --- Persistence ---
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
-    implementation("org.flywaydb:flyway-core")
+    implementation("org.springframework.boot:spring-boot-starter-flyway")
     runtimeOnly("org.flywaydb:flyway-database-postgresql")
     runtimeOnly("org.postgresql:postgresql")
 
@@ -48,8 +47,7 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testImplementation("org.springframework.security:spring-security-test")
 
-    // Wired for the repository integration tests of Exercise 10. Nothing uses
-    // Testcontainers yet, so `./gradlew test` does not require a Docker daemon.
+    // Repository integration tests use real PostgreSQL through Testcontainers.
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:junit-jupiter:$testcontainersVersion")
     testImplementation("org.testcontainers:postgresql:$testcontainersVersion")

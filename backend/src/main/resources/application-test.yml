@@ -1,8 +1,8 @@
 # Test profile.
 #
-# Uses in-memory H2 so `./gradlew test` runs with no Docker daemon and no local
-# PostgreSQL. This is adequate for verifying that the application context starts
-# and that the web layer behaves.
+# Uses in-memory H2 for context-loading and web-layer tests. The complete
+# `./gradlew test` suite also includes PostgreSQL Testcontainers tests and does
+# require Docker; targeted non-repository tests can still run without it.
 #
 # It is NOT adequate for verifying SQL. H2 does not share PostgreSQL's dialect,
 # column types, or constraint behaviour, so the repository tests of Exercise 10
@@ -18,7 +18,8 @@ spring:
     hibernate:
       ddl-auto: none
   flyway:
-    # No migrations exist yet, and the ones that will are PostgreSQL-specific.
+    # PostgreSQL migrations are exercised by the Testcontainers integration suite;
+    # the H2 test profile is reserved for context-loading and web-layer tests.
     enabled: false
 
 springdoc:

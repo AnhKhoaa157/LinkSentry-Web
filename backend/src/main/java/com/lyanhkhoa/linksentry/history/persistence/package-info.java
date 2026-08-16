@@ -1,9 +1,8 @@
 /**
  * JPA adapters for scan history.
  *
- * <p><strong>Empty by design</strong> (Exercise 10). Spring Data JPA, Flyway and the
- * PostgreSQL driver are already on the classpath, and
- * {@code src/main/resources/db/migration} is ready for the first migration.
+ * <p>Exercise 10 provides the Flyway schema, JPA entities, and repository adapter
+ * for the safe history snapshot.
  *
  * <p>Entities and repositories belong here and nowhere else. The dependency arrow
  * points inward: this package may reference domain types, and the domain must never

@@ -2,6 +2,7 @@ package com.lyanhkhoa.linksentry.scan.api;
 
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -12,6 +13,7 @@ import com.lyanhkhoa.linksentry.analysis.domain.RiskLevel;
 import com.lyanhkhoa.linksentry.analysis.domain.RuleExecutionException;
 import com.lyanhkhoa.linksentry.analysis.domain.Severity;
 import com.lyanhkhoa.linksentry.common.exception.GlobalExceptionHandler;
+import com.lyanhkhoa.linksentry.history.application.ScanNotFoundException;
 import com.lyanhkhoa.linksentry.scan.application.ScanService;
 import java.time.Instant;
 import java.util.List;
@@ -134,6 +136,33 @@ class ScanControllerTest {
                 .andExpect(jsonPath("$.data.input").value("https://example.com/account"))
                 .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("token=secret"))))
                 .andExpect(jsonPath("$.data.originalInput").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("a retained scan is returned with the existing response shape")
+    void retainedScanReturnsExistingResponseShape() throws Exception {
+        UUID scanId = UUID.fromString("2ce16fb9-d52d-4310-8d45-a4e48f31889e");
+        given(scanService.get(scanId.toString())).willReturn(sampleResponse());
+
+        mockMvc.perform(get("/api/v1/scans/{scanId}", scanId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.scanId").value(scanId.toString()))
+                .andExpect(jsonPath("$.data.input").value("https://example.com/account"))
+                .andExpect(jsonPath("$.data.findings[0].ruleId").value("MISSING_HTTPS"))
+                .andExpect(jsonPath("$.meta.engineVersion").value("0.1.0"));
+    }
+
+    @Test
+    @DisplayName("a missing, malformed, or expired scan ID returns safe SCAN_NOT_FOUND")
+    void missingScanReturnsSafeNotFound() throws Exception {
+        given(scanService.get("not-a-uuid")).willThrow(new ScanNotFoundException());
+
+        mockMvc.perform(get("/api/v1/scans/not-a-uuid"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("SCAN_NOT_FOUND"))
+                .andExpect(jsonPath("$.message").value("The requested scan could not be found."))
+                .andExpect(jsonPath("$.traceId").isNotEmpty())
+                .andExpect(jsonPath("$.exception").doesNotExist());
     }
 
     private static ScanResponse sampleResponse() {

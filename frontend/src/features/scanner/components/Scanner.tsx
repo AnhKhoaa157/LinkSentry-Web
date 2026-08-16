@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { Link } from 'react-router';
 
 import { useScanMutation } from '@/features/scanner/api/useScanMutation';
 import { ScanResult } from '@/features/scanner/components/ScanResult';
@@ -93,7 +94,22 @@ export function Scanner() {
         </div>
       ) : null}
 
-      {mutation.isSuccess ? <ScanResult data={mutation.data.data} /> : null}
+      {mutation.isSuccess ? (
+        <>
+          <ScanResult data={mutation.data.data} />
+          <div className="border-ink-800 mt-5 border-t pt-4">
+            <Link
+              to={`/scans/${encodeURIComponent(mutation.data.data.scanId)}`}
+              className="text-accent-400 hover:text-accent-300 text-sm font-medium underline underline-offset-4"
+            >
+              Open shareable result
+            </Link>
+            <p className="text-ink-500 mt-1 text-xs">
+              Anyone with this opaque link can view the result for the configured period (30 days by default).
+            </p>
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }

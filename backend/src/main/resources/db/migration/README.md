@@ -1,10 +1,8 @@
 # Flyway migrations
 
-**Intentionally empty.** Flyway is configured and wired, but no migration exists
-yet because no entity exists yet. Scan-history persistence is Exercise 10 of
-[MANUAL_IMPLEMENTATION_GUIDE.md](../../../../../docs/MANUAL_IMPLEMENTATION_GUIDE.md),
-and it is deliberately last: designing a table before the analyzer's output has
-settled guarantees a rewrite.
+The first migration creates the privacy-safe scan-history parent and ordered
+finding tables. Scan-history persistence is Exercise 10 of
+[MANUAL_IMPLEMENTATION_GUIDE.md](../../../../../../docs/MANUAL_IMPLEMENTATION_GUIDE.md).
 
 Flyway ignores files that do not match its naming pattern, so this README is safe
 to leave in place.
@@ -15,7 +13,6 @@ Name migrations `V<n>__snake_case_description.sql`, for example:
 
 ```text
 V1__create_scan_history.sql
-V2__add_scan_history_retention_index.sql
 ```
 
 Rules:
@@ -28,12 +25,12 @@ Rules:
   profile uses H2 for context startup only, and H2 will happily accept SQL that
   PostgreSQL rejects.
 
-## Before writing the first migration
+## Persistence decisions
 
-Decide, and record the answers in the migration's header comment:
-
-- What is safe to store? Store the **redacted** representation. Never the raw URL
-  and never the query string — query strings routinely carry tokens.
-- What is the retention period, and what enforces it?
-- Does each row carry the engine version that produced it? (It should, or old rows
-  become uninterpretable once the rules change.)
+- Store the **redacted** response snapshot only. Never the raw URL, credentials,
+  query string, or fragment text.
+- Retain rows for 30 days by default, with application cleanup driven by the
+  configured retention period and injected `Clock`.
+- Each row carries the engine version that produced it, so old results remain
+  interpretable after rules change.
+- Findings use a child table and an explicit position column, not opaque JSON.
