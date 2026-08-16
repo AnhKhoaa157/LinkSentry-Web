@@ -36,7 +36,7 @@ jobs:
         uses: actions/setup-java@v5
         with:
           # Matches the Gradle toolchain in backend/build.gradle.kts.
-          java-version: '25'
+          java-version: '26'
           distribution: temurin
 
       - name: Set up Gradle
@@ -48,10 +48,10 @@ jobs:
         # The `test` profile uses in-memory H2, so no database service is needed.
         # Repository tests added in Exercise 10 will use Testcontainers, which
         # works on ubuntu-latest without extra configuration.
-        run: ./gradlew test --no-daemon
+        run: bash ./gradlew test --no-daemon
 
       - name: Build
-        run: ./gradlew build --no-daemon
+        run: bash ./gradlew build --no-daemon
 
       - name: Upload test report on failure
         if: failure()
