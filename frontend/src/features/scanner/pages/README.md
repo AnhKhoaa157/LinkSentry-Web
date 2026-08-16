@@ -1,10 +1,11 @@
 # `features/scanner/pages`
 
-**Empty by design.** Reserved for the scan result route added in Exercises 8–9 —
-for example a `/scan/:scanId` page once results are persisted.
+**Empty by design.** The persisted scan result is a top-level
+`src/pages/ScanPage.tsx` route at `/scans/:scanId`; this feature-local folder is
+reserved for a future scanner-specific page that needs its own boundary.
 
-While the flow stays stateless, the scanner lives on the home page and needs no
-route of its own. Do not add one before there is something to link to.
+The scanner submission flow remains on the home page. Successful scans link to
+the persisted result route above.
 
 Requirements that apply to whatever lands here:
 

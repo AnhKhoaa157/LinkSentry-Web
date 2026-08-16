@@ -69,6 +69,10 @@ describe('Scanner', () => {
     expect(screen.getByText('Moderate risk')).toBeInTheDocument();
     expect(screen.getByText('Connection is not encrypted')).toBeInTheDocument();
     expect(screen.getByText('security-check.invalid')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /open shareable result/i })).toHaveAttribute(
+      'href',
+      '/scans/2ce16fb9-d52d-4310-8d45-a4e48f31889e',
+    );
   });
 
   it('rejects an invalid URL client-side without calling the API', async () => {

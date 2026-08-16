@@ -1,0 +1,65 @@
+import type { ReactNode } from 'react';
+import { Link, useParams } from 'react-router';
+
+import { useScanQuery } from '@/features/scanner/api/useScanQuery';
+import { ScanResult } from '@/features/scanner/components/ScanResult';
+import { normalizeApiError } from '@/lib/api/errors';
+
+const GENERIC_LOAD_ERROR = 'We could not load this saved scan. Please try again later.';
+
+/** Renders a retained result loaded from an opaque scan permalink. */
+export function ScanPage() {
+  const { scanId } = useParams<{ scanId: string }>();
+  const query = useScanQuery(scanId);
+
+  if (query.isPending) {
+    return <p role="status">Loading saved scan…</p>;
+  }
+
+  if (query.isError) {
+    const apiError = normalizeApiError(query.error);
+    if (apiError.code === 'SCAN_NOT_FOUND') {
+      return (
+        <StateMessage title="Saved scan unavailable">
+          This scan ID is invalid or the result expired under the retention policy. Scan links are public to
+          anyone who has the opaque ID.
+        </StateMessage>
+      );
+    }
+    return <StateMessage title="Could not load saved scan">{GENERIC_LOAD_ERROR}</StateMessage>;
+  }
+
+  if (!query.data) {
+    return (
+      <StateMessage title="Saved scan unavailable">This scan result is no longer available.</StateMessage>
+    );
+  }
+
+  return (
+    <div>
+      <p className="text-accent-400 font-mono text-sm">Saved result</p>
+      <h1 className="mt-2 text-3xl font-semibold tracking-tight">Link analysis</h1>
+      <p className="text-ink-300 mt-3 text-sm">
+        This anonymous permalink is shareable by anyone who has it and is retained for the configured period
+        (30 days by default).
+      </p>
+      <ScanResult data={query.data.data} />
+    </div>
+  );
+}
+
+function StateMessage({ title, children }: { readonly title: string; readonly children: ReactNode }) {
+  return (
+    <div role="alert" className="max-w-xl">
+      <p className="text-accent-400 font-mono text-sm">Scan history</p>
+      <h1 className="mt-2 text-3xl font-semibold tracking-tight">{title}</h1>
+      <p className="text-ink-300 mt-3 text-sm">{children}</p>
+      <Link
+        to="/"
+        className="bg-accent-500 text-ink-950 hover:bg-accent-400 mt-7 inline-block rounded-lg px-5 py-2.5 text-sm font-semibold transition-colors"
+      >
+        Back to scanner
+      </Link>
+    </div>
+  );
+}
