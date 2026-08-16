@@ -27,6 +27,21 @@ describe('normalizeApiError', () => {
     expect(result.fieldErrors).toEqual({ url: 'Enter a valid HTTP or HTTPS URL.' });
   });
 
+  it('passes through a 429 RATE_LIMITED envelope without inventing quota detail', () => {
+    const result = normalizeApiError(
+      errorWithBody(429, {
+        code: 'RATE_LIMITED',
+        message: 'Too many requests. Please slow down and try again shortly.',
+        traceId: 'trace-429',
+      }),
+    );
+
+    expect(result.isNetworkError).toBe(false);
+    expect(result.code).toBe('RATE_LIMITED');
+    expect(result.message).toBe('Too many requests. Please slow down and try again shortly.');
+    expect(result.fieldErrors).toBeUndefined();
+  });
+
   it('falls back to a generic message when the body is not a known envelope', () => {
     const result = normalizeApiError(errorWithBody(502, '<html>gateway error</html>'));
 

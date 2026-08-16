@@ -109,6 +109,41 @@ describe('Scanner', () => {
     expect(screen.getByText('Enter a valid HTTP or HTTPS URL.')).toBeInTheDocument();
   });
 
+  it('shows the backend message for a 429 RATE_LIMITED response, then recovers on retry', async () => {
+    const postSpy = vi
+      .spyOn(apiClient, 'post')
+      .mockRejectedValueOnce(
+        axiosErrorWithResponse(429, {
+          code: 'RATE_LIMITED',
+          message: 'Too many requests. Please slow down and try again shortly.',
+          traceId: 'trace-429',
+        }),
+      )
+      .mockResolvedValueOnce({ data: validScanResponse });
+    const user = userEvent.setup();
+
+    renderWithProviders(<Scanner />);
+    await user.type(
+      screen.getByLabelText(/suspicious url/i),
+      'http://login.example.com.security-check.invalid/account',
+    );
+    await user.click(screen.getByRole('button', { name: /analyze/i }));
+
+    expect(
+      await screen.findByText('Too many requests. Please slow down and try again shortly.'),
+    ).toBeInTheDocument();
+
+    // Recovery: retrying (without needing to edit the URL) clears the error and
+    // renders the normal result, exactly as a successful first attempt would.
+    await user.click(screen.getByRole('button', { name: /analyze/i }));
+
+    expect(await screen.findByText('25')).toBeInTheDocument();
+    expect(
+      screen.queryByText('Too many requests. Please slow down and try again shortly.'),
+    ).not.toBeInTheDocument();
+    expect(postSpy).toHaveBeenCalledTimes(2);
+  });
+
   it('shows a generic message for a 500 response without leaking detail', async () => {
     vi.spyOn(apiClient, 'post').mockRejectedValue(
       axiosErrorWithResponse(500, {
