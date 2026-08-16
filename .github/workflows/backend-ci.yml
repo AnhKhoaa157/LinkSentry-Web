@@ -1,0 +1,62 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: backend-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: backend
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          # Matches the Gradle toolchain in backend/build.gradle.kts.
+          java-version: '25'
+          distribution: temurin
+
+      - name: Set up Gradle
+        # Handles the dependency and build caches, and validates the wrapper's
+        # checksum against Gradle's published list.
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Test
+        # The `test` profile uses in-memory H2, so no database service is needed.
+        # Repository tests added in Exercise 10 will use Testcontainers, which
+        # works on ubuntu-latest without extra configuration.
+        run: ./gradlew test --no-daemon
+
+      - name: Build
+        run: ./gradlew build --no-daemon
+
+      - name: Upload test report on failure
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: backend-test-report
+          path: backend/build/reports/tests/test
+          retention-days: 7

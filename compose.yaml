@@ -1,0 +1,76 @@
+# LinkSentry — local development infrastructure.
+#
+# This file provisions PostgreSQL for local development only. The credentials
+# below are deliberately obvious local-only placeholders; they are not secrets
+# and must never be reused in a deployed environment.
+#
+#   docker compose up -d db
+#   docker compose ps
+#   docker compose down
+#
+# The backend service is opt-in via the `backend` profile so that the common
+# workflow (run Postgres in Docker, run the API from the IDE) stays fast:
+#
+#   docker compose --profile backend up -d
+
+name: linksentry
+
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: linksentry-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-linksentry}
+      POSTGRES_USER: ${POSTGRES_USER:-linksentry}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-development-only}
+      # Keeps initdb deterministic across host locales.
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    ports:
+      # Bound to loopback so the database is not reachable from the network.
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-linksentry} -d ${POSTGRES_DB:-linksentry}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  backend:
+    profiles: ["backend"]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: linksentry-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-linksentry}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-linksentry}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-local-development-only}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173}
+    ports:
+      - "127.0.0.1:${SERVER_PORT:-8080}:8080"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --quiet --tries=1 --spider http://localhost:8080/actuator/health || exit 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+volumes:
+  db-data:
+    name: linksentry-db-data

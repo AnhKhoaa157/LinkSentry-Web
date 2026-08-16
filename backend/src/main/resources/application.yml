@@ -1,0 +1,89 @@
+# LinkSentry API — base configuration.
+#
+# Every environment-specific value reads from an environment variable with a
+# local-development default, so a deployment overrides configuration without
+# editing this file. Nothing here is a secret.
+
+spring:
+  application:
+    name: linksentry-api
+  profiles:
+    default: local
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/linksentry}
+    username: ${SPRING_DATASOURCE_USERNAME:linksentry}
+    password: ${SPRING_DATASOURCE_PASSWORD:local-development-only}
+    hikari:
+      pool-name: linksentry-pool
+      maximum-pool-size: 10
+  jpa:
+    # Lazy loading outside a transaction hides N+1 queries; keep it off.
+    open-in-view: false
+    hibernate:
+      # Schema ownership belongs to Flyway. Hibernate never alters it.
+      ddl-auto: validate
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    # db/migration is intentionally empty until Exercise 10.
+    baseline-on-migrate: true
+
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+  error:
+    # Nothing internal reaches the client. See docs/SECURITY_BOUNDARY.md.
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never
+    include-exception: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # Only health. Do not widen this without deciding who may reach it.
+        include: health
+  endpoint:
+    health:
+      # Component detail would disclose infrastructure to anyone probing.
+      show-details: never
+      show-components: never
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+linksentry:
+  engine:
+    # Reported in every scan response so a shared or stored result can be
+    # interpreted correctly after the rules or scoring bands change.
+    version: ${ENGINE_VERSION:0.1.0}
+  cors:
+    # Exact origins only. A wildcard is never acceptable here.
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+    allowed-methods: GET,POST,OPTIONS
+  rules:
+    # Tunable thresholds and word lists for analysis.rules. Changing these is a
+    # scoring-policy decision, not a code change.
+    excessive-url-length:
+      max-length: 100
+    excessive-subdomains:
+      max-depth: 3
+    suspicious-keywords:
+      keywords: login,verify,secure,account,update,confirm,signin,banking,password,billing
+    known-url-shorteners:
+      domains: bit.ly,tinyurl.com,t.co,goo.gl,ow.ly,is.gd,buff.ly,adf.ly,rebrand.ly,cutt.ly,shorturl.at,rb.gy
+
+logging:
+  level:
+    root: INFO
+    com.lyanhkhoa.linksentry: INFO
+  pattern:
+    # No MDC dump and no request parameters: submitted URLs must never be logged.
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n"
