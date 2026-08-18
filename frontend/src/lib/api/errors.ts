@@ -27,6 +27,17 @@ export interface NormalizedApiError {
 const NETWORK_MESSAGE = 'Could not reach the LinkSentry API. Check that the backend is running.';
 const UNEXPECTED_MESSAGE = 'Something went wrong. Please try again.';
 
+export function isNormalizedApiError(error: unknown): error is NormalizedApiError {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof error.message === 'string' &&
+    'isNetworkError' in error &&
+    typeof error.isNetworkError === 'boolean'
+  );
+}
+
 /**
  * Turns anything a failed request can throw into one predictable shape.
  *
@@ -34,6 +45,10 @@ const UNEXPECTED_MESSAGE = 'Something went wrong. Please try again.';
  * detail into the view layer and makes every error branch a special case.
  */
 export function normalizeApiError(error: unknown): NormalizedApiError {
+  if (isNormalizedApiError(error)) {
+    return error;
+  }
+
   if (error instanceof AxiosError) {
     if (!error.response) {
       return {

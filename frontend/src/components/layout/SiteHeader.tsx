@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router';
 
+import { useAuth } from '@/features/auth/context/useAuth';
 import { cn } from '@/lib/utils/cn';
 
 const navigation = [
@@ -9,6 +10,8 @@ const navigation = [
 
 /** Wordmark and primary navigation. */
 export function SiteHeader() {
+  const { user, isLoading, isAuthenticated, logout } = useAuth();
+
   return (
     <header className="border-ink-800 bg-ink-950/85 sticky top-0 z-10 border-b backdrop-blur">
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
@@ -39,6 +42,31 @@ export function SiteHeader() {
                 </NavLink>
               </li>
             ))}
+            <li>
+              {isLoading ? (
+                <span className="text-ink-500 px-3 py-1.5 text-sm">Checking sessionâ€¦</span>
+              ) : isAuthenticated && user ? (
+                <span className="flex items-center gap-2 px-3 py-1.5 text-sm">
+                  <span className="text-ink-300 max-w-40 truncate" title={user.email}>
+                    {user.email}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => void logout()}
+                    className="text-accent-400 hover:text-accent-300 underline underline-offset-4"
+                  >
+                    Sign out
+                  </button>
+                </span>
+              ) : (
+                <NavLink
+                  to="/auth"
+                  className="text-accent-400 hover:text-accent-300 rounded-md px-3 py-1.5 text-sm font-medium"
+                >
+                  Sign in
+                </NavLink>
+              )}
+            </li>
           </ul>
         </nav>
       </div>
