@@ -20,8 +20,25 @@ const SERVER_FIELD_ERROR_ID = 'scanner-url-field-error';
  */
 const RATE_LIMITED_MESSAGE = 'Too many scan requests. Wait a moment before trying again.';
 
+/**
+ * The anonymous trial guard is a distinct scanner condition from rate limiting:
+ * it means "sign in", not "wait". As with `RATE_LIMITED`, nothing about the
+ * quota is inferred here — no count, no reset time, no explanation tied to an
+ * IP address, since the backend publishes none of it (docs/API_CONTRACT.md).
+ * An authenticated caller never sees this code; the guard only ever gates
+ * unauthenticated requests.
+ */
+const ANONYMOUS_TRIAL_EXHAUSTED_MESSAGE =
+  'Your free anonymous scan allowance is used up for now. Sign in to keep scanning.';
+
 function displayMessage(error: NormalizedApiError): string {
-  return error.code === 'RATE_LIMITED' ? RATE_LIMITED_MESSAGE : error.message;
+  if (error.code === 'RATE_LIMITED') {
+    return RATE_LIMITED_MESSAGE;
+  }
+  if (error.code === 'ANONYMOUS_TRIAL_EXHAUSTED') {
+    return ANONYMOUS_TRIAL_EXHAUSTED_MESSAGE;
+  }
+  return error.message;
 }
 
 /**
@@ -142,6 +159,14 @@ export function Scanner() {
             <p id={SERVER_FIELD_ERROR_ID} className="mt-1 text-sm text-rose-400/80">
               {serverFieldError}
             </p>
+          ) : null}
+          {apiError.code === 'ANONYMOUS_TRIAL_EXHAUSTED' ? (
+            <Link
+              to="/auth"
+              className="text-accent-400 hover:text-accent-300 mt-2 inline-block text-sm font-medium underline underline-offset-4"
+            >
+              Sign in to continue scanning
+            </Link>
           ) : null}
         </div>
       ) : null}
