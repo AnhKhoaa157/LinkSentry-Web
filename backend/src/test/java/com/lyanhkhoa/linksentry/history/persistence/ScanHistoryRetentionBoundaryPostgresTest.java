@@ -2,6 +2,8 @@ package com.lyanhkhoa.linksentry.history.persistence;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.lyanhkhoa.linksentry.auth.persistence.SpringDataUserAccountRepository;
+import com.lyanhkhoa.linksentry.auth.persistence.UserAccountEntity;
 import com.lyanhkhoa.linksentry.analysis.domain.RiskLevel;
 import com.lyanhkhoa.linksentry.history.application.ScanHistoryRetentionService;
 import com.lyanhkhoa.linksentry.history.application.ScanHistoryService;
@@ -49,6 +51,8 @@ class ScanHistoryRetentionBoundaryPostgresTest {
     private static final int RETENTION_DAYS = 30;
     private static final Instant CUTOFF = FIXED_NOW.minus(RETENTION_DAYS, ChronoUnit.DAYS);
     private static final UUID OWNER_ID = UUID.fromString("11111111-1111-4111-8111-111111111111");
+    private static final String TEST_PASSWORD_HASH =
+            "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
 
     @Container
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine")
@@ -85,6 +89,9 @@ class ScanHistoryRetentionBoundaryPostgresTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    private SpringDataUserAccountRepository userAccountRepository;
+
     @AfterEach
     void cleanTables() {
         jdbcTemplate.update("DELETE FROM scan_history");
@@ -94,9 +101,8 @@ class ScanHistoryRetentionBoundaryPostgresTest {
 
     @BeforeEach
     void createOwner() {
-        jdbcTemplate.update(
-                "INSERT INTO user_account (user_id, email, password_hash, created_at) VALUES (?, ?, ?, ?)",
-                OWNER_ID, "retention@example.com", "not-a-real-password-hash", FIXED_NOW);
+        userAccountRepository.saveAndFlush(new UserAccountEntity(
+                OWNER_ID, "retention@example.com", TEST_PASSWORD_HASH, FIXED_NOW));
     }
 
     @Test
