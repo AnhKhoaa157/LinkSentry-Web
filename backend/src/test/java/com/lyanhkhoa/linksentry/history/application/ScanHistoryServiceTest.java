@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
 class ScanHistoryServiceTest {
 
     private static final Instant FIXED_NOW = Instant.parse("2026-08-16T12:00:00Z");
+    private static final UUID OWNER_ID = UUID.fromString("11111111-1111-4111-8111-111111111111");
     private final Clock fixedClock = Clock.fixed(FIXED_NOW, ZoneOffset.UTC);
 
     @Test
@@ -43,13 +44,13 @@ class ScanHistoryServiceTest {
     void findRetainedUsesInjectedClockToComputeCutoff() {
         ScanHistoryRepository repository = mock(ScanHistoryRepository.class);
         UUID scanId = UUID.randomUUID();
-        when(repository.findRetained(eq(scanId), any(Instant.class))).thenReturn(Optional.empty());
+        when(repository.findRetained(eq(scanId), eq(OWNER_ID), any(Instant.class))).thenReturn(Optional.empty());
         ScanHistoryService service = new ScanHistoryService(repository, new HistoryProperties(30), fixedClock);
 
-        service.findRetained(scanId);
+        service.findRetained(scanId, OWNER_ID);
 
         // 30 days before the fixed clock's instant, computed deterministically.
-        verify(repository).findRetained(scanId, Instant.parse("2026-07-17T12:00:00Z"));
+        verify(repository).findRetained(scanId, OWNER_ID, Instant.parse("2026-07-17T12:00:00Z"));
     }
 
     @Test
@@ -57,12 +58,12 @@ class ScanHistoryServiceTest {
     void findRetainedHonorsConfiguredRetentionDays() {
         ScanHistoryRepository repository = mock(ScanHistoryRepository.class);
         UUID scanId = UUID.randomUUID();
-        when(repository.findRetained(eq(scanId), any(Instant.class))).thenReturn(Optional.empty());
+        when(repository.findRetained(eq(scanId), eq(OWNER_ID), any(Instant.class))).thenReturn(Optional.empty());
         ScanHistoryService service = new ScanHistoryService(repository, new HistoryProperties(7), fixedClock);
 
-        service.findRetained(scanId);
+        service.findRetained(scanId, OWNER_ID);
 
-        verify(repository).findRetained(scanId, Instant.parse("2026-08-09T12:00:00Z"));
+        verify(repository).findRetained(scanId, OWNER_ID, Instant.parse("2026-08-09T12:00:00Z"));
     }
 
     @Test
@@ -70,10 +71,10 @@ class ScanHistoryServiceTest {
     void findRetainedReturnsEmptyWhenRepositoryHasNoMatch() {
         ScanHistoryRepository repository = mock(ScanHistoryRepository.class);
         UUID scanId = UUID.randomUUID();
-        when(repository.findRetained(eq(scanId), any(Instant.class))).thenReturn(Optional.empty());
+        when(repository.findRetained(eq(scanId), eq(OWNER_ID), any(Instant.class))).thenReturn(Optional.empty());
         ScanHistoryService service = new ScanHistoryService(repository, new HistoryProperties(30), fixedClock);
 
-        assertThat(service.findRetained(scanId)).isEmpty();
+        assertThat(service.findRetained(scanId, OWNER_ID)).isEmpty();
     }
 
     private ScanHistory sampleHistory(Instant analyzedAt) {
@@ -81,6 +82,6 @@ class ScanHistoryServiceTest {
                 "https", "example.com", "example.com", "example.com", null, "/", true, false);
         return new ScanHistory(
                 UUID.randomUUID(), "https://example.com/", normalized, 0, RiskLevel.LOW, List.of(), "0.1.0",
-                analyzedAt);
+                analyzedAt, OWNER_ID);
     }
 }

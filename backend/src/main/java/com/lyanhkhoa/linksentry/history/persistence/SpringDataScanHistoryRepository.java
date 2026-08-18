@@ -13,10 +13,14 @@ public interface SpringDataScanHistoryRepository extends JpaRepository<ScanHisto
 
     @Query("""
             select scan from ScanHistoryEntity scan
-            where scan.scanId = :scanId and scan.analyzedAt >= :retainedSince
+            where scan.scanId = :scanId
+              and scan.ownerUserId = :ownerUserId
+              and scan.analyzedAt >= :retainedSince
             """)
     Optional<ScanHistoryEntity> findRetained(
-            @Param("scanId") UUID scanId, @Param("retainedSince") Instant retainedSince);
+            @Param("scanId") UUID scanId,
+            @Param("ownerUserId") UUID ownerUserId,
+            @Param("retainedSince") Instant retainedSince);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("delete from ScanHistoryEntity scan where scan.analyzedAt < :cutoff")

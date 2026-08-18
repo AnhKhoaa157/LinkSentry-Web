@@ -14,9 +14,10 @@ public interface ScanHistoryRepository {
      * Finds a scan only when it is still within the retention window.
      *
      * @param scanId opaque scan UUID
+     * @param ownerUserId authenticated owner; null is never a readable owner
      * @param retainedSince inclusive retention cutoff
      */
-    Optional<ScanHistory> findRetained(UUID scanId, Instant retainedSince);
+    Optional<ScanHistory> findRetained(UUID scanId, UUID ownerUserId, Instant retainedSince);
 
     /** Deletes records strictly older than the supplied retention cutoff. */
     long deleteOlderThan(Instant cutoff);

@@ -34,6 +34,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
+import org.springframework.http.HttpHeaders;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -110,6 +111,8 @@ class ScanHistoryPostgresIntegrationTest {
     @AfterEach
     void cleanTables() {
         jdbcTemplate.update("DELETE FROM scan_history");
+        jdbcTemplate.update("DELETE FROM auth_session");
+        jdbcTemplate.update("DELETE FROM user_account");
     }
 
     @Test
@@ -124,28 +127,36 @@ class ScanHistoryPostgresIntegrationTest {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT to_regclass('public.scan_history_finding')", String.class))
                 .isEqualTo("scan_history_finding");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT to_regclass('public.user_account')", String.class))
+                .isEqualTo("user_account");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT to_regclass('public.auth_session')", String.class))
+                .isEqualTo("auth_session");
     }
 
     @Test
     @DisplayName("save and retrieval preserve every public field and finding order")
-    void roundTripsSafeSnapshotAndFindingOrder() {
+    void roundTripsSafeSnapshotAndFindingOrder() throws Exception {
+        TestUser user = registerUser();
         UUID scanId = UUID.fromString("2ce16fb9-d52d-4310-8d45-a4e48f31889e");
-        ScanHistory original = snapshot(scanId, Instant.parse("2026-08-16T12:00:00Z"));
+        ScanHistory original = snapshot(scanId, Instant.parse("2026-08-16T12:00:00Z"), user.userId());
 
         historyService.save(original);
 
-        assertThat(historyService.findRetained(scanId)).contains(original);
+        assertThat(historyService.findRetained(scanId, user.userId())).contains(original);
     }
 
     @Test
     @DisplayName("raw query, fragment, and credential values never enter stored columns")
-    void sensitiveUrlPartsNeverPersist() {
+    void sensitiveUrlPartsNeverPersist() throws Exception {
+        TestUser user = registerUser();
         String querySecret = "query-secret-123";
         String fragmentSecret = "fragment-secret-456";
         String rawUrl = "https://example.com/account?token=" + querySecret + "#" + fragmentSecret;
         int rowsBeforeScan = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM scan_history", Integer.class);
 
-        var response = scanService.scan(rawUrl);
+        var response = scanService.scan(rawUrl, user.userId());
 
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM scan_history", Integer.class))
                 .isEqualTo(rowsBeforeScan + 1);
@@ -166,11 +177,12 @@ class ScanHistoryPostgresIntegrationTest {
 
     @Test
     @DisplayName("expired records are unavailable and purge cascades to finding rows")
-    void expiredRecordsAreUnavailableAndPurged() {
+    void expiredRecordsAreUnavailableAndPurged() throws Exception {
+        TestUser user = registerUser();
         UUID scanId = UUID.fromString("9f3d7a0c-421f-4d38-bc5d-5a57f2d4f3c1");
-        historyService.save(snapshot(scanId, clock.instant().minusSeconds(31L * 24 * 60 * 60)));
+        historyService.save(snapshot(scanId, clock.instant().minusSeconds(31L * 24 * 60 * 60), user.userId()));
 
-        assertThat(historyService.findRetained(scanId)).isEmpty();
+        assertThat(historyService.findRetained(scanId, user.userId())).isEmpty();
         // The parent row exists but is outside the retention window; the two findings from
         // snapshot() must actually be present before purge, or the post-purge zero below would
         // be a false positive (never inserted, rather than deleted by the cascade).
@@ -191,22 +203,24 @@ class ScanHistoryPostgresIntegrationTest {
     @Test
     @DisplayName("missing, malformed, and expired IDs all return an identical safe 404")
     void missingMalformedAndExpiredIdsReturnIdenticalSafeNotFound() throws Exception {
+        TestUser user = registerUser();
         UUID expiredScanId = UUID.fromString("5b1e9c3a-6f2d-4a7b-9e3c-2d1f8a6b4c0e");
-        historyService.save(snapshot(expiredScanId, clock.instant().minusSeconds(31L * 24 * 60 * 60)));
+        historyService.save(snapshot(expiredScanId, clock.instant().minusSeconds(31L * 24 * 60 * 60), user.userId()));
 
-        mockMvc.perform(get("/api/v1/scans/{scanId}", UUID.randomUUID()))
+        mockMvc.perform(get("/api/v1/scans/{scanId}", UUID.randomUUID()).header(HttpHeaders.AUTHORIZATION, user.bearer()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("SCAN_NOT_FOUND"))
                 .andExpect(jsonPath("$.message").value("The requested scan could not be found."));
 
-        mockMvc.perform(get("/api/v1/scans/not-a-uuid"))
+        mockMvc.perform(get("/api/v1/scans/not-a-uuid").header(HttpHeaders.AUTHORIZATION, user.bearer()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("SCAN_NOT_FOUND"))
                 .andExpect(jsonPath("$.message").value("The requested scan could not be found."));
 
         // A record that genuinely existed but expired must be indistinguishable from one that
         // never existed at all: same status, same code, same message.
-        mockMvc.perform(get("/api/v1/scans/{scanId}", expiredScanId))
+        mockMvc.perform(get("/api/v1/scans/{scanId}", expiredScanId)
+                        .header(HttpHeaders.AUTHORIZATION, user.bearer()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("SCAN_NOT_FOUND"))
                 .andExpect(jsonPath("$.message").value("The requested scan could not be found."));
@@ -215,6 +229,7 @@ class ScanHistoryPostgresIntegrationTest {
     @Test
     @DisplayName("POST then GET round-trip every public response field through the real schema")
     void postThenGetRoundTripsEveryResponseField() throws Exception {
+        TestUser user = registerUser();
         String querySecret = "roundtrip-query-secret";
         String fragmentSecret = "roundtrip-fragment-secret";
         // Host mirrors PublicSuffixDomainResolverTest.keepsDeceptiveBrandLabelsAsSubdomains(),
@@ -226,6 +241,7 @@ class ScanHistoryPostgresIntegrationTest {
 
         MvcResult postResult = mockMvc.perform(post("/api/v1/scans")
                         .contentType(MediaType.APPLICATION_JSON)
+                        .header(HttpHeaders.AUTHORIZATION, user.bearer())
                         .content(requestBody))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -233,7 +249,8 @@ class ScanHistoryPostgresIntegrationTest {
         DocumentContext post = JsonPath.parse(postBody);
         String scanId = post.read("$.data.scanId", String.class);
 
-        MvcResult getResult = mockMvc.perform(get("/api/v1/scans/{scanId}", scanId))
+        MvcResult getResult = mockMvc.perform(get("/api/v1/scans/{scanId}", scanId)
+                        .header(HttpHeaders.AUTHORIZATION, user.bearer()))
                 .andExpect(status().isOk())
                 .andReturn();
         String getBody = getResult.getResponse().getContentAsString();
@@ -269,13 +286,16 @@ class ScanHistoryPostgresIntegrationTest {
     @Test
     @DisplayName("multiple retained scans stay isolated from each other")
     void multipleScansRemainIsolated() throws Exception {
+        TestUser user = registerUser();
         MvcResult firstPost = mockMvc.perform(post("/api/v1/scans")
                         .contentType(MediaType.APPLICATION_JSON)
+                        .header(HttpHeaders.AUTHORIZATION, user.bearer())
                         .content("{\"url\":\"https://example.com/first-account\"}"))
                 .andExpect(status().isOk())
                 .andReturn();
         MvcResult secondPost = mockMvc.perform(post("/api/v1/scans")
                         .contentType(MediaType.APPLICATION_JSON)
+                        .header(HttpHeaders.AUTHORIZATION, user.bearer())
                         .content("{\"url\":\"http://other-example.org/second-page\"}"))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -286,18 +306,20 @@ class ScanHistoryPostgresIntegrationTest {
                 .read("$.data.scanId", String.class);
         assertThat(firstScanId).isNotEqualTo(secondScanId);
 
-        mockMvc.perform(get("/api/v1/scans/{scanId}", firstScanId))
+        mockMvc.perform(get("/api/v1/scans/{scanId}", firstScanId)
+                        .header(HttpHeaders.AUTHORIZATION, user.bearer()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.input").value("https://example.com/first-account"))
                 .andExpect(jsonPath("$.data.normalized.host").value("example.com"));
 
-        mockMvc.perform(get("/api/v1/scans/{scanId}", secondScanId))
+        mockMvc.perform(get("/api/v1/scans/{scanId}", secondScanId)
+                        .header(HttpHeaders.AUTHORIZATION, user.bearer()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.input").value("http://other-example.org/second-page"))
                 .andExpect(jsonPath("$.data.normalized.host").value("other-example.org"));
     }
 
-    private ScanHistory snapshot(UUID scanId, Instant analyzedAt) {
+    private ScanHistory snapshot(UUID scanId, Instant analyzedAt, UUID ownerUserId) {
         StoredNormalizedUrl normalized = new StoredNormalizedUrl(
                 "https",
                 "login.example.com",
@@ -322,7 +344,28 @@ class ScanHistoryPostgresIntegrationTest {
                 com.lyanhkhoa.linksentry.analysis.domain.RiskLevel.HIGH,
                 findings,
                 "0.1.0",
-                analyzedAt);
+                analyzedAt,
+                ownerUserId);
+    }
+
+    private TestUser registerUser() throws Exception {
+        String email = "integration-" + UUID.randomUUID() + "@example.com";
+        String password = "test-password-123";
+        MvcResult result = mockMvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"" + email + "\",\"password\":\"" + password + "\"}"))
+                .andExpect(status().isOk())
+                .andReturn();
+        String token = JsonPath.parse(result.getResponse().getContentAsString()).read("$.accessToken", String.class);
+        UUID userId = jdbcTemplate.queryForObject(
+                "SELECT user_id FROM user_account WHERE email = ?", UUID.class, email);
+        return new TestUser(userId, token);
+    }
+
+    private record TestUser(UUID userId, String token) {
+        String bearer() {
+            return "Bearer " + token;
+        }
     }
 
     private String storedTextFor(UUID scanId) {

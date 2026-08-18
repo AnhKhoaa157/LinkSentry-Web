@@ -26,6 +26,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -33,6 +34,7 @@ import org.mockito.ArgumentCaptor;
 class ScanServiceTest {
 
     private static final Instant FIXED_INSTANT = Instant.parse("2026-08-16T12:00:00Z");
+    private static final UUID OWNER_ID = UUID.fromString("11111111-1111-4111-8111-111111111111");
     private final Clock fixedClock = Clock.fixed(FIXED_INSTANT, ZoneOffset.UTC);
 
     @Test
@@ -41,7 +43,7 @@ class ScanServiceTest {
         ScanService service = new ScanService(
                 fixedAnalyzer(), new EngineProperties("0.1.0"), fixedClock, mock(ScanHistoryService.class));
 
-        ScanResponse response = service.scan("https://example.com/reset-password?token=secret");
+        ScanResponse response = service.scan("https://example.com/reset-password?token=secret", OWNER_ID);
 
         assertThat(response.data().scanId()).isNotNull();
         assertThat(response.data().analyzedAt()).isEqualTo(FIXED_INSTANT);
@@ -54,8 +56,8 @@ class ScanServiceTest {
         ScanService service = new ScanService(
                 fixedAnalyzer(), new EngineProperties("0.1.0"), fixedClock, mock(ScanHistoryService.class));
 
-        ScanResponse first = service.scan("https://example.com/");
-        ScanResponse second = service.scan("https://example.com/");
+        ScanResponse first = service.scan("https://example.com/", OWNER_ID);
+        ScanResponse second = service.scan("https://example.com/", OWNER_ID);
 
         assertThat(first.data().scanId()).isNotEqualTo(second.data().scanId());
     }
@@ -66,7 +68,7 @@ class ScanServiceTest {
         ScanService service = new ScanService(
                 fixedAnalyzer(), new EngineProperties("0.1.0"), fixedClock, mock(ScanHistoryService.class));
 
-        ScanResponse response = service.scan("https://example.com/reset-password?token=secret");
+        ScanResponse response = service.scan("https://example.com/reset-password?token=secret", OWNER_ID);
 
         assertThat(response.data().input()).isEqualTo("https://example.com/reset-password");
         assertThat(response.data().input()).doesNotContain("token=secret");
@@ -78,7 +80,7 @@ class ScanServiceTest {
         ScanService service = new ScanService(
                 fixedAnalyzer(), new EngineProperties("0.1.0"), fixedClock, mock(ScanHistoryService.class));
 
-        ScanResponse response = service.scan("https://example.com/reset-password?token=secret");
+        ScanResponse response = service.scan("https://example.com/reset-password?token=secret", OWNER_ID);
 
         assertThat(response.data().score()).isEqualTo(20);
         assertThat(response.data().riskLevel()).isEqualTo(RiskLevel.MODERATE);
@@ -93,7 +95,7 @@ class ScanServiceTest {
         ScanService service =
                 new ScanService(fixedAnalyzer(), new EngineProperties("0.1.0"), fixedClock, historyService);
 
-        service.scan("https://example.com/reset-password?token=secret");
+        service.scan("https://example.com/reset-password?token=secret", OWNER_ID);
 
         verify(historyService, times(1)).save(any(ScanHistory.class));
     }
@@ -121,7 +123,7 @@ class ScanServiceTest {
         ScanService service = new ScanService(
                 multiFindingAnalyzer(), new EngineProperties("0.1.0"), fixedClock, historyService);
 
-        ScanResponse response = service.scan("https://example.com/reset-password?token=secret#frag");
+        ScanResponse response = service.scan("https://example.com/reset-password?token=secret#frag", OWNER_ID);
 
         ArgumentCaptor<ScanHistory> captor = ArgumentCaptor.forClass(ScanHistory.class);
         verify(historyService).save(captor.capture());
@@ -138,9 +140,24 @@ class ScanServiceTest {
         assertThat(saved.riskLevel()).isEqualTo(RiskLevel.HIGH);
         assertThat(saved.engineVersion()).isEqualTo("0.1.0");
         assertThat(saved.analyzedAt()).isEqualTo(FIXED_INSTANT);
+        assertThat(saved.ownerUserId()).isEqualTo(OWNER_ID);
         // Order must be preserved exactly as the analyzer produced it, not resorted.
         assertThat(saved.findings()).extracting(StoredFinding::ruleId).containsExactly("A_RULE", "Z_RULE");
         assertThat(saved.findings()).extracting(StoredFinding::points).containsExactly(40, 20);
+    }
+
+    @Test
+    @DisplayName("anonymous scans return a safe result without an id or history write")
+    void anonymousScansAreNotPersisted() {
+        ScanHistoryService historyService = mock(ScanHistoryService.class);
+        ScanService service = new ScanService(
+                fixedAnalyzer(), new EngineProperties("0.1.0"), fixedClock, historyService);
+
+        ScanResponse response = service.scan("https://example.com/reset-password?token=secret");
+
+        assertThat(response.data().scanId()).isNull();
+        assertThat(response.data().input()).isEqualTo("https://example.com/reset-password");
+        verifyNoInteractions(historyService);
     }
 
     @Test

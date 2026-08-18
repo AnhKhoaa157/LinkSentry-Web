@@ -68,6 +68,9 @@ public class ScanHistoryEntity {
     @Column(name = "analyzed_at", nullable = false)
     private Instant analyzedAt;
 
+    @Column(name = "owner_user_id", columnDefinition = "uuid")
+    private UUID ownerUserId;
+
     @OneToMany(mappedBy = "scanHistory", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @OrderBy("findingPosition ASC")
     private List<ScanHistoryFindingEntity> findings = new ArrayList<>();
@@ -90,6 +93,7 @@ public class ScanHistoryEntity {
         this.riskLevel = scanHistory.riskLevel();
         this.engineVersion = scanHistory.engineVersion();
         this.analyzedAt = scanHistory.analyzedAt();
+        this.ownerUserId = scanHistory.ownerUserId();
     }
 
     public void addFinding(int position, StoredFinding finding) {
@@ -110,7 +114,8 @@ public class ScanHistoryEntity {
                 riskLevel,
                 storedFindings,
                 engineVersion,
-                analyzedAt);
+                analyzedAt,
+                ownerUserId);
     }
 
     public UUID getScanId() {
@@ -119,5 +124,9 @@ public class ScanHistoryEntity {
 
     public Instant getAnalyzedAt() {
         return analyzedAt;
+    }
+
+    public UUID getOwnerUserId() {
+        return ownerUserId;
     }
 }
