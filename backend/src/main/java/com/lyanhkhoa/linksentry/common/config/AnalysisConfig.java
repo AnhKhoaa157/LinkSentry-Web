@@ -5,6 +5,9 @@ import com.lyanhkhoa.linksentry.analysis.domain.DefaultUrlAnalyzer;
 import com.lyanhkhoa.linksentry.analysis.domain.UrlAnalyzer;
 import com.lyanhkhoa.linksentry.analysis.normalization.DefaultUrlNormalizer;
 import com.lyanhkhoa.linksentry.analysis.normalization.UrlNormalizer;
+import com.lyanhkhoa.linksentry.analysis.rules.Brand;
+import com.lyanhkhoa.linksentry.analysis.rules.BrandDomainMismatchRule;
+import com.lyanhkhoa.linksentry.analysis.rules.BrandRegistry;
 import com.lyanhkhoa.linksentry.analysis.rules.EncodedCharactersRule;
 import com.lyanhkhoa.linksentry.analysis.rules.ExcessiveSubdomainsRule;
 import com.lyanhkhoa.linksentry.analysis.rules.ExcessiveUrlLengthRule;
@@ -42,19 +45,35 @@ class AnalysisConfig {
     }
 
     /**
+     * Converts the bound {@link BrandRegistryProperties} into the framework-free
+     * {@link BrandRegistry}. {@code BrandRegistry} and {@link Brand} re-validate
+     * every entry (lowercase ASCII, non-blank, no duplicates) regardless of how
+     * they were built, so a malformed {@code linksentry.brands.*} entry fails here,
+     * at application startup, rather than producing a silently wrong finding.
+     */
+    @Bean
+    BrandRegistry brandRegistry(BrandRegistryProperties brandRegistryProperties) {
+        List<Brand> brands = brandRegistryProperties.entries().stream()
+                .map(entry -> new Brand(entry.id(), entry.displayName(), entry.tokens(), entry.officialDomains()))
+                .toList();
+        return new BrandRegistry(brands);
+    }
+
+    /**
      * The ordered rule set, in the order they are documented in
      * {@code analysis.rules.package-info}. Order here does not affect the response —
      * {@link DefaultUrlAnalyzer} sorts findings independently — but a stable order
      * keeps this list easy to diff as rules are added.
      */
     @Bean
-    List<AnalysisRule> analysisRules(RulesProperties rulesProperties) {
+    List<AnalysisRule> analysisRules(RulesProperties rulesProperties, BrandRegistry brandRegistry) {
         return List.of(
                 new MissingHttpsRule(),
                 new IpLiteralHostRule(),
                 new ExcessiveUrlLengthRule(rulesProperties.excessiveUrlLength().maxLength()),
                 new ExcessiveSubdomainsRule(rulesProperties.excessiveSubdomains().maxDepth()),
                 new SuspiciousKeywordsRule(rulesProperties.suspiciousKeywords().keywords()),
+                new BrandDomainMismatchRule(brandRegistry),
                 new PunycodeHostRule(),
                 new EncodedCharactersRule(),
                 new KnownUrlShortenerRule(rulesProperties.knownUrlShorteners().domains()));

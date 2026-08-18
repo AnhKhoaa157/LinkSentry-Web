@@ -12,6 +12,9 @@ import com.lyanhkhoa.linksentry.analysis.domain.RuleFinding;
 import com.lyanhkhoa.linksentry.analysis.domain.UrlAnalyzer;
 import com.lyanhkhoa.linksentry.analysis.normalization.DefaultUrlNormalizer;
 import com.lyanhkhoa.linksentry.analysis.normalization.UrlNormalizer;
+import com.lyanhkhoa.linksentry.analysis.rules.Brand;
+import com.lyanhkhoa.linksentry.analysis.rules.BrandDomainMismatchRule;
+import com.lyanhkhoa.linksentry.analysis.rules.BrandRegistry;
 import com.lyanhkhoa.linksentry.analysis.rules.EncodedCharactersRule;
 import com.lyanhkhoa.linksentry.analysis.rules.ExcessiveSubdomainsRule;
 import com.lyanhkhoa.linksentry.analysis.rules.ExcessiveUrlLengthRule;
@@ -47,6 +50,11 @@ class RegressionCorpusTest {
     private static final List<String> KNOWN_SHORTENERS =
             List.of("bit.ly", "tinyurl.com", "t.co", "goo.gl", "ow.ly", "is.gd", "buff.ly", "adf.ly", "rebrand.ly",
                     "cutt.ly", "shorturl.at", "rb.gy");
+    // Mirrors application.yml's linksentry.brands.entries defaults.
+    private static final Brand VIETCOMBANK =
+            new Brand("vietcombank", "Vietcombank", List.of("vietcombank"), List.of("vietcombank.com.vn"));
+    private static final Brand TECHCOMBANK =
+            new Brand("techcombank", "Techcombank", List.of("techcombank"), List.of("techcombank.com.vn"));
 
     private final UrlAnalyzer analyzer = new DefaultUrlAnalyzer(normalizer(), rules(), scorer());
 
@@ -113,14 +121,59 @@ class RegressionCorpusTest {
     }
 
     @Test
-    @DisplayName("a deceptive subdomain chain fires EXCESSIVE_SUBDOMAINS, SUSPICIOUS_KEYWORDS, then MISSING_HTTPS")
+    @DisplayName("a deceptive subdomain chain fires BRAND_DOMAIN_MISMATCH, EXCESSIVE_SUBDOMAINS, "
+            + "SUSPICIOUS_KEYWORDS, then MISSING_HTTPS")
     void deceptiveSubdomains() {
         AnalysisResult result = analyzer.analyze("http://login.vietcombank.com.vn.evil-domain.xyz/account");
 
         assertThat(result.normalizedUrl().registrableDomain()).isEqualTo("evil-domain.xyz");
-        assertRuleIds(result, "EXCESSIVE_SUBDOMAINS", "SUSPICIOUS_KEYWORDS", "MISSING_HTTPS");
-        assertThat(result.score()).isEqualTo(45);
-        assertThat(result.riskLevel()).isEqualTo(RiskLevel.HIGH);
+        assertRuleIds(
+                result, "BRAND_DOMAIN_MISMATCH", "EXCESSIVE_SUBDOMAINS", "SUSPICIOUS_KEYWORDS", "MISSING_HTTPS");
+        assertThat(result.score()).isEqualTo(75);
+        assertThat(result.riskLevel()).isEqualTo(RiskLevel.CRITICAL);
+        assertThat(result.findings().get(0).evidence()).contains("Vietcombank").contains("vietcombank.com.vn");
+    }
+
+    @Test
+    @DisplayName("a known brand's own official domain fires no findings and scores LOW")
+    void officialBrandDomain() {
+        AnalysisResult result = analyzer.analyze("https://vietcombank.com.vn/");
+
+        assertRuleIds(result);
+        assertThat(result.score()).isZero();
+        assertThat(result.riskLevel()).isEqualTo(RiskLevel.LOW);
+    }
+
+    @Test
+    @DisplayName("a known brand's subdomain fires no findings and scores LOW")
+    void officialBrandSubdomain() {
+        AnalysisResult result = analyzer.analyze("https://mobile.vietcombank.com.vn/");
+
+        assertRuleIds(result);
+        assertThat(result.score()).isZero();
+        assertThat(result.riskLevel()).isEqualTo(RiskLevel.LOW);
+    }
+
+    @Test
+    @DisplayName("a brand token on an unrelated domain fires only BRAND_DOMAIN_MISMATCH and scores MODERATE")
+    void brandTokenOnUnrelatedDomain() {
+        AnalysisResult result = analyzer.analyze("https://vietcombank.evil-domain.xyz/");
+
+        assertRuleIds(result, "BRAND_DOMAIN_MISMATCH");
+        assertThat(result.score()).isEqualTo(30);
+        assertThat(result.riskLevel()).isEqualTo(RiskLevel.MODERATE);
+        assertThat(result.findings().get(0).evidence()).contains("Vietcombank").contains("vietcombank.com.vn");
+    }
+
+    @Test
+    @DisplayName("multiple configured brand tokens in one hostname deterministically pick the first configured "
+            + "brand and fire exactly one finding")
+    void multipleConfiguredBrandTokens() {
+        AnalysisResult result = analyzer.analyze("https://vietcombank-techcombank.evil-domain.xyz/");
+
+        assertRuleIds(result, "BRAND_DOMAIN_MISMATCH");
+        assertThat(result.score()).isEqualTo(30);
+        assertThat(result.findings().get(0).evidence()).contains("Vietcombank").doesNotContain("Techcombank");
     }
 
     @Test
@@ -166,6 +219,17 @@ class RegressionCorpusTest {
                 .doesNotContain("hunter2");
         assertNoFindingLeaksSecret(result, "SECRET123");
         assertNoFindingLeaksSecret(result, "hunter2");
+    }
+
+    @Test
+    @DisplayName("a brand mismatch finding never leaks a query secret carried by the same URL")
+    void brandMismatchDoesNotLeakQuerySecret() {
+        AnalysisResult result =
+                analyzer.analyze("http://login.vietcombank.com.vn.evil-domain.xyz/account?token=SECRET123");
+
+        assertThat(result.findings()).extracting(RuleFinding::ruleId).contains("BRAND_DOMAIN_MISMATCH");
+        assertNoFindingLeaksSecret(result, "SECRET123");
+        assertThat(result.normalizedUrl().redactedDisplayValue()).doesNotContain("SECRET123");
     }
 
     @Test
@@ -218,6 +282,7 @@ class RegressionCorpusTest {
                 new ExcessiveUrlLengthRule(100),
                 new ExcessiveSubdomainsRule(3),
                 new SuspiciousKeywordsRule(SUSPICIOUS_KEYWORDS),
+                new BrandDomainMismatchRule(new BrandRegistry(List.of(VIETCOMBANK, TECHCOMBANK))),
                 new PunycodeHostRule(),
                 new EncodedCharactersRule(),
                 new KnownUrlShortenerRule(KNOWN_SHORTENERS));

@@ -97,6 +97,20 @@ linksentry:
       keywords: login,verify,secure,account,update,confirm,signin,banking,password,billing
     known-url-shorteners:
       domains: bit.ly,tinyurl.com,t.co,goo.gl,ow.ly,is.gd,buff.ly,adf.ly,rebrand.ly,cutt.ly,shorturl.at,rb.gy
+  brands:
+    # Curated brand registry for BRAND_DOMAIN_MISMATCH: hand-maintained data, never
+    # runtime discovery. Order is significant — it breaks ties when a hostname's
+    # tokens match more than one configured brand. See BrandRegistry's javadoc and
+    # docs/SECURITY_BOUNDARY.md.
+    entries:
+      - id: vietcombank
+        display-name: Vietcombank
+        tokens: vietcombank
+        official-domains: vietcombank.com.vn
+      - id: techcombank
+        display-name: Techcombank
+        tokens: techcombank
+        official-domains: techcombank.com.vn
 
 logging:
   level:
