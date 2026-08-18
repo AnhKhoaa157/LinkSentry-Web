@@ -80,7 +80,9 @@ describe('ScanPage', () => {
 
     renderScanPage();
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(/retention policy/i);
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /ownerless|not available to the signed-in account/i,
+    );
     expect(screen.getByRole('link', { name: /back to scanner/i })).toHaveAttribute('href', '/');
   });
 
@@ -115,6 +117,20 @@ describe('ScanPage', () => {
     expect(screen.getByRole('alert')).not.toHaveTextContent('trace-2');
   });
 
+  it('offers sign-in when a private result request is unauthorized', async () => {
+    vi.spyOn(apiClient, 'get').mockRejectedValue(
+      axiosErrorWithResponse(401, {
+        code: 'UNAUTHORIZED',
+        message: 'Authentication is required to access this resource.',
+      }),
+    );
+
+    renderScanPage();
+
+    expect(await screen.findByRole('heading', { name: /sign in to view this scan/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /sign in or register/i })).toHaveAttribute('href', '/auth');
+  });
+
   it('treats a malformed scan id in the URL the same as a missing one, accessibly', async () => {
     // The backend collapses missing, malformed, and expired IDs into the same
     // SCAN_NOT_FOUND response; a non-UUID route param must reach the same
@@ -129,7 +145,9 @@ describe('ScanPage', () => {
 
     renderScanPage('not-a-uuid');
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(/retention policy/i);
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /ownerless|not available to the signed-in account/i,
+    );
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Saved scan unavailable');
     expect(screen.getByRole('link', { name: /back to scanner/i })).toHaveAttribute('href', '/');
     expect(getSpy).toHaveBeenCalledWith(

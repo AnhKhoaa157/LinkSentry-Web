@@ -32,7 +32,7 @@ export const normalizedUrlSchema = z.object({
 });
 
 export const scanDataSchema = z.object({
-  scanId: z.string(),
+  scanId: z.string().nullable(),
   input: z.string(),
   normalized: normalizedUrlSchema,
   score: z.number().int().min(0).max(100),

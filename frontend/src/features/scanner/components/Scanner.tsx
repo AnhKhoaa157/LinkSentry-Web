@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 
-import { useScanMutation } from '@/features/scanner/api/useScanMutation';
+import { useAuth } from '@/features/auth/context/useAuth';
+import { postScan } from '@/features/scanner/api/postScan';
 import { ScanResult } from '@/features/scanner/components/ScanResult';
 import { scanRequestSchema } from '@/features/scanner/schemas/scanRequest';
+import type { ScanResponse } from '@/features/scanner/schemas/scanResponse';
 import { normalizeApiError, type NormalizedApiError } from '@/lib/api/errors';
 
 const HINT_ID = 'scanner-url-hint';
@@ -30,20 +32,22 @@ function displayMessage(error: NormalizedApiError): string {
  * an API error, and success. Never more than one of these is shown at once.
  */
 export function Scanner() {
+  const { isAuthenticated, isLoading: isSessionLoading } = useAuth();
   const [url, setUrl] = useState('');
   const [clientError, setClientError] = useState<string | null>(null);
+  const [isPending, setIsPending] = useState(false);
+  const [scanResponse, setScanResponse] = useState<ScanResponse | null>(null);
+  const [apiError, setApiError] = useState<NormalizedApiError | null>(null);
   const urlInputRef = useRef<HTMLInputElement>(null);
-  const mutation = useScanMutation();
 
-  const apiError = mutation.isError ? normalizeApiError(mutation.error) : null;
   // Only a `url` field error says anything about the input. A 429, a 500, or a
   // dropped connection is a request-level failure and must leave the field valid.
   const serverFieldError = apiError?.fieldErrors?.url ?? null;
 
   // A field error is only actionable inside the input, so send keyboard and
   // screen-reader users there when the server reports one. Typing cannot trigger
-  // this: `handleChange` resets the mutation, so the value returns to null
-  // before it can change again.
+  // this: `handleChange` clears the safe request state, so the value returns to
+  // null before it can change again.
   useEffect(() => {
     if (serverFieldError !== null) {
       urlInputRef.current?.focus();
@@ -55,8 +59,9 @@ export function Scanner() {
     if (clientError) {
       setClientError(null);
     }
-    if (mutation.isSuccess || mutation.isError) {
-      mutation.reset();
+    if (scanResponse !== null || apiError !== null) {
+      setScanResponse(null);
+      setApiError(null);
     }
   }
 
@@ -71,7 +76,13 @@ export function Scanner() {
     }
 
     setClientError(null);
-    mutation.mutate(parsed.data.url);
+    setIsPending(true);
+    setScanResponse(null);
+    setApiError(null);
+    void postScan(parsed.data.url)
+      .then((response) => setScanResponse(response))
+      .catch((error: unknown) => setApiError(normalizeApiError(error)))
+      .finally(() => setIsPending(false));
   }
 
   // Exactly one field message can be live: editing clears both sources, and a
@@ -110,10 +121,10 @@ export function Scanner() {
           />
           <button
             type="submit"
-            disabled={mutation.isPending}
+            disabled={isPending || isSessionLoading}
             className="bg-accent-500 text-ink-950 rounded-lg px-5 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {mutation.isPending ? 'Analyzing…' : 'Analyze'}
+            {isPending ? 'Analyzing…' : 'Analyze'}
           </button>
         </div>
 
@@ -135,20 +146,32 @@ export function Scanner() {
         </div>
       ) : null}
 
-      {mutation.isSuccess ? (
+      {scanResponse !== null ? (
         <>
-          <ScanResult data={mutation.data.data} />
-          <div className="border-ink-800 mt-5 border-t pt-4">
-            <Link
-              to={`/scans/${encodeURIComponent(mutation.data.data.scanId)}`}
-              className="text-accent-400 hover:text-accent-300 text-sm font-medium underline underline-offset-4"
-            >
-              Open shareable result
-            </Link>
-            <p className="text-ink-500 mt-1 text-xs">
-              Anyone with this opaque link can view the result for the configured period (30 days by default).
-            </p>
-          </div>
+          <ScanResult data={scanResponse.data} />
+          {isAuthenticated && scanResponse.data.scanId ? (
+            <div className="border-ink-800 mt-5 border-t pt-4">
+              <Link
+                to={`/scans/${encodeURIComponent(scanResponse.data.scanId)}`}
+                className="text-accent-400 hover:text-accent-300 text-sm font-medium underline underline-offset-4"
+              >
+                Open your private result
+              </Link>
+              <p className="text-ink-500 mt-1 text-xs">
+                Only your signed-in account can view this saved result.
+              </p>
+            </div>
+          ) : (
+            <div className="border-ink-800 mt-5 border-t pt-4">
+              <p className="text-ink-500 text-xs">This one-off scan is not saved.</p>
+              <Link
+                to="/auth"
+                className="text-accent-400 hover:text-accent-300 mt-1 inline-block text-sm font-medium underline underline-offset-4"
+              >
+                Sign in to save future scans
+              </Link>
+            </div>
+          )}
         </>
       ) : null}
     </div>
