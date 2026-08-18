@@ -113,9 +113,11 @@ class AuthPostgresIntegrationTest {
                 .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
 
         TestUser expired = registerUser();
+        Instant expiredAt = Instant.now().minusSeconds(60);
         jdbcTemplate.update(
-                "UPDATE auth_session SET expires_at = ? WHERE token_hash = ?",
-                Instant.now().minusSeconds(60),
+                "UPDATE auth_session SET created_at = ?, expires_at = ? WHERE token_hash = ?",
+                expiredAt.minusSeconds(60),
+                expiredAt,
                 tokenService.sha256(expired.token()));
         mockMvc.perform(get("/api/v1/auth/session").header(HttpHeaders.AUTHORIZATION, expired.bearer()))
                 .andExpect(status().isUnauthorized())
@@ -222,7 +224,7 @@ class AuthPostgresIntegrationTest {
                     scan_id, redacted_display_value, scheme, host, ascii_host, registrable_domain,
                     port, path, query_present, fragment_present, score, risk_level, engine_version, analyzed_at,
                     owner_user_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, NULL)
                 """,
                 scanId,
                 "https://legacy.example/",
@@ -230,15 +232,13 @@ class AuthPostgresIntegrationTest {
                 "legacy.example",
                 "legacy.example",
                 "legacy.example",
-                null,
                 "/",
                 false,
                 false,
                 0,
                 "LOW",
                 "0.1.0",
-                Instant.parse("2026-08-18T12:00:00Z"),
-                null);
+                Instant.parse("2026-08-18T12:00:00Z"));
     }
 
     private record TestUser(String email, String password, UUID userId, String token) {

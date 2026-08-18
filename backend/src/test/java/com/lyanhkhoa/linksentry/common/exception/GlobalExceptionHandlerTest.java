@@ -4,7 +4,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.lyanhkhoa.linksentry.scan.application.ScanService;
+import com.lyanhkhoa.linksentry.health.HealthController;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.junit.jupiter.api.DisplayName;
@@ -14,7 +14,6 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -31,16 +30,13 @@ import org.springframework.web.bind.annotation.RestController;
  * calls it. Security filters are disabled so the assertions are about error
  * mapping alone.
  */
-@WebMvcTest
+@WebMvcTest(controllers = HealthController.class)
 @Import({GlobalExceptionHandler.class, GlobalExceptionHandlerTest.FixtureController.class})
 @AutoConfigureMockMvc(addFilters = false)
 class GlobalExceptionHandlerTest {
 
     @Autowired
     private MockMvc mockMvc;
-
-    @MockitoBean
-    private ScanService scanService;
 
     @Test
     @DisplayName("validation failures return 400 with per-field messages")
