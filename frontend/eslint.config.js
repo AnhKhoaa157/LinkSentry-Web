@@ -6,7 +6,7 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist', 'coverage', 'node_modules'] },
+  { ignores: ['dist', 'dist-extension', 'coverage', 'node_modules'] },
   {
     files: ['**/*.{ts,tsx}'],
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
@@ -52,9 +52,17 @@ export default tseslint.config(
     },
   },
   {
-    files: ['vite.config.ts', 'eslint.config.js'],
+    files: ['vite.config.ts', 'vite.extension.config.ts', 'eslint.config.js'],
     languageOptions: {
       globals: globals.node,
+    },
+  },
+  {
+    // The MV3 popup runs in an extension page, not a plain web page: it needs
+    // the chrome.* globals on top of the standard browser set.
+    files: ['src/extension/**/*.{ts,tsx}'],
+    languageOptions: {
+      globals: { ...globals.browser, ...globals.webextensions },
     },
   },
   // Must stay last so formatting-related rules are switched off.

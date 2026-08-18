@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "LinkSentry Scanner",
+  "version": "0.1.0",
+  "description": "Scans the current tab's link for lexical phishing risk signals using your local LinkSentry API. Never visits the link.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Scan this tab with LinkSentry"
+  },
+  "permissions": ["activeTab"],
+  "host_permissions": ["http://localhost:8080/*"]
+}
