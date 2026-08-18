@@ -161,6 +161,59 @@ Spring Data JPA validates its connection at boot, so step 1 is not optional.
 `CORS_ALLOWED_ORIGINS`, or the browser blocks the response even though the server
 returned 200.
 
+## Browser extension (MVP)
+
+A Manifest V3 Chrome/Edge extension in `frontend/src/extension/` scans the
+active tab's URL through the same `POST /api/v1/scans` API the web client
+uses. It is local-first and dev-only: build it, then load it unpacked.
+
+### Build
+
+```bash
+cd frontend
+npm install
+npm run build:extension
+```
+
+Output goes to `frontend/dist-extension/` — `popup.html`, its bundled JS/CSS,
+and `manifest.json` copied unmodified from `src/extension/public/`.
+
+### Load it unpacked
+
+1. Start PostgreSQL and the backend (Quick start, steps 1–2 above) — the
+   extension calls `http://localhost:8080` directly and needs it running.
+2. Open `chrome://extensions` (or `edge://extensions`), enable **Developer
+   mode**, click **Load unpacked**, and select `frontend/dist-extension/`.
+3. Open any `http://` or `https://` tab, click the LinkSentry toolbar icon,
+   then click **Scan this tab**.
+
+### Permissions and privacy boundary
+
+- **`activeTab`** only — granted for the current tab exactly when you click
+  the toolbar icon to open the popup. Never `tabs`, `storage`, `scripting`,
+  `webRequest`, `cookies`, `contextMenus`, `notifications`, or a content
+  script.
+- **`host_permissions: ["http://localhost:8080/*"]`** — the local API only,
+  never a wildcard or `<all_urls>`. This also lets the popup call the API
+  without any backend CORS change: an extension page with a matching host
+  permission is exempt from the browser's CORS check, so
+  `linksentry.cors.allowed-origins` (`http://localhost:5173` by default) is
+  untouched.
+- No background service worker. The popup calls the API directly and closes
+  when dismissed, so nothing runs between scans.
+- The popup initially retains only whether the active tab is scannable. It
+  re-reads the raw URL only after the user clicks **Scan this tab**, holds it
+  only for that request, and never logs, stores, copies, or renders it. The
+  popup shows only the backend's redacted, validated response fields (score,
+  risk level, findings, evidence), exactly like the web client. Internal
+  browser pages, new-tab pages, `file:` URLs, and any other non-`http(s)`
+  scheme show a plain "cannot be scanned" state and never reach the network.
+
+`frontend/vite.extension.config.ts` builds the popup as a second, independent
+Vite target inside the existing frontend package — no new workspace, and no
+new runtime dependency beyond `@types/chrome` (ambient types only, never
+shipped in the bundle).
+
 ## Commands
 
 ### Frontend (`cd frontend`)
@@ -176,6 +229,7 @@ returned 200.
 | `npm run test`         | Vitest in watch mode                          |
 | `npm run test:run`     | Vitest once (what CI runs)                    |
 | `npm run build`        | Type check, then production build to `dist/`  |
+| `npm run build:extension` | Type check, then build the MV3 popup to `dist-extension/` |
 | `npm run preview`      | Serve the production build locally            |
 
 ### Backend (`cd backend`)

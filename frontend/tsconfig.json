@@ -27,7 +27,7 @@
     "noImplicitOverride": true,
     "erasableSyntaxOnly": true,
 
-    "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"],
+    "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom", "chrome"],
 
     /* No `baseUrl`: it is deprecated in TypeScript 6 and removed in 7. Path
        mappings resolve relative to this file instead. Mirrored in vite.config.ts. */

@@ -11,4 +11,5 @@ afterEach(() => {
 
 beforeEach(() => {
   vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
 });
