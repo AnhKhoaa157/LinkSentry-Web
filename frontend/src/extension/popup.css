@@ -1,0 +1,6 @@
+/* Popup-specific sizing. Chrome/Edge size the popup to its content by default,
+   which makes a mostly-empty "ready" state look cramped and a full result look
+   unpredictably wide; a fixed width keeps both states readable. */
+body {
+  width: 360px;
+}
