@@ -1,5 +1,5 @@
-import { screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 
 import { ScanResult } from '@/features/scanner/components/ScanResult';
 import type { ScanData } from '@/features/scanner/schemas/scanResponse';
@@ -76,5 +76,49 @@ describe('ScanResult', () => {
     expect(container.querySelector('script')).toBeNull();
     expect(container.querySelector('iframe')).toBeNull();
     expect(container.querySelector('a')).toBeNull();
+
+    // The next-steps card adds the only interactive control in the result, and
+    // it must stay a button — never an anchor that could carry the target.
+    const copyButton = screen.getByRole('button', { name: 'Copy safe summary' });
+    expect(copyButton.tagName).toBe('BUTTON');
+    expect(copyButton).not.toHaveAttribute('href');
+  });
+
+  it('places the recommended next steps after the findings', () => {
+    renderWithProviders(<ScanResult data={baseData} />);
+
+    const headings = screen.getAllByRole('heading').map((heading) => heading.textContent);
+
+    expect(headings).toContain('Findings');
+    expect(headings).toContain('Recommended next steps');
+    expect(headings.indexOf('Recommended next steps')).toBeGreaterThan(headings.indexOf('Findings'));
+  });
+
+  it('copies a summary that omits the submitted link, its path, and the scan ID', async () => {
+    const writeText = vi.fn((_text: string) => Promise.resolve());
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+      writable: true,
+    });
+
+    renderWithProviders(<ScanResult data={baseData} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Copy safe summary' }));
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
+    const copied = writeText.mock.calls[0]![0];
+
+    expect(copied).not.toContain(baseData.input);
+    expect(copied).not.toContain(baseData.scanId);
+    expect(copied).not.toContain(baseData.normalized.path);
+    expect(copied).not.toContain(baseData.normalized.host);
+    expect(copied).not.toMatch(/https?:\/\//);
+
+    // ...while still carrying everything the summary is for.
+    expect(copied).toContain('Risk level: Critical (score 70/100)');
+    expect(copied).toContain('Registered domain: security-check.invalid');
+    expect(copied).toContain('- Subdomain uses a sensitive-sounding word');
+    expect(copied).toContain('- Unusually deep subdomain structure');
+    expect(copied).toContain('Do not open, sign in to, download from, or forward the link.');
   });
 });
