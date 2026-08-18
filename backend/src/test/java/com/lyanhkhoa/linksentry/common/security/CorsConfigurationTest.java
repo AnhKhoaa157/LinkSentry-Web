@@ -70,6 +70,17 @@ class CorsConfigurationTest {
     }
 
     @Test
+    @DisplayName("an authenticated preflight allows the Authorization header")
+    void preflightAllowsAuthorizationHeader() throws Exception {
+        mockMvc.perform(options("/api/v1/auth/login")
+                        .header(HttpHeaders.ORIGIN, ALLOWED_ORIGIN)
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "Authorization, Content-Type"))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS, containsString("Authorization")));
+    }
+
+    @Test
     @DisplayName("a preflight from an unconfigured origin is rejected with no CORS header")
     void preflightFromDisallowedOriginIsRejected() throws Exception {
         mockMvc.perform(options("/api/v1/scans")

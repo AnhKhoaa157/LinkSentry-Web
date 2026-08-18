@@ -49,7 +49,9 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
             "linksentry.ratelimit.scan.capacity=2",
             "linksentry.ratelimit.scan.refill-per-minute=1",
             "linksentry.ratelimit.scan-lookup.capacity=2",
-            "linksentry.ratelimit.scan-lookup.refill-per-minute=1"
+            "linksentry.ratelimit.scan-lookup.refill-per-minute=1",
+            "linksentry.ratelimit.auth.capacity=2",
+            "linksentry.ratelimit.auth.refill-per-minute=1"
         })
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class RateLimitIntegrationTest {
@@ -69,8 +71,8 @@ class RateLimitIntegrationTest {
                 .andExpect(status().isTooManyRequests())
                 .andExpect(jsonPath("$.code").value("RATE_LIMITED"));
 
-        mockMvc.perform(get("/api/v1/scans/not-a-uuid-1")).andExpect(status().isNotFound());
-        mockMvc.perform(get("/api/v1/scans/not-a-uuid-2")).andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/v1/scans/not-a-uuid-1")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/scans/not-a-uuid-2")).andExpect(status().isUnauthorized());
         mockMvc.perform(get("/api/v1/scans/not-a-uuid-3"))
                 .andExpect(status().isTooManyRequests())
                 .andExpect(jsonPath("$.code").value("RATE_LIMITED"));
@@ -88,10 +90,31 @@ class RateLimitIntegrationTest {
         mockMvc.perform(invalidPost()).andExpect(status().isTooManyRequests());
 
         mockMvc.perform(get("/api/v1/scans/not-a-uuid-1"))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.code").value("SCAN_NOT_FOUND"));
-        mockMvc.perform(get("/api/v1/scans/not-a-uuid-2")).andExpect(status().isNotFound());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+        mockMvc.perform(get("/api/v1/scans/not-a-uuid-2")).andExpect(status().isUnauthorized());
         mockMvc.perform(get("/api/v1/scans/not-a-uuid-3")).andExpect(status().isTooManyRequests());
+    }
+
+    @Test
+    @DisplayName("auth routes use a separate strict bucket")
+    void authRoutesHaveSeparateBucket() throws Exception {
+        for (int i = 0; i < 2; i++) {
+            mockMvc.perform(post("/api/v1/auth/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{not json"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("MALFORMED_REQUEST"));
+        }
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{not json"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("RATE_LIMITED"));
+
+        // Auth exhaustion does not consume either scan bucket.
+        mockMvc.perform(invalidPost()).andExpect(status().isBadRequest());
     }
 
     @Test

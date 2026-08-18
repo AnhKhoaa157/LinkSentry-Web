@@ -1,5 +1,5 @@
 /**
- * Single-instance, in-memory token-bucket rate limiting for the two scan endpoints.
+ * Single-instance, in-memory token-bucket rate limiting for scan and auth endpoints.
  *
  * <p>Buckets are keyed only by {@link jakarta.servlet.http.HttpServletRequest#getRemoteAddr()};
  * client-supplied forwarding headers are never consulted. There is no shared or

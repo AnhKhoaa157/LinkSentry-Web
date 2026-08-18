@@ -130,7 +130,7 @@ class RateLimitBucketStoreTest {
     private static RateLimitProperties properties(int capacity, int maxEntries, Duration idleExpiration) {
         RateLimitProperties.Bucket bucket = new RateLimitProperties.Bucket(capacity, 60);
         return new RateLimitProperties(
-                true, bucket, bucket, new RateLimitProperties.Store(maxEntries, idleExpiration));
+                true, bucket, bucket, bucket, new RateLimitProperties.Store(maxEntries, idleExpiration));
     }
 
     private static final class MutableClock extends Clock {

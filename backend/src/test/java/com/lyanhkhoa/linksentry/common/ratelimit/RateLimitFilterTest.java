@@ -160,7 +160,7 @@ class RateLimitFilterTest {
     private static RateLimitProperties properties(int capacity, boolean enabled) {
         RateLimitProperties.Bucket bucket = new RateLimitProperties.Bucket(capacity, 60);
         return new RateLimitProperties(
-                enabled, bucket, bucket, new RateLimitProperties.Store(100, Duration.ofMinutes(10)));
+                enabled, bucket, bucket, bucket, new RateLimitProperties.Store(100, Duration.ofMinutes(10)));
     }
 
     private static MockHttpServletRequest postRequest(String remoteAddr) {

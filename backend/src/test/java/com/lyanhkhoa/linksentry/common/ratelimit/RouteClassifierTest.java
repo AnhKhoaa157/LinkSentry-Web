@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 
 /**
- * Proves exactly two request shapes are ever charged against a bucket, and that
+ * Proves only the documented scan and auth request shapes are ever charged against a bucket, and that
  * every excluded route (health, actuator, OpenAPI, CORS preflight, wrong method,
  * wrong path depth) falls through unmatched rather than needing an allow-list.
  */
@@ -26,6 +26,15 @@ class RouteClassifierTest {
     void classifiesScanLookup() {
         assertThat(classifier.classify(request("GET", "/api/v1/scans/2ce16fb9-d52d-4310-8d45-a4e48f31889e")))
                 .contains(RateLimitedRoute.SCAN_LOOKUP);
+    }
+
+    @Test
+    @DisplayName("auth routes classify into their separate stricter bucket")
+    void classifiesAuthRoutes() {
+        assertThat(classifier.classify(request("POST", "/api/v1/auth/login"))).contains(RateLimitedRoute.AUTH);
+        assertThat(classifier.classify(request("POST", "/api/v1/auth/register"))).contains(RateLimitedRoute.AUTH);
+        assertThat(classifier.classify(request("GET", "/api/v1/auth/session"))).contains(RateLimitedRoute.AUTH);
+        assertThat(classifier.classify(request("OPTIONS", "/api/v1/auth/login"))).isEmpty();
     }
 
     @Test

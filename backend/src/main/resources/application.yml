@@ -64,8 +64,11 @@ linksentry:
     # interpreted correctly after the rules or scoring bands change.
     version: ${ENGINE_VERSION:0.1.0}
   history:
-    # Retained results are shareable by opaque UUID for this many days.
+    # Authenticated owners can retrieve safe result snapshots for this many days.
     retention-days: ${HISTORY_RETENTION_DAYS:30}
+  auth:
+    # Opaque bearer sessions are stateless at the HTTP layer and expire here.
+    session-ttl: ${AUTH_SESSION_TTL:24h}
   cors:
     # Exact origins only. A wildcard is never acceptable here.
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
@@ -80,6 +83,11 @@ linksentry:
     scan-lookup:
       capacity: ${RATE_LIMIT_SCAN_LOOKUP_CAPACITY:30}
       refill-per-minute: ${RATE_LIMIT_SCAN_LOOKUP_REFILL_PER_MINUTE:60}
+    auth:
+      # Registration/login/session routes get a separate, deliberately stricter
+      # per-remote-address bucket than URL analysis.
+      capacity: ${RATE_LIMIT_AUTH_CAPACITY:5}
+      refill-per-minute: ${RATE_LIMIT_AUTH_REFILL_PER_MINUTE:5}
     store:
       # Hard cap on tracked addresses per route, plus how long an idle address is
       # kept before its bucket is swept — bounds memory against an attacker who

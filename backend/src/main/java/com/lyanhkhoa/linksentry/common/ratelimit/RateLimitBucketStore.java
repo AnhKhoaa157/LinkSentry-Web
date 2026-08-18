@@ -73,7 +73,7 @@ public class RateLimitBucketStore {
         }
     }
 
-    /** Number of addresses currently tracked, across both routes. Test-only visibility hook. */
+    /** Number of client-address/route entries currently tracked. Test-only visibility hook. */
     int trackedIdentityCount() {
         synchronized (lock) {
             return entries.size();
@@ -84,6 +84,7 @@ public class RateLimitBucketStore {
         return switch (route) {
             case SCAN_CREATE -> properties.scan();
             case SCAN_LOOKUP -> properties.scanLookup();
+            case AUTH -> properties.auth();
         };
     }
 

@@ -1,5 +1,6 @@
 package com.lyanhkhoa.linksentry.common.security;
 
+import com.lyanhkhoa.linksentry.auth.application.AuthService;
 import com.lyanhkhoa.linksentry.common.config.CorsProperties;
 import com.lyanhkhoa.linksentry.common.ratelimit.RateLimitBucketStore;
 import com.lyanhkhoa.linksentry.common.ratelimit.RateLimitFilter;
@@ -12,18 +13,21 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.http.HttpMethod;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
 /**
- * Stateless security baseline for the scaffold.
+ * Stateless security baseline for public scans and private bearer history.
  *
- * <p>The API is currently anonymous by design: URL analysis needs no identity,
- * and adding authentication before there is anything to protect would be
- * ceremony. What this configuration does provide is the correct <em>shape</em> for
- * an API that will never use cookies:
+ * <p>URL analysis remains public for one-off scans, while account/session routes
+ * and retained history require the opaque bearer identity installed by the
+ * custom filter. The API never uses cookies:
  *
  * <ul>
  *   <li><strong>No session.</strong> Nothing is stored between requests, so no
@@ -42,8 +46,6 @@ import org.springframework.web.filter.CorsFilter;
  *       {@code common.ratelimit} for the single-instance, in-memory token buckets.
  * </ul>
  *
- * <p>Authentication remains a prerequisite for a public deployment and is
- * deliberately out of scope here.
  */
 @Configuration
 @EnableWebSecurity
@@ -55,10 +57,12 @@ class SecurityConfig {
             UrlBasedCorsConfigurationSource corsConfigurationSource,
             RateLimitProperties rateLimitProperties,
             RouteClassifier rateLimitRouteClassifier,
-            RateLimitBucketStore rateLimitBucketStore)
+            RateLimitBucketStore rateLimitBucketStore,
+            AuthService authService)
             throws Exception {
         RateLimitFilter rateLimitFilter =
                 new RateLimitFilter(rateLimitProperties, rateLimitRouteClassifier, rateLimitBucketStore);
+        BearerTokenAuthenticationFilter bearerTokenFilter = new BearerTokenAuthenticationFilter(authService);
         return http.cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .csrf(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
@@ -66,8 +70,19 @@ class SecurityConfig {
                 .logout(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterAfter(rateLimitFilter, CorsFilter.class)
-                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+                .addFilterBefore(bearerTokenFilter, AnonymousAuthenticationFilter.class)
+                .exceptionHandling(exception -> exception.authenticationEntryPoint(new ApiAuthenticationEntryPoint()))
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/v1/auth/register", "/api/v1/auth/login").permitAll()
+                        .requestMatchers("/api/v1/auth/session", "/api/v1/auth/logout").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/scans/*").authenticated()
+                        .anyRequest().permitAll())
                 .build();
+    }
+
+    @Bean
+    PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
     }
 
     /**
@@ -89,7 +104,7 @@ class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(properties.allowedOrigins());
         configuration.setAllowedMethods(properties.allowedMethods());
-        configuration.setAllowedHeaders(List.of("Content-Type", "Accept"));
+        configuration.setAllowedHeaders(List.of("Content-Type", "Accept", "Authorization"));
         configuration.setAllowCredentials(false);
         configuration.setMaxAge(3600L);
 
