@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import com.lyanhkhoa.linksentry.auth.security.TokenService;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -116,8 +117,8 @@ class AuthPostgresIntegrationTest {
         Instant expiredAt = Instant.now().minusSeconds(60);
         jdbcTemplate.update(
                 "UPDATE auth_session SET created_at = ?, expires_at = ? WHERE token_hash = ?",
-                expiredAt.minusSeconds(60),
-                expiredAt,
+                Timestamp.from(expiredAt.minusSeconds(60)),
+                Timestamp.from(expiredAt),
                 tokenService.sha256(expired.token()));
         mockMvc.perform(get("/api/v1/auth/session").header(HttpHeaders.AUTHORIZATION, expired.bearer()))
                 .andExpect(status().isUnauthorized())
@@ -238,7 +239,7 @@ class AuthPostgresIntegrationTest {
                 0,
                 "LOW",
                 "0.1.0",
-                Instant.parse("2026-08-18T12:00:00Z"));
+                Timestamp.from(Instant.parse("2026-08-18T12:00:00Z")));
     }
 
     private record TestUser(String email, String password, UUID userId, String token) {
