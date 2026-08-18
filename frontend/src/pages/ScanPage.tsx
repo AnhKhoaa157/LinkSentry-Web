@@ -18,11 +18,21 @@ export function ScanPage() {
 
   if (query.isError) {
     const apiError = normalizeApiError(query.error);
+    if (apiError.code === 'UNAUTHORIZED') {
+      return (
+        <StateMessage title="Sign in to view this scan">
+          Saved scan history is private to the account that created it.
+          <br />
+          <Link to="/auth" className="text-accent-400 underline underline-offset-4">
+            Sign in or register
+          </Link>
+        </StateMessage>
+      );
+    }
     if (apiError.code === 'SCAN_NOT_FOUND') {
       return (
         <StateMessage title="Saved scan unavailable">
-          This scan ID is invalid or the result expired under the retention policy. Scan links are public to
-          anyone who has the opaque ID.
+          This scan ID is invalid, expired, ownerless, or not available to the signed-in account.
         </StateMessage>
       );
     }
@@ -47,8 +57,8 @@ export function ScanPage() {
       <p className="text-accent-400 font-mono text-sm">Saved result</p>
       <h1 className="mt-2 text-3xl font-semibold tracking-tight">Link analysis</h1>
       <p className="text-ink-300 mt-3 text-sm">
-        This anonymous permalink is shareable by anyone who has it and is retained for the configured period
-        (30 days by default).
+        This private result is available only to its owner during the configured retention period (30 days by
+        default).
       </p>
       <ScanResult data={query.data.data} />
     </div>

@@ -2,6 +2,8 @@ package com.lyanhkhoa.linksentry.history.persistence;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.lyanhkhoa.linksentry.auth.persistence.SpringDataUserAccountRepository;
+import com.lyanhkhoa.linksentry.auth.persistence.UserAccountEntity;
 import com.lyanhkhoa.linksentry.analysis.domain.RiskLevel;
 import com.lyanhkhoa.linksentry.history.application.ScanHistoryRetentionService;
 import com.lyanhkhoa.linksentry.history.application.ScanHistoryService;
@@ -14,6 +16,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,6 +50,9 @@ class ScanHistoryRetentionBoundaryPostgresTest {
     private static final Instant FIXED_NOW = Instant.parse("2026-08-16T12:00:00Z");
     private static final int RETENTION_DAYS = 30;
     private static final Instant CUTOFF = FIXED_NOW.minus(RETENTION_DAYS, ChronoUnit.DAYS);
+    private static final UUID OWNER_ID = UUID.fromString("11111111-1111-4111-8111-111111111111");
+    private static final String TEST_PASSWORD_HASH =
+            "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
 
     @Container
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine")
@@ -83,9 +89,20 @@ class ScanHistoryRetentionBoundaryPostgresTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    private SpringDataUserAccountRepository userAccountRepository;
+
     @AfterEach
     void cleanTables() {
         jdbcTemplate.update("DELETE FROM scan_history");
+        jdbcTemplate.update("DELETE FROM auth_session");
+        jdbcTemplate.update("DELETE FROM user_account");
+    }
+
+    @BeforeEach
+    void createOwner() {
+        userAccountRepository.saveAndFlush(new UserAccountEntity(
+                OWNER_ID, "retention@example.com", TEST_PASSWORD_HASH, FIXED_NOW));
     }
 
     @Test
@@ -94,7 +111,7 @@ class ScanHistoryRetentionBoundaryPostgresTest {
         UUID scanId = UUID.randomUUID();
         historyService.save(snapshot(scanId, CUTOFF));
 
-        assertThat(historyService.findRetained(scanId)).isPresent();
+        assertThat(historyService.findRetained(scanId, OWNER_ID)).isPresent();
 
         retentionService.purgeExpired();
 
@@ -107,7 +124,7 @@ class ScanHistoryRetentionBoundaryPostgresTest {
         UUID scanId = UUID.randomUUID();
         historyService.save(snapshot(scanId, CUTOFF.minusSeconds(1)));
 
-        assertThat(historyService.findRetained(scanId)).isEmpty();
+        assertThat(historyService.findRetained(scanId, OWNER_ID)).isEmpty();
 
         retentionService.purgeExpired();
 
@@ -120,7 +137,7 @@ class ScanHistoryRetentionBoundaryPostgresTest {
         UUID scanId = UUID.randomUUID();
         historyService.save(snapshot(scanId, CUTOFF.plusSeconds(1)));
 
-        assertThat(historyService.findRetained(scanId)).isPresent();
+        assertThat(historyService.findRetained(scanId, OWNER_ID)).isPresent();
 
         retentionService.purgeExpired();
 
@@ -136,6 +153,7 @@ class ScanHistoryRetentionBoundaryPostgresTest {
         StoredNormalizedUrl normalized = new StoredNormalizedUrl(
                 "https", "example.com", "example.com", "example.com", null, "/", true, false);
         return new ScanHistory(
-                scanId, "https://example.com/", normalized, 0, RiskLevel.LOW, List.of(), "0.1.0", analyzedAt);
+                scanId, "https://example.com/", normalized, 0, RiskLevel.LOW, List.of(), "0.1.0", analyzedAt,
+                OWNER_ID);
     }
 }

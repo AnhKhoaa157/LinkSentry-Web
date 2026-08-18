@@ -12,23 +12,25 @@ The registered domain here is `evil-domain.xyz`. `vietcombank.com.vn` appears on
 inside the subdomain, where anyone can put anything. Explaining that clearly, and
 in a way a non-expert can act on, is the whole point of the product.
 
-## Status: persisted stateless MVP
+## Status: authenticated private scan history milestone
 
-The stateless analyzer, scan API, and explainable scanner UI are implemented and
-covered by backend and frontend tests. The service parses URLs as text only: it
-does not visit submitted targets or resolve DNS. Successful scans persist only a
-safe response snapshot for 30 days by default, addressable by an opaque UUID.
+The stateless analyzer, scan API, explainable scanner UI, and email/password
+accounts are implemented and covered by backend and frontend tests. The service
+parses URLs as text only: it does not visit submitted targets or resolve DNS.
+Anonymous scans return a result without persistence or a permalink. Signed-in
+scans persist only a safe, owner-bound response snapshot for 30 days by default.
 
 | Working                                                  | Deliberately out of scope                         |
 | -------------------------------------------------------- | ------------------------------------------------- |
-| URL validation, IDNA normalisation, and Public Suffix List | Authentication, per-user quotas, abuse monitoring |
+| URL validation, IDNA normalisation, and Public Suffix List | Per-user quotas, abuse monitoring |
 | Ten deterministic, explainable analysis rules, including curated brand-impersonation and bounded typo/Unicode-lookalike detection | AI, models, embeddings, live reputation/threat-intelligence feeds, DNS, and destination fetching |
 | Transparent `0..100` scoring and risk levels              | Global history/list endpoint                     |
-| `POST /api/v1/scans` with redacted response DTOs           |                                                 |
-| `GET /api/v1/scans/{scanId}` with 30-day retention         |                                                 |
-| Scanner submission, retrieval permalink, and health widget |                                                 |
+| `POST /api/v1/scans` with anonymous or owner-bound results |                                                 |
+| Auth register/login/logout/current-session endpoints       |                                                 |
+| Private `GET /api/v1/scans/{scanId}` with 30-day retention |                                                 |
+| Scanner submission, private result link, and health widget |                                                 |
 | Stateless Spring Security, CORS, CI, and regression tests  |                                                 |
-| Single-instance, in-memory rate limiting on scan routes    |                                                 |
+| Single-instance, in-memory rate limiting with strict auth bucket |                                           |
 
 [`docs/MANUAL_IMPLEMENTATION_GUIDE.md`](docs/MANUAL_IMPLEMENTATION_GUIDE.md)
 records the persistence decisions and the remaining security milestones.
@@ -164,8 +166,9 @@ returned 200.
 ## Browser extension (MVP)
 
 A Manifest V3 Chrome/Edge extension in `frontend/src/extension/` scans the
-active tab's URL through the same `POST /api/v1/scans` API the web client
-uses. It is local-first and dev-only: build it, then load it unpacked.
+active tab's URL through the same anonymous `POST /api/v1/scans` API the web
+client uses. It remains local-first and does not gain account storage or new
+permissions in this milestone.
 
 ### Build
 
@@ -359,6 +362,7 @@ put a secret in `frontend/.env*`.
 | [MANUAL_IMPLEMENTATION_GUIDE.md](docs/MANUAL_IMPLEMENTATION_GUIDE.md)        | The ten build exercises, in order                |
 | [ADR 0001](docs/adr/0001-static-analysis-only.md)                            | Why analysis never touches the network           |
 | [ADR 0002](docs/adr/0002-explainable-rule-engine.md)                         | Why rules, not a model                           |
+| [ADR 0004](docs/adr/0004-authenticated-private-scan-history.md)               | Opaque sessions and owner-bound history          |
 
 ## Where to start
 

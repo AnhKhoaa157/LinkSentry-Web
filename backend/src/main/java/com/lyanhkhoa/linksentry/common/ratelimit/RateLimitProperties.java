@@ -17,12 +17,17 @@ import org.springframework.validation.annotation.Validated;
  *                   request is classified, consumed, or delayed
  * @param scan       bucket applied to {@code POST /api/v1/scans}
  * @param scanLookup bucket applied to {@code GET /api/v1/scans/{scanId}}
- * @param store      bounds on the in-memory identity store backing both buckets
+ * @param auth       stricter bucket applied to account/session routes
+ * @param store      bounds on the in-memory identity store backing all buckets
  */
 @Validated
 @ConfigurationProperties(prefix = "linksentry.ratelimit")
 public record RateLimitProperties(
-        boolean enabled, @NotNull @Valid Bucket scan, @NotNull @Valid Bucket scanLookup, @NotNull @Valid Store store) {
+        boolean enabled,
+        @NotNull @Valid Bucket scan,
+        @NotNull @Valid Bucket scanLookup,
+        @NotNull @Valid Bucket auth,
+        @NotNull @Valid Store store) {
 
     /**
      * One token bucket's shape. Refill is greedy (tokens trickle in continuously

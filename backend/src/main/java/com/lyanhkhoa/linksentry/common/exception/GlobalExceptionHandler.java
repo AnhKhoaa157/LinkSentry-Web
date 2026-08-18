@@ -1,6 +1,8 @@
 package com.lyanhkhoa.linksentry.common.exception;
 
 import com.lyanhkhoa.linksentry.analysis.domain.InvalidUrlException;
+import com.lyanhkhoa.linksentry.auth.application.EmailAlreadyRegisteredException;
+import com.lyanhkhoa.linksentry.auth.application.InvalidCredentialsException;
 import com.lyanhkhoa.linksentry.common.api.ErrorResponse;
 import com.lyanhkhoa.linksentry.history.application.ScanNotFoundException;
 import java.util.LinkedHashMap;
@@ -72,6 +74,24 @@ public class GlobalExceptionHandler {
                         "The submitted value is not a supported HTTP or HTTPS URL.",
                         Map.of("url", "Enter a valid HTTP or HTTPS URL."),
                         traceId));
+    }
+
+    /** Registration conflict without echoing the submitted address. */
+    @ExceptionHandler(EmailAlreadyRegisteredException.class)
+    public ResponseEntity<ErrorResponse> handleEmailAlreadyRegistered(EmailAlreadyRegisteredException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ErrorResponse.of(
+                        "EMAIL_ALREADY_REGISTERED",
+                        "An account already exists for this email address.",
+                        newTraceId()));
+    }
+
+    /** Login failures intentionally do not distinguish an unknown email from a bad password. */
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidCredentials(InvalidCredentialsException exception) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ErrorResponse.of(
+                        "INVALID_CREDENTIALS", "Email or password is incorrect.", newTraceId()));
     }
 
     /** Missing, malformed, and expired opaque scan IDs share one safe response. */

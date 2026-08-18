@@ -95,15 +95,32 @@ describe('Scanner', () => {
     expect(screen.getByText('Moderate risk')).toBeInTheDocument();
     expect(screen.getByText('Connection is not encrypted')).toBeInTheDocument();
     expect(screen.getByText('security-check.invalid')).toBeInTheDocument();
-    const shareLink = screen.getByRole('link', { name: /open shareable result/i });
-    expect(shareLink).toHaveAttribute('href', '/scans/2ce16fb9-d52d-4310-8d45-a4e48f31889e');
-    // The share link must carry only the opaque scan id — never the submitted or
-    // redacted URL text, which would defeat the point of an opaque permalink.
-    expect(shareLink.getAttribute('href')).not.toMatch(/login|example|security-check|http/i);
+    expect(screen.queryByRole('link', { name: /open your private result/i })).not.toBeInTheDocument();
+    const signInLink = screen.getByRole('link', { name: /sign in to save future scans/i });
+    expect(signInLink).toHaveAttribute('href', '/auth');
+    // Anonymous scans expose only the auth route, never a URL-derived target.
+    expect(signInLink.getAttribute('href')).not.toMatch(/login|example|security-check|http/i);
 
     // A success is not a field error: the input stays valid and plainly described.
     expect(urlInput()).toHaveAttribute('aria-invalid', 'false');
     expect(describedByText(urlInput())).toEqual([HINT_TEXT]);
+  });
+
+  it('shows a private result link only after a signed-in session is established', async () => {
+    sessionStorage.setItem('linksentry.accessToken', 'test-only-token');
+    vi.spyOn(apiClient, 'get').mockResolvedValue({
+      data: { expiresAt: '2026-08-19T12:00:00Z', user: { email: 'person@example.com' } },
+    });
+    vi.spyOn(apiClient, 'post').mockResolvedValue({ data: validScanResponse });
+    const user = userEvent.setup();
+
+    renderWithProviders(<Scanner />);
+    await user.type(urlInput(), 'https://example.com/account');
+    await user.click(analyzeButton());
+
+    const privateLink = await screen.findByRole('link', { name: /open your private result/i });
+    expect(privateLink).toHaveAttribute('href', '/scans/2ce16fb9-d52d-4310-8d45-a4e48f31889e');
+    expect(document.body).not.toHaveTextContent('test-only-token');
   });
 
   it('renders the analysed URL as inert text, never as a target or markup', async () => {

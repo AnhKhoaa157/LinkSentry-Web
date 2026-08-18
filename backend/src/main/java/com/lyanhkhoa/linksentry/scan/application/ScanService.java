@@ -63,11 +63,25 @@ public class ScanService {
      *                             {@code rawInput} is not an analysable URL
      */
     public ScanResponse scan(String rawInput) {
+        return scan(rawInput, null);
+    }
+
+    /**
+     * Analyses one URL. Anonymous requests receive the safe result in memory and
+     * are deliberately neither assigned a retrievable ID nor persisted.
+     */
+    public ScanResponse scan(String rawInput, UUID ownerUserId) {
         AnalysisResult result = urlAnalyzer.analyze(rawInput);
 
-        UUID scanId = UUID.randomUUID();
         Instant analyzedAt = Instant.now(clock);
-        ScanHistory scanHistory = toHistory(scanId, result, analyzedAt);
+        if (ownerUserId == null) {
+            List<String> ruleIds = result.findings().stream().map(finding -> finding.ruleId()).toList();
+            log.info("Anonymous scan completed [riskLevel={}, rules={}]", result.riskLevel(), ruleIds);
+            return toResponse(result, analyzedAt);
+        }
+
+        UUID scanId = UUID.randomUUID();
+        ScanHistory scanHistory = toHistory(scanId, ownerUserId, result, analyzedAt);
         historyService.save(scanHistory);
 
         List<String> ruleIds = scanHistory.findings().stream().map(StoredFinding::ruleId).toList();
@@ -78,13 +92,21 @@ public class ScanService {
 
     /** Retrieves a retained scan by its opaque, canonical UUID string. */
     public ScanResponse get(String rawScanId) {
+        throw new ScanNotFoundException();
+    }
+
+    /** Retrieves only a retained scan owned by {@code ownerUserId}. */
+    public ScanResponse get(String rawScanId, UUID ownerUserId) {
+        if (ownerUserId == null) {
+            throw new ScanNotFoundException();
+        }
         UUID scanId = parseScanId(rawScanId);
-        return historyService.findRetained(scanId)
+        return historyService.findRetained(scanId, ownerUserId)
                 .map(ScanService::toResponse)
                 .orElseThrow(ScanNotFoundException::new);
     }
 
-    private ScanHistory toHistory(UUID scanId, AnalysisResult result, Instant analyzedAt) {
+    private ScanHistory toHistory(UUID scanId, UUID ownerUserId, AnalysisResult result, Instant analyzedAt) {
         var normalizedUrl = result.normalizedUrl();
         StoredNormalizedUrl normalized = new StoredNormalizedUrl(
                 normalizedUrl.scheme(),
@@ -112,7 +134,56 @@ public class ScanService {
                 result.riskLevel(),
                 findings,
                 engineProperties.version(),
-                analyzedAt);
+                analyzedAt,
+                ownerUserId);
+    }
+
+    private ScanResponse toResponse(AnalysisResult result, Instant analyzedAt) {
+        StoredNormalizedUrl normalized = toStoredNormalizedUrl(result);
+        List<FindingResponse> findings = result.findings().stream()
+                .map(finding -> new FindingResponse(
+                        finding.ruleId(),
+                        finding.severity(),
+                        finding.points(),
+                        finding.title(),
+                        finding.explanation(),
+                        finding.evidence()))
+                .toList();
+        return new ScanResponse(
+                new ScanDataResponse(
+                        null,
+                        result.normalizedUrl().redactedDisplayValue(),
+                        toNormalizedResponse(normalized),
+                        result.score(),
+                        result.riskLevel(),
+                        findings,
+                        analyzedAt),
+                new ScanResponse.ScanMeta(engineProperties.version()));
+    }
+
+    private static StoredNormalizedUrl toStoredNormalizedUrl(AnalysisResult result) {
+        var normalizedUrl = result.normalizedUrl();
+        return new StoredNormalizedUrl(
+                normalizedUrl.scheme(),
+                normalizedUrl.host(),
+                normalizedUrl.asciiHost(),
+                normalizedUrl.registrableDomain(),
+                normalizedUrl.port(),
+                normalizedUrl.path(),
+                normalizedUrl.queryPresent(),
+                normalizedUrl.fragmentPresent());
+    }
+
+    private static NormalizedUrlResponse toNormalizedResponse(StoredNormalizedUrl normalized) {
+        return new NormalizedUrlResponse(
+                normalized.scheme(),
+                normalized.host(),
+                normalized.asciiHost(),
+                normalized.registrableDomain(),
+                normalized.port(),
+                normalized.path(),
+                normalized.queryPresent(),
+                normalized.fragmentPresent());
     }
 
     private static ScanResponse toResponse(ScanHistory scanHistory) {

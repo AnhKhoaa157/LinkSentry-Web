@@ -16,10 +16,6 @@ export function createQueryClient(): QueryClient {
         retry: 1,
         staleTime: 30_000,
       },
-      mutations: {
-        // A scan is cheap but not free, and a silent retry would double-count it.
-        retry: 0,
-      },
     },
   });
 }

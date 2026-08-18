@@ -6,6 +6,7 @@ import { afterEach, beforeEach, vi } from 'vitest';
 // Unmount between tests so a leftover tree cannot satisfy the next test's query.
 afterEach(() => {
   cleanup();
+  sessionStorage.clear();
   vi.clearAllMocks();
 });
 

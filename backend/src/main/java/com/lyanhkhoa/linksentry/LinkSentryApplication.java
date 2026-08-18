@@ -12,8 +12,9 @@ import org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoCon
  * suspicious. It never contacts a submitted URL; see
  * {@code docs/SECURITY_BOUNDARY.md} for the full set of prohibited behaviours.
  *
- * <p>{@code UserDetailsServiceAutoConfiguration} is excluded because the API has no
- * accounts. Left enabled, Spring Boot creates an in-memory user and logs a
+ * <p>{@code UserDetailsServiceAutoConfiguration} remains excluded because LinkSentry
+ * authenticates its database-backed accounts with opaque bearer sessions. Left
+ * enabled, Spring Boot could create an unrelated in-memory user and log a
  * generated password at startup — a credential nothing authenticates against, which
  * is worse than no credential at all: it invites someone to try using it. Excluding
  * the class by type rather than by property name means a future rename breaks the

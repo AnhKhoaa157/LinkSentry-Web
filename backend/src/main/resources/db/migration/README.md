@@ -1,7 +1,8 @@
 # Flyway migrations
 
 The first migration creates the privacy-safe scan-history parent and ordered
-finding tables. Scan-history persistence is Exercise 10 of
+finding tables. V2 adds accounts, opaque bearer-session metadata, and a nullable
+scan owner without backfilling legacy rows. Scan-history persistence is Exercise 10 of
 [MANUAL_IMPLEMENTATION_GUIDE.md](../../../../../../docs/MANUAL_IMPLEMENTATION_GUIDE.md).
 
 Flyway ignores files that do not match its naming pattern, so this README is safe
@@ -13,6 +14,7 @@ Name migrations `V<n>__snake_case_description.sql`, for example:
 
 ```text
 V1__create_scan_history.sql
+V2__create_accounts_and_assign_scan_owners.sql
 ```
 
 Rules:
@@ -33,4 +35,6 @@ Rules:
   configured retention period and injected `Clock`.
 - Each row carries the engine version that produced it, so old results remain
   interpretable after rules change.
+- Legacy rows with a null owner are preserved but never returned by authenticated
+  owner-filtered retrieval.
 - Findings use a child table and an explicit position column, not opaque JSON.

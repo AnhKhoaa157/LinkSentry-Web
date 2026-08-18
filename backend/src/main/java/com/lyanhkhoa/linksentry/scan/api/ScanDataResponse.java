@@ -8,7 +8,7 @@ import java.util.UUID;
 /**
  * The {@code data} payload of a successful scan response.
  *
- * @param scanId     identifier generated for this scan, at the API boundary
+ * @param scanId     owner-only retained-result identifier; null for anonymous scans
  * @param input      the redacted display value — never the raw submission
  * @param normalized the analysed URL's public fields
  * @param score      total risk score, clamped to {@code 0..100}

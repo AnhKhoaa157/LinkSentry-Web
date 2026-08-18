@@ -7,6 +7,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
+import java.util.Objects;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,13 +30,17 @@ public class ScanHistoryService {
     /** Persists one completed scan; callers invoke this only after analysis succeeds. */
     @Transactional
     public void save(ScanHistory scanHistory) {
+        Objects.requireNonNull(scanHistory.ownerUserId(), "ownerUserId");
         repository.save(scanHistory);
     }
 
     /** Returns a scan only when it has not crossed the configured retention boundary. */
     @Transactional(readOnly = true)
-    public Optional<ScanHistory> findRetained(UUID scanId) {
-        return repository.findRetained(scanId, retainedSince());
+    public Optional<ScanHistory> findRetained(UUID scanId, UUID ownerUserId) {
+        if (ownerUserId == null) {
+            return Optional.empty();
+        }
+        return repository.findRetained(scanId, ownerUserId, retainedSince());
     }
 
     private Instant retainedSince() {

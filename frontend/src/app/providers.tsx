@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { BrowserRouter } from 'react-router';
 
+import { AuthProvider } from '@/features/auth/context/AuthProvider';
 import { createQueryClient } from '@/lib/api/queryClient';
 
 interface AppProvidersProps {
@@ -15,7 +16,9 @@ export function AppProviders({ children }: AppProvidersProps) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>{children}</BrowserRouter>
+      <AuthProvider>
+        <BrowserRouter>{children}</BrowserRouter>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

@@ -1,6 +1,7 @@
 import { Route, Routes } from 'react-router';
 
 import { AppLayout } from '@/components/layout/AppLayout';
+import { AuthPage } from '@/features/auth/pages/AuthPage';
 import { HomePage } from '@/pages/HomePage';
 import { MethodologyPage } from '@/pages/MethodologyPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
@@ -13,6 +14,7 @@ export function AppRoutes() {
       <Route element={<AppLayout />}>
         <Route index element={<HomePage />} />
         <Route path="methodology" element={<MethodologyPage />} />
+        <Route path="auth" element={<AuthPage />} />
         <Route path="scans/:scanId" element={<ScanPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>

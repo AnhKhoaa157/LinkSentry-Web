@@ -20,7 +20,21 @@ public record ScanHistory(
         RiskLevel riskLevel,
         List<StoredFinding> findings,
         String engineVersion,
-        Instant analyzedAt) {
+        Instant analyzedAt,
+        UUID ownerUserId) {
+
+    /** Compatibility constructor for safe snapshots read from the V1 shape. */
+    public ScanHistory(
+            UUID scanId,
+            String redactedDisplayValue,
+            StoredNormalizedUrl normalized,
+            int score,
+            RiskLevel riskLevel,
+            List<StoredFinding> findings,
+            String engineVersion,
+            Instant analyzedAt) {
+        this(scanId, redactedDisplayValue, normalized, score, riskLevel, findings, engineVersion, analyzedAt, null);
+    }
 
     public ScanHistory {
         Objects.requireNonNull(scanId, "scanId");

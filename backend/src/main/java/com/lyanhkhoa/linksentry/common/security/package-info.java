@@ -1,8 +1,8 @@
 /**
  * Security configuration.
  *
- * <p>Holds the stateless Spring Security filter chain and the CORS source. There
- * is no authentication in the MVP; see {@code docs/SECURITY_BOUNDARY.md} for what
- * is protected here and what is explicitly deferred.
+ * <p>Holds the stateless bearer Spring Security filter chain and the CORS source.
+ * Retained history and account/session routes are protected; one-off scan POSTs
+ * remain anonymous. See {@code docs/SECURITY_BOUNDARY.md} for the boundary.
  */
 package com.lyanhkhoa.linksentry.common.security;
