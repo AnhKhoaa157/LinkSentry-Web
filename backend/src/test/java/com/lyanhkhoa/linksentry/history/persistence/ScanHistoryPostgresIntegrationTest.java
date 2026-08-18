@@ -16,8 +16,9 @@ import com.lyanhkhoa.linksentry.history.domain.ScanHistory;
 import com.lyanhkhoa.linksentry.history.domain.StoredFinding;
 import com.lyanhkhoa.linksentry.history.domain.StoredNormalizedUrl;
 import com.lyanhkhoa.linksentry.scan.application.ScanService;
+import java.time.Clock;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -28,7 +29,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
@@ -50,11 +54,29 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @ActiveProfiles("test")
 class ScanHistoryPostgresIntegrationTest {
 
+    // PostgreSQL TIMESTAMPTZ stores microsecond precision and rounds (not truncates) any
+    // fractional value finer than a microsecond. A clock reading real wall-clock time can land
+    // on a nanosecond value that rounds up on the way into Postgres, so a truncated round-trip
+    // comparison can differ by one microsecond depending on timing. Freezing the clock to an
+    // instant that is already microsecond-aligned (zero sub-microsecond component) removes the
+    // rounding step entirely: there is nothing for Postgres to round, so the stored value is
+    // byte-for-byte the value written, and the round-trip assertion can stay exact.
+    private static final Instant FIXED_INSTANT = Instant.parse("2026-08-17T12:00:00.123456Z");
+
     @Container
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine")
             .withDatabaseName("linksentry_history_test")
             .withUsername("linksentry")
             .withPassword("integration-test");
+
+    @TestConfiguration
+    static class FixedClockConfig {
+        @Bean
+        @Primary
+        Clock testClock() {
+            return Clock.fixed(FIXED_INSTANT, ZoneOffset.UTC);
+        }
+    }
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -70,6 +92,9 @@ class ScanHistoryPostgresIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private Clock clock;
 
     @DynamicPropertySource
     static void postgresProperties(DynamicPropertyRegistry registry) {
@@ -143,7 +168,7 @@ class ScanHistoryPostgresIntegrationTest {
     @DisplayName("expired records are unavailable and purge cascades to finding rows")
     void expiredRecordsAreUnavailableAndPurged() {
         UUID scanId = UUID.fromString("9f3d7a0c-421f-4d38-bc5d-5a57f2d4f3c1");
-        historyService.save(snapshot(scanId, Instant.now().minusSeconds(31L * 24 * 60 * 60)));
+        historyService.save(snapshot(scanId, clock.instant().minusSeconds(31L * 24 * 60 * 60)));
 
         assertThat(historyService.findRetained(scanId)).isEmpty();
         // The parent row exists but is outside the retention window; the two findings from
@@ -167,7 +192,7 @@ class ScanHistoryPostgresIntegrationTest {
     @DisplayName("missing, malformed, and expired IDs all return an identical safe 404")
     void missingMalformedAndExpiredIdsReturnIdenticalSafeNotFound() throws Exception {
         UUID expiredScanId = UUID.fromString("5b1e9c3a-6f2d-4a7b-9e3c-2d1f8a6b4c0e");
-        historyService.save(snapshot(expiredScanId, Instant.now().minusSeconds(31L * 24 * 60 * 60)));
+        historyService.save(snapshot(expiredScanId, clock.instant().minusSeconds(31L * 24 * 60 * 60)));
 
         mockMvc.perform(get("/api/v1/scans/{scanId}", UUID.randomUUID()))
                 .andExpect(status().isNotFound())
@@ -229,12 +254,13 @@ class ScanHistoryPostgresIntegrationTest {
         assertThat(get.read("$.meta.engineVersion", String.class))
                 .isEqualTo(post.read("$.meta.engineVersion", String.class));
 
-        // TIMESTAMPTZ only stores microsecond precision; truncate both sides before comparing
-        // so a clock with finer resolution than Postgres cannot make this assertion flaky.
+        // The test clock (FixedClockConfig) is frozen at a microsecond-aligned instant, so
+        // there is no sub-microsecond component for PostgreSQL to round on the way in; the
+        // stored value is exactly the value written, and this comparison can be exact rather
+        // than tolerant.
         Instant postAnalyzedAt = Instant.parse(post.read("$.data.analyzedAt", String.class));
         Instant getAnalyzedAt = Instant.parse(get.read("$.data.analyzedAt", String.class));
-        assertThat(getAnalyzedAt.truncatedTo(ChronoUnit.MICROS))
-                .isEqualTo(postAnalyzedAt.truncatedTo(ChronoUnit.MICROS));
+        assertThat(getAnalyzedAt).isEqualTo(postAnalyzedAt).isEqualTo(FIXED_INSTANT);
 
         assertThat(postBody).doesNotContain(querySecret, fragmentSecret);
         assertThat(getBody).doesNotContain(querySecret, fragmentSecret);

@@ -84,6 +84,22 @@ describe('ScanPage', () => {
     expect(screen.getByRole('link', { name: /back to scanner/i })).toHaveAttribute('href', '/');
   });
 
+  it('shows a clear rate-limit message and a recovery path, without the generic fallback copy', async () => {
+    vi.spyOn(apiClient, 'get').mockRejectedValue(
+      axiosErrorWithResponse(429, {
+        code: 'RATE_LIMITED',
+        message: 'Too many requests. Please slow down and try again shortly.',
+        traceId: 'trace-4',
+      }),
+    );
+
+    renderScanPage();
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/too many requests|too quickly/i);
+    expect(screen.getByRole('alert')).not.toHaveTextContent(/could not load this saved scan/i);
+    expect(screen.getByRole('link', { name: /back to scanner/i })).toHaveAttribute('href', '/');
+  });
+
   it('shows a generic message when retrieval fails unexpectedly', async () => {
     vi.spyOn(apiClient, 'get').mockRejectedValue(
       axiosErrorWithResponse(500, {

@@ -1,5 +1,6 @@
 import { DomainBreakdown } from '@/features/scanner/components/DomainBreakdown';
 import { FindingsList } from '@/features/scanner/components/FindingsList';
+import { NextSteps } from '@/features/scanner/components/NextSteps';
 import { RiskBadge } from '@/features/scanner/components/RiskBadge';
 import type { ScanData } from '@/features/scanner/schemas/scanResponse';
 
@@ -36,6 +37,15 @@ export function ScanResult({ data }: Props) {
           <FindingsList findings={data.findings} />
         </div>
       </div>
+
+      {/* Only the server's risk level, score, registrable domain, and finding
+          titles are handed on — never `data.input` or `data.scanId`. */}
+      <NextSteps
+        riskLevel={data.riskLevel}
+        score={data.score}
+        registrableDomain={data.normalized.registrableDomain}
+        findings={data.findings}
+      />
 
       <p className="text-ink-500 text-xs">
         This score reflects lexical signals only. LinkSentry never visits the link, so a low score is not

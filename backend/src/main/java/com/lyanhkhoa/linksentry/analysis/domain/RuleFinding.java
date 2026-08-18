@@ -17,8 +17,11 @@ import java.util.Objects;
  * @param explanation one or two sentences a non-expert can act on. Explain what
  *                     was observed and why it matters, not which regex matched.
  * @param evidence    optional supporting detail, or {@code null}. Must be derived
- *                     from {@link NormalizedUrl#redactedDisplayValue()} — never
- *                     quote credentials or raw query values here.
+ *                     only from {@link NormalizedUrl#redactedDisplayValue()} or
+ *                     from static, curated configuration (for example a brand's
+ *                     display name and official domains) — never from
+ *                     credentials, a raw query value, or any other unredacted
+ *                     input.
  */
 public record RuleFinding(
         String ruleId, Severity severity, int points, String title, String explanation, String evidence) {
@@ -41,5 +44,11 @@ public record RuleFinding(
     /** Creates a finding without supporting evidence. */
     public static RuleFinding of(String ruleId, Severity severity, int points, String title, String explanation) {
         return new RuleFinding(ruleId, severity, points, title, explanation, null);
+    }
+
+    /** Creates a finding with already-redacted supporting evidence. */
+    public static RuleFinding of(
+            String ruleId, Severity severity, int points, String title, String explanation, String evidence) {
+        return new RuleFinding(ruleId, severity, points, title, explanation, evidence);
     }
 }

@@ -26,6 +26,13 @@ export function ScanPage() {
         </StateMessage>
       );
     }
+    if (apiError.code === 'RATE_LIMITED') {
+      return (
+        <StateMessage title="Too many requests">
+          This link is being requested too quickly. Wait a moment and try again.
+        </StateMessage>
+      );
+    }
     return <StateMessage title="Could not load saved scan">{GENERIC_LOAD_ERROR}</StateMessage>;
   }
 
