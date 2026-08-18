@@ -1,0 +1,75 @@
+id|category|url|expectRejected|expectedRuleIds|expectedScore|expectedRiskLevel|secretSentinels|evidenceContains
+vietcombank-apex|official-apex|https://vietcombank.com.vn/|false||0|LOW||
+vietcombank-subdomain|official-subdomain|https://www.vietcombank.com.vn/|false||0|LOW||
+vietcombank-exact-mismatch|exact-mismatch|https://vietcombank.evil-vietcombank.xyz/|false|BRAND_DOMAIN_MISMATCH|30|MODERATE||Vietcombank;vietcombank.com.vn
+vietcombank-path-query-fragment|path-query-fragment-noop|https://example.com/vietcombank-info?ref=vietcombank#vietcombanksection|false||0|LOW||
+techcombank-apex|official-apex|https://techcombank.com.vn/|false||0|LOW||
+techcombank-subdomain|official-subdomain|https://www.techcombank.com.vn/|false||0|LOW||
+techcombank-exact-mismatch|exact-mismatch|https://techcombank.evil-techcombank.xyz/|false|BRAND_DOMAIN_MISMATCH|30|MODERATE||Techcombank;techcombank.com.vn
+techcombank-path-query-fragment|path-query-fragment-noop|https://example.com/techcombank-info?ref=techcombank#techcombanksection|false||0|LOW||
+bidv-apex|official-apex|https://bidv.com.vn/|false||0|LOW||
+bidv-subdomain|official-subdomain|https://www.bidv.com.vn/|false||0|LOW||
+bidv-exact-mismatch|exact-mismatch|https://bidv.evil-bidv.xyz/|false|BRAND_DOMAIN_MISMATCH|30|MODERATE||BIDV;bidv.com.vn
+bidv-path-query-fragment|path-query-fragment-noop|https://example.com/bidv-info?ref=bidv#bidvsection|false||0|LOW||
+vietinbank-apex|official-apex|https://vietinbank.vn/|false||0|LOW||
+vietinbank-subdomain|official-subdomain|https://www.vietinbank.vn/|false||0|LOW||
+vietinbank-exact-mismatch|exact-mismatch|https://vietinbank.evil-vietinbank.xyz/|false|BRAND_DOMAIN_MISMATCH|30|MODERATE||VietinBank;vietinbank.vn
+vietinbank-path-query-fragment|path-query-fragment-noop|https://example.com/vietinbank-info?ref=vietinbank#vietinbanksection|false||0|LOW||
+agribank-apex|official-apex|https://agribank.com.vn/|false||0|LOW||
+agribank-subdomain|official-subdomain|https://www.agribank.com.vn/|false||0|LOW||
+agribank-exact-mismatch|exact-mismatch|https://agribank.evil-agribank.xyz/|false|BRAND_DOMAIN_MISMATCH|30|MODERATE||Agribank;agribank.com.vn
+agribank-path-query-fragment|path-query-fragment-noop|https://example.com/agribank-info?ref=agribank#agribanksection|false||0|LOW||
+acb-apex|official-apex|https://acb.com.vn/|false||0|LOW||
+acb-subdomain|official-subdomain|https://www.acb.com.vn/|false||0|LOW||
+acb-exact-mismatch|exact-mismatch|https://acb.evil-acb.xyz/|false|BRAND_DOMAIN_MISMATCH|30|MODERATE||ACB;acb.com.vn
+acb-path-query-fragment|path-query-fragment-noop|https://example.com/acb-info?ref=acb#acbsection|false||0|LOW||
+sacombank-apex|official-apex|https://sacombank.com.vn/|false||0|LOW||
+sacombank-subdomain|official-subdomain|https://www.sacombank.com.vn/|false||0|LOW||
+sacombank-exact-mismatch|exact-mismatch|https://sacombank.evil-sacombank.xyz/|false|BRAND_DOMAIN_MISMATCH|30|MODERATE||Sacombank;sacombank.com.vn
+sacombank-path-query-fragment|path-query-fragment-noop|https://example.com/sacombank-info?ref=sacombank#sacombanksection|false||0|LOW||
+momo-apex|official-apex|https://momo.vn/|false||0|LOW||
+momo-subdomain|official-subdomain|https://www.momo.vn/|false||0|LOW||
+momo-exact-mismatch|exact-mismatch|https://momo.evil-momo.xyz/|false|BRAND_DOMAIN_MISMATCH|30|MODERATE||MoMo;momo.vn
+momo-path-query-fragment|path-query-fragment-noop|https://example.com/momo-info?ref=momo#momosection|false||0|LOW||
+shopee-apex|official-apex|https://shopee.vn/|false||0|LOW||
+shopee-subdomain|official-subdomain|https://www.shopee.vn/|false||0|LOW||
+shopee-exact-mismatch|exact-mismatch|https://shopee.evil-shopee.xyz/|false|BRAND_DOMAIN_MISMATCH|30|MODERATE||Shopee;shopee.vn
+shopee-path-query-fragment|path-query-fragment-noop|https://example.com/shopee-info?ref=shopee#shopeesection|false||0|LOW||
+tiki-apex|official-apex|https://tiki.vn/|false||0|LOW||
+tiki-subdomain|official-subdomain|https://www.tiki.vn/|false||0|LOW||
+tiki-exact-mismatch|exact-mismatch|https://tiki.evil-tiki.xyz/|false|BRAND_DOMAIN_MISMATCH|30|MODERATE||Tiki;tiki.vn
+tiki-path-query-fragment|path-query-fragment-noop|https://example.com/tiki-info?ref=tiki#tikisection|false||0|LOW||
+vietcombank-typo|typo-positive|https://vietcomban.lookalike-check.xyz/|false|BRAND_LOOKALIKE_HOSTNAME|20|MODERATE||Vietcombank;one-character typo
+techcombank-typo|typo-positive|https://techcomban.lookalike-check.xyz/|false|BRAND_LOOKALIKE_HOSTNAME|20|MODERATE||Techcombank;one-character typo
+vietinbank-typo|typo-positive|https://vietinban.lookalike-check.xyz/|false|BRAND_LOOKALIKE_HOSTNAME|20|MODERATE||VietinBank;one-character typo
+agribank-typo|typo-positive|https://agriban.lookalike-check.xyz/|false|BRAND_LOOKALIKE_HOSTNAME|20|MODERATE||Agribank;one-character typo
+sacombank-typo|typo-positive|https://sacomban.lookalike-check.xyz/|false|BRAND_LOOKALIKE_HOSTNAME|20|MODERATE||Sacombank;one-character typo
+shopee-typo|typo-positive|https://shope.lookalike-check.xyz/|false|BRAND_LOOKALIKE_HOSTNAME|20|MODERATE||Shopee;one-character typo
+bidv-typo-negative|short-token-typo-negative|https://bid.lookalike-check.xyz/|false||0|LOW||
+bidv-hyphen-negative|short-token-hyphen-negative|https://b-i-d-v.lookalike-check.xyz/|false||0|LOW||
+acb-typo-negative|short-token-typo-negative|https://ac.lookalike-check.xyz/|false||0|LOW||
+acb-hyphen-negative|short-token-hyphen-negative|https://a-c-b.lookalike-check.xyz/|false||0|LOW||
+momo-typo-negative|short-token-typo-negative|https://mom.lookalike-check.xyz/|false||0|LOW||
+momo-hyphen-negative|short-token-hyphen-negative|https://mo-mo.lookalike-check.xyz/|false||0|LOW||
+tiki-typo-negative|short-token-typo-negative|https://tik.lookalike-check.xyz/|false||0|LOW||
+tiki-hyphen-negative|short-token-hyphen-negative|https://ti-ki.lookalike-check.xyz/|false||0|LOW||
+vietcombank-hyphen-positive|hyphen-positive|https://viet-com-bank.lookalike-check.xyz/|false|BRAND_LOOKALIKE_HOSTNAME|20|MODERATE||Vietcombank;hyphen-separated obfuscation
+techcombank-hyphen-positive|hyphen-positive|https://tech-com-bank.lookalike-check.xyz/|false|BRAND_LOOKALIKE_HOSTNAME|20|MODERATE||Techcombank;hyphen-separated obfuscation
+vietcombank-hyphen-nearmiss|hyphen-negative|https://viet-combankz.lookalike-check.xyz/|false||0|LOW||
+sacombank-hyphen-nearmiss|hyphen-negative|https://sacom-bank-x.lookalike-check.xyz/|false||0|LOW||
+vietcombank-confusable-cyrillic|confusable-positive|https://vietcоmbank.lookalike-check.xyz/|false|BRAND_LOOKALIKE_HOSTNAME;PUNYCODE_HOST|35|MODERATE||Vietcombank;lookalike character
+techcombank-confusable-greek|confusable-positive|https://techcοmbank.lookalike-check.xyz/|false|BRAND_LOOKALIKE_HOSTNAME;PUNYCODE_HOST|35|MODERATE||Techcombank;lookalike character
+munich-idn-negative|confusable-negative|https://münchen.lookalike-check.info/|false|PUNYCODE_HOST|15|MODERATE||
+cafe-idn-negative|confusable-negative|https://café.lookalike-check.info/|false|PUNYCODE_HOST|15|MODERATE||
+multibrand-exact-plus-lookalike|multi-brand|https://vietcombank.techcomban.some-evil-multi.xyz/|false|BRAND_DOMAIN_MISMATCH;BRAND_LOOKALIKE_HOSTNAME|50|HIGH||Vietcombank;Techcombank
+multibrand-two-lookalikes-picks-first|multi-brand|https://vietcomban.techcomban.multi-lookalike-check.xyz/|false|BRAND_LOOKALIKE_HOSTNAME|20|MODERATE||Vietcombank
+distant-spelling|false-positive-guard|https://vcombk.lookalike-check.xyz/|false||0|LOW||
+generic-word|false-positive-guard|https://creditunion.lookalike-check.xyz/|false||0|LOW||
+unrelated-host|false-positive-guard|https://example.com/|false||0|LOW||
+ip-literal|false-positive-guard|https://203.0.113.9/vietcombank|false|IP_LITERAL_HOST|15|MODERATE||
+null-registrable-domain|false-positive-guard|https://vietcombank.example/|false||0|LOW||
+brand-like-substring|false-positive-guard|https://myvietcombankreviews.xyz/|false||0|LOW||
+credential-rejected|redaction|https://user:SECRET_CRED_1@vietcombank.evil-cred-check.xyz/|true||||SECRET_CRED_1|
+query-secret|redaction|https://vietcombank.evil-secret-check.xyz/portal?token=SECRET_QUERY_1|false|BRAND_DOMAIN_MISMATCH|30|MODERATE|SECRET_QUERY_1|Vietcombank
+fragment-secret|redaction|https://vietcombank.evil-secret-check2.xyz/portal#SECRET_FRAGMENT_1|false|BRAND_DOMAIN_MISMATCH|30|MODERATE|SECRET_FRAGMENT_1|Vietcombank
+combined-typo-query-fragment-secret|redaction|https://vietcomban.evil-secret-check3.xyz/portal?ref=SECRET_QUERY_2#SECRET_FRAGMENT_2|false|BRAND_LOOKALIKE_HOSTNAME|20|MODERATE|SECRET_QUERY_2;SECRET_FRAGMENT_2|Vietcombank;one-character typo

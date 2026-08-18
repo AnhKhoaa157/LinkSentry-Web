@@ -4,36 +4,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 import com.lyanhkhoa.linksentry.analysis.domain.AnalysisResult;
-import com.lyanhkhoa.linksentry.analysis.domain.AnalysisRule;
-import com.lyanhkhoa.linksentry.analysis.domain.DefaultUrlAnalyzer;
 import com.lyanhkhoa.linksentry.analysis.domain.InvalidUrlException;
 import com.lyanhkhoa.linksentry.analysis.domain.RiskLevel;
 import com.lyanhkhoa.linksentry.analysis.domain.RuleFinding;
 import com.lyanhkhoa.linksentry.analysis.domain.UrlAnalyzer;
-import com.lyanhkhoa.linksentry.analysis.normalization.DefaultUrlNormalizer;
 import com.lyanhkhoa.linksentry.analysis.normalization.UrlNormalizer;
-import com.lyanhkhoa.linksentry.analysis.rules.Brand;
-import com.lyanhkhoa.linksentry.analysis.rules.BrandDomainMismatchRule;
-import com.lyanhkhoa.linksentry.analysis.rules.BrandLookalikeRule;
-import com.lyanhkhoa.linksentry.analysis.rules.BrandRegistry;
-import com.lyanhkhoa.linksentry.analysis.rules.EncodedCharactersRule;
-import com.lyanhkhoa.linksentry.analysis.rules.ExcessiveSubdomainsRule;
-import com.lyanhkhoa.linksentry.analysis.rules.ExcessiveUrlLengthRule;
-import com.lyanhkhoa.linksentry.analysis.rules.IpLiteralHostRule;
-import com.lyanhkhoa.linksentry.analysis.rules.KnownUrlShortenerRule;
-import com.lyanhkhoa.linksentry.analysis.rules.MissingHttpsRule;
-import com.lyanhkhoa.linksentry.analysis.rules.PunycodeHostRule;
-import com.lyanhkhoa.linksentry.analysis.rules.SuspiciousKeywordsRule;
-import com.lyanhkhoa.linksentry.analysis.scoring.DefaultRiskScorer;
-import com.lyanhkhoa.linksentry.analysis.scoring.RiskScorer;
-import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * A compact end-to-end corpus wired exactly like production ({@code
- * AnalysisConfig}, with the same defaults as {@code application.yml}), but
- * framework-free — plain constructors, no Spring context.
+ * A compact end-to-end corpus wired exactly like production via {@link
+ * AnalyzerFixture}.
  *
  * <p>Each case asserts the full, deterministic outcome (exact rule ids in order,
  * score, risk level) rather than a single field, so a regression in one rule's
@@ -41,34 +22,14 @@ import org.junit.jupiter.api.Test;
  * test still passes in isolation. Several cases also assert that a submitted
  * secret never survives into the result, which is the property the whole product
  * depends on.
+ *
+ * <p>{@link BrandRegressionCorpusTest} covers the curated brand registry
+ * exhaustively (every brand, every signal, every false-positive guard); this class
+ * keeps only a representative slice of brand cases alongside the non-brand rules.
  */
 class RegressionCorpusTest {
 
-    // Mirrors application.yml's linksentry.rules.* defaults.
-    private static final List<String> SUSPICIOUS_KEYWORDS =
-            List.of("login", "verify", "secure", "account", "update", "confirm", "signin", "banking", "password",
-                    "billing");
-    private static final List<String> KNOWN_SHORTENERS =
-            List.of("bit.ly", "tinyurl.com", "t.co", "goo.gl", "ow.ly", "is.gd", "buff.ly", "adf.ly", "rebrand.ly",
-                    "cutt.ly", "shorturl.at", "rb.gy");
-    // Mirrors application.yml's linksentry.brands.entries defaults.
-    private static final Brand VIETCOMBANK =
-            new Brand("vietcombank", "Vietcombank", List.of("vietcombank"), List.of("vietcombank.com.vn"));
-    private static final Brand TECHCOMBANK =
-            new Brand("techcombank", "Techcombank", List.of("techcombank"), List.of("techcombank.com.vn"));
-    private static final Brand BIDV = new Brand("bidv", "BIDV", List.of("bidv"), List.of("bidv.com.vn"));
-    private static final Brand VIETINBANK =
-            new Brand("vietinbank", "VietinBank", List.of("vietinbank"), List.of("vietinbank.vn"));
-    private static final Brand AGRIBANK =
-            new Brand("agribank", "Agribank", List.of("agribank"), List.of("agribank.com.vn"));
-    private static final Brand ACB = new Brand("acb", "ACB", List.of("acb"), List.of("acb.com.vn"));
-    private static final Brand SACOMBANK =
-            new Brand("sacombank", "Sacombank", List.of("sacombank"), List.of("sacombank.com.vn"));
-    private static final Brand MOMO = new Brand("momo", "MoMo", List.of("momo"), List.of("momo.vn"));
-    private static final Brand SHOPEE = new Brand("shopee", "Shopee", List.of("shopee"), List.of("shopee.vn"));
-    private static final Brand TIKI = new Brand("tiki", "Tiki", List.of("tiki"), List.of("tiki.vn"));
-
-    private final UrlAnalyzer analyzer = new DefaultUrlAnalyzer(normalizer(), rules(), scorer());
+    private final UrlAnalyzer analyzer = AnalyzerFixture.productionAnalyzer();
 
     @Test
     @DisplayName("a clean HTTPS hostname produces no findings and scores LOW")
@@ -352,32 +313,5 @@ class RegressionCorpusTest {
                 assertThat(finding.evidence()).doesNotContain(secret);
             }
         }
-    }
-
-    private static UrlNormalizer normalizer() {
-        return new DefaultUrlNormalizer();
-    }
-
-    private static RiskScorer scorer() {
-        return new DefaultRiskScorer();
-    }
-
-    private static List<AnalysisRule> rules() {
-        return List.of(
-                new MissingHttpsRule(),
-                new IpLiteralHostRule(),
-                new ExcessiveUrlLengthRule(100),
-                new ExcessiveSubdomainsRule(3),
-                new SuspiciousKeywordsRule(SUSPICIOUS_KEYWORDS),
-                new BrandDomainMismatchRule(brandRegistry()),
-                new BrandLookalikeRule(brandRegistry()),
-                new PunycodeHostRule(),
-                new EncodedCharactersRule(),
-                new KnownUrlShortenerRule(KNOWN_SHORTENERS));
-    }
-
-    private static BrandRegistry brandRegistry() {
-        return new BrandRegistry(List.of(
-                VIETCOMBANK, TECHCOMBANK, BIDV, VIETINBANK, AGRIBANK, ACB, SACOMBANK, MOMO, SHOPEE, TIKI));
     }
 }
