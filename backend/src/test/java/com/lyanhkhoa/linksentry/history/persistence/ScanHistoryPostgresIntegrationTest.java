@@ -39,6 +39,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -53,6 +54,12 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 })
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@TestPropertySource(properties = {
+        "linksentry.ratelimit.auth.capacity=100",
+        "linksentry.ratelimit.auth.refill-per-minute=100",
+        "linksentry.ratelimit.scan.capacity=100",
+        "linksentry.ratelimit.scan-lookup.capacity=100"
+})
 class ScanHistoryPostgresIntegrationTest {
 
     // PostgreSQL TIMESTAMPTZ stores microsecond precision and rounds (not truncates) any
