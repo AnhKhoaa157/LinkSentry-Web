@@ -21,13 +21,14 @@ safe response snapshot for 30 days by default, addressable by an opaque UUID.
 
 | Working                                                  | Deliberately out of scope                         |
 | -------------------------------------------------------- | ------------------------------------------------- |
-| URL validation, IDNA normalisation, and Public Suffix List | Authentication and rate limiting                 |
+| URL validation, IDNA normalisation, and Public Suffix List | Authentication, per-user quotas, abuse monitoring |
 | Eight deterministic, explainable analysis rules           | Threat-intelligence and destination fetching     |
 | Transparent `0..100` scoring and risk levels              | Brand impersonation and Unicode homograph rules  |
 | `POST /api/v1/scans` with redacted response DTOs           | Global history/list endpoint                    |
 | `GET /api/v1/scans/{scanId}` with 30-day retention         |                                                 |
 | Scanner submission, retrieval permalink, and health widget |                                                 |
 | Stateless Spring Security, CORS, CI, and regression tests  |                                                 |
+| Single-instance, in-memory rate limiting on scan routes    |                                                 |
 
 [`docs/MANUAL_IMPLEMENTATION_GUIDE.md`](docs/MANUAL_IMPLEMENTATION_GUIDE.md)
 records the persistence decisions and the remaining security milestones.
@@ -104,6 +105,29 @@ backend and it flips to **Offline** with a retry button — that path is covered
 tests.
 
 ### Run the whole stack in Docker
+
+Database, API, and web client, all containerised:
+
+```bash
+docker compose --profile backend --profile frontend up -d --build
+docker compose ps                    # wait until db and backend report healthy
+```
+
+Open <http://localhost:5173>. Stop it — without `-v`, so the database volume
+survives — with:
+
+```bash
+docker compose --profile backend --profile frontend down
+```
+
+The frontend image serves static files only; the browser still calls the API at
+`http://localhost:8080` directly, so `CORS_ALLOWED_ORIGINS` must contain the
+frontend's origin. `FRONTEND_PORT` (default `5173`) changes the published port,
+and changing it means changing that origin too. `VITE_API_BASE_URL` is baked into
+the bundle at image build time, so altering it requires `--build`.
+
+To containerise the API but keep Vite on the host, use the `backend` profile
+alone:
 
 ```bash
 docker compose --profile backend up -d --build
@@ -183,7 +207,7 @@ On Windows use `.\gradlew.bat`.
 ├── backend/            Spring Boot API (Gradle Kotlin DSL)
 ├── frontend/           React + TypeScript client (Vite)
 ├── docs/               Architecture, API contract, security boundary, ADRs, exercises
-├── compose.yaml        PostgreSQL (+ optional backend) for local development
+├── compose.yaml        PostgreSQL (+ optional backend and frontend) for local development
 └── .github/workflows/  Frontend and backend CI
 ```
 
