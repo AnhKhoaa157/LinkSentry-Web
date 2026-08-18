@@ -94,6 +94,19 @@ linksentry:
       # spreads requests across many distinct source addresses.
       max-entries: ${RATE_LIMIT_STORE_MAX_ENTRIES:10000}
       idle-expiration: ${RATE_LIMIT_STORE_IDLE_EXPIRATION:10m}
+  anonymous-trial:
+    # Rolling-window trial quota for unauthenticated POST /api/v1/scans, keyed only
+    # by remote address — independent of linksentry.ratelimit's general anti-abuse
+    # control, which still applies on top of this. See common.trial and
+    # docs/SECURITY_BOUNDARY.md.
+    enabled: ${ANONYMOUS_TRIAL_ENABLED:true}
+    max-scans: ${ANONYMOUS_TRIAL_MAX_SCANS:3}
+    window: ${ANONYMOUS_TRIAL_WINDOW:24h}
+    store:
+      # Same bounded-store shape as linksentry.ratelimit.store, applied to the
+      # trial guard's own identity map.
+      max-entries: ${ANONYMOUS_TRIAL_STORE_MAX_ENTRIES:10000}
+      idle-expiration: ${ANONYMOUS_TRIAL_STORE_IDLE_EXPIRATION:24h}
   rules:
     # Tunable thresholds and word lists for analysis.rules. Changing these is a
     # scoring-policy decision, not a code change.

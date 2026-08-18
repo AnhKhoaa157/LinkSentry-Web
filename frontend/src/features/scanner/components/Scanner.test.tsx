@@ -263,6 +263,38 @@ describe('Scanner', () => {
     expect(postSpy).toHaveBeenCalledTimes(2);
   });
 
+  it('shows a distinct message and a safe sign-in link for an exhausted anonymous trial', async () => {
+    vi.spyOn(apiClient, 'post').mockRejectedValue(
+      axiosErrorWithResponse(429, {
+        code: 'ANONYMOUS_TRIAL_EXHAUSTED',
+        message: 'Sign in to continue scanning.',
+        traceId: 'trace-trial',
+      }),
+    );
+    const user = userEvent.setup();
+
+    renderWithProviders(<Scanner />);
+    await user.type(urlInput(), 'http://login.example.com.security-check.invalid/account');
+    await user.click(analyzeButton());
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(/free anonymous scan allowance is used up/i);
+    expect(alert).toHaveTextContent(/sign in/i);
+    // No countdown, no reset time, no remaining count, no IP explanation: the
+    // backend publishes none of it and the UI must never invent one.
+    expect(alert).not.toHaveTextContent(/\d+\s*(second|minute|hour|s\b)/i);
+    expect(alert).not.toHaveTextContent(/remaining|reset|quota|address|ip\b/i);
+
+    const signInLink = screen.getByRole('link', { name: /sign in to continue scanning/i });
+    expect(signInLink).toHaveAttribute('href', '/auth');
+    // The link must never carry the submitted URL or any address.
+    expect(signInLink.getAttribute('href')).not.toMatch(/login|example|security-check|http/i);
+
+    // A quota failure says nothing about the URL, so the field stays valid.
+    expect(urlInput()).toHaveAttribute('aria-invalid', 'false');
+    expect(describedByText(urlInput())).toEqual([HINT_TEXT]);
+  });
+
   it('shows a generic message for a 500 response without leaking detail or blaming the field', async () => {
     vi.spyOn(apiClient, 'post').mockRejectedValue(
       axiosErrorWithResponse(500, {

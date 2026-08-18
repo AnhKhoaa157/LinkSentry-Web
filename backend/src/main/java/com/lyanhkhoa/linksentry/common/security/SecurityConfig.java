@@ -6,6 +6,9 @@ import com.lyanhkhoa.linksentry.common.ratelimit.RateLimitBucketStore;
 import com.lyanhkhoa.linksentry.common.ratelimit.RateLimitFilter;
 import com.lyanhkhoa.linksentry.common.ratelimit.RateLimitProperties;
 import com.lyanhkhoa.linksentry.common.ratelimit.RouteClassifier;
+import com.lyanhkhoa.linksentry.common.trial.AnonymousTrialFilter;
+import com.lyanhkhoa.linksentry.common.trial.AnonymousTrialProperties;
+import com.lyanhkhoa.linksentry.common.trial.AnonymousTrialStore;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -44,6 +47,11 @@ import org.springframework.web.filter.CorsFilter;
  *       {@link CorsFilter}, so a disallowed origin never reaches it and an allowed
  *       origin's response — including a {@code 429} — keeps its CORS headers. See
  *       {@code common.ratelimit} for the single-instance, in-memory token buckets.
+ *   <li><strong>Anonymous trial quota.</strong> {@link AnonymousTrialFilter} sits
+ *       immediately after {@link BearerTokenAuthenticationFilter}, so it can tell an
+ *       authenticated caller apart from an anonymous one and never gates the former.
+ *       It is independent of rate limiting — both apply to every anonymous scan. See
+ *       {@code common.trial}.
  * </ul>
  *
  */
@@ -58,11 +66,15 @@ class SecurityConfig {
             RateLimitProperties rateLimitProperties,
             RouteClassifier rateLimitRouteClassifier,
             RateLimitBucketStore rateLimitBucketStore,
-            AuthService authService)
+            AuthService authService,
+            AnonymousTrialProperties anonymousTrialProperties,
+            AnonymousTrialStore anonymousTrialStore)
             throws Exception {
         RateLimitFilter rateLimitFilter =
                 new RateLimitFilter(rateLimitProperties, rateLimitRouteClassifier, rateLimitBucketStore);
         BearerTokenAuthenticationFilter bearerTokenFilter = new BearerTokenAuthenticationFilter(authService);
+        AnonymousTrialFilter anonymousTrialFilter =
+                new AnonymousTrialFilter(anonymousTrialProperties, anonymousTrialStore);
         return http.cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .csrf(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
@@ -71,6 +83,7 @@ class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterAfter(rateLimitFilter, CorsFilter.class)
                 .addFilterBefore(bearerTokenFilter, AnonymousAuthenticationFilter.class)
+                .addFilterAfter(anonymousTrialFilter, BearerTokenAuthenticationFilter.class)
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(new ApiAuthenticationEntryPoint()))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/auth/register", "/api/v1/auth/login").permitAll()
