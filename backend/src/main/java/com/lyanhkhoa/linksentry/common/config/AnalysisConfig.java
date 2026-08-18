@@ -7,6 +7,7 @@ import com.lyanhkhoa.linksentry.analysis.normalization.DefaultUrlNormalizer;
 import com.lyanhkhoa.linksentry.analysis.normalization.UrlNormalizer;
 import com.lyanhkhoa.linksentry.analysis.rules.Brand;
 import com.lyanhkhoa.linksentry.analysis.rules.BrandDomainMismatchRule;
+import com.lyanhkhoa.linksentry.analysis.rules.BrandLookalikeRule;
 import com.lyanhkhoa.linksentry.analysis.rules.BrandRegistry;
 import com.lyanhkhoa.linksentry.analysis.rules.EncodedCharactersRule;
 import com.lyanhkhoa.linksentry.analysis.rules.ExcessiveSubdomainsRule;
@@ -74,6 +75,7 @@ class AnalysisConfig {
                 new ExcessiveSubdomainsRule(rulesProperties.excessiveSubdomains().maxDepth()),
                 new SuspiciousKeywordsRule(rulesProperties.suspiciousKeywords().keywords()),
                 new BrandDomainMismatchRule(brandRegistry),
+                new BrandLookalikeRule(brandRegistry),
                 new PunycodeHostRule(),
                 new EncodedCharactersRule(),
                 new KnownUrlShortenerRule(rulesProperties.knownUrlShorteners().domains()));

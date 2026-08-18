@@ -29,6 +29,16 @@ public record Brand(String id, String displayName, List<String> tokens, List<Str
     private static final Pattern TOKEN_PATTERN = Pattern.compile("^[a-z0-9]+$");
     private static final Pattern DOMAIN_PATTERN = Pattern.compile("^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$");
 
+    /**
+     * Generic words rejected as a brand token at startup. A token this broad would
+     * make {@code BrandDomainMismatchRule} and {@code BrandLookalikeRule} fire on
+     * countless unrelated hostnames, turning a curated brand signal into noise —
+     * see {@code docs/SECURITY_BOUNDARY.md} §8.
+     */
+    private static final Set<String> GENERIC_TOKEN_BLOCKLIST = Set.of(
+            "bank", "secure", "login", "pay", "account", "verify", "update", "confirm", "signin", "password",
+            "billing", "www", "mail", "app", "online", "web");
+
     public Brand {
         Objects.requireNonNull(id, "id");
         Objects.requireNonNull(displayName, "displayName");
@@ -50,6 +60,13 @@ public record Brand(String id, String displayName, List<String> tokens, List<Str
 
         tokens = List.copyOf(dedupOrThrow(id, "token", tokens, TOKEN_PATTERN));
         officialDomains = List.copyOf(dedupOrThrow(id, "official domain", officialDomains, DOMAIN_PATTERN));
+
+        for (String token : tokens) {
+            if (GENERIC_TOKEN_BLOCKLIST.contains(token)) {
+                throw new IllegalArgumentException(
+                        "brand '" + id + "' token '" + token + "' is too generic to be a brand-matching token");
+            }
+        }
     }
 
     private static Set<String> dedupOrThrow(String brandId, String label, List<String> values, Pattern pattern) {

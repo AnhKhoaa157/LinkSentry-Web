@@ -88,4 +88,13 @@ class BrandTest {
                 List.of("vietcombank"),
                 List.of("vietcombank.com.vn", "vietcombank.com.vn")));
     }
+
+    @Test
+    @DisplayName("rejects a generic token such as 'bank' or 'login'")
+    void rejectsGenericToken() {
+        assertThatIllegalArgumentException()
+                .isThrownBy(() -> new Brand("somebank", "Some Bank", List.of("bank"), List.of("somebank.example")));
+        assertThatIllegalArgumentException()
+                .isThrownBy(() -> new Brand("someapp", "Some App", List.of("login"), List.of("someapp.example")));
+    }
 }

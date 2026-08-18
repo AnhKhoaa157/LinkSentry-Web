@@ -102,6 +102,13 @@ linksentry:
     # runtime discovery. Order is significant — it breaks ties when a hostname's
     # tokens match more than one configured brand. See BrandRegistry's javadoc and
     # docs/SECURITY_BOUNDARY.md.
+    # Provenance: each domain below is the brand's own primary web/banking
+    # domain, hand-verified against the brand's own published contact/login
+    # pages at curation time (2026-08-18) — never a runtime lookup, a
+    # crowd-sourced list, or a guess from the brand's name. Tokens are the
+    # brand's distinctive name only; no generic word (bank, secure, login,
+    # pay) is ever added as a token. Adding, removing, or re-verifying an
+    # entry is a manual pull request, not a config toggle.
     entries:
       - id: vietcombank
         display-name: Vietcombank
@@ -111,6 +118,38 @@ linksentry:
         display-name: Techcombank
         tokens: techcombank
         official-domains: techcombank.com.vn
+      - id: bidv
+        display-name: BIDV
+        tokens: bidv
+        official-domains: bidv.com.vn
+      - id: vietinbank
+        display-name: VietinBank
+        tokens: vietinbank
+        official-domains: vietinbank.vn
+      - id: agribank
+        display-name: Agribank
+        tokens: agribank
+        official-domains: agribank.com.vn
+      - id: acb
+        display-name: ACB
+        tokens: acb
+        official-domains: acb.com.vn
+      - id: sacombank
+        display-name: Sacombank
+        tokens: sacombank
+        official-domains: sacombank.com.vn
+      - id: momo
+        display-name: MoMo
+        tokens: momo
+        official-domains: momo.vn
+      - id: shopee
+        display-name: Shopee
+        tokens: shopee
+        official-domains: shopee.vn
+      - id: tiki
+        display-name: Tiki
+        tokens: tiki
+        official-domains: tiki.vn
 
 logging:
   level:

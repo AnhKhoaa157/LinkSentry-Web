@@ -11,6 +11,7 @@
  *   <li>{@code EXCESSIVE_SUBDOMAINS}
  *   <li>{@code SUSPICIOUS_KEYWORDS}
  *   <li>{@code BRAND_DOMAIN_MISMATCH}
+ *   <li>{@code BRAND_LOOKALIKE_HOSTNAME}
  *   <li>{@code PUNYCODE_HOST}
  *   <li>{@code ENCODED_CHARACTERS}
  *   <li>{@code KNOWN_URL_SHORTENER}
