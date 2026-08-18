@@ -22,9 +22,9 @@ safe response snapshot for 30 days by default, addressable by an opaque UUID.
 | Working                                                  | Deliberately out of scope                         |
 | -------------------------------------------------------- | ------------------------------------------------- |
 | URL validation, IDNA normalisation, and Public Suffix List | Authentication, per-user quotas, abuse monitoring |
-| Eight deterministic, explainable analysis rules           | Threat-intelligence and destination fetching     |
-| Transparent `0..100` scoring and risk levels              | Brand impersonation and Unicode homograph rules  |
-| `POST /api/v1/scans` with redacted response DTOs           | Global history/list endpoint                    |
+| Ten deterministic, explainable analysis rules, including curated brand-impersonation and bounded typo/Unicode-lookalike detection | AI, models, embeddings, live reputation/threat-intelligence feeds, DNS, and destination fetching |
+| Transparent `0..100` scoring and risk levels              | Global history/list endpoint                     |
+| `POST /api/v1/scans` with redacted response DTOs           |                                                 |
 | `GET /api/v1/scans/{scanId}` with 30-day retention         |                                                 |
 | Scanner submission, retrieval permalink, and health widget |                                                 |
 | Stateless Spring Security, CORS, CI, and regression tests  |                                                 |

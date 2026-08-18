@@ -14,6 +14,7 @@ import com.lyanhkhoa.linksentry.analysis.normalization.DefaultUrlNormalizer;
 import com.lyanhkhoa.linksentry.analysis.normalization.UrlNormalizer;
 import com.lyanhkhoa.linksentry.analysis.rules.Brand;
 import com.lyanhkhoa.linksentry.analysis.rules.BrandDomainMismatchRule;
+import com.lyanhkhoa.linksentry.analysis.rules.BrandLookalikeRule;
 import com.lyanhkhoa.linksentry.analysis.rules.BrandRegistry;
 import com.lyanhkhoa.linksentry.analysis.rules.EncodedCharactersRule;
 import com.lyanhkhoa.linksentry.analysis.rules.ExcessiveSubdomainsRule;
@@ -55,6 +56,17 @@ class RegressionCorpusTest {
             new Brand("vietcombank", "Vietcombank", List.of("vietcombank"), List.of("vietcombank.com.vn"));
     private static final Brand TECHCOMBANK =
             new Brand("techcombank", "Techcombank", List.of("techcombank"), List.of("techcombank.com.vn"));
+    private static final Brand BIDV = new Brand("bidv", "BIDV", List.of("bidv"), List.of("bidv.com.vn"));
+    private static final Brand VIETINBANK =
+            new Brand("vietinbank", "VietinBank", List.of("vietinbank"), List.of("vietinbank.vn"));
+    private static final Brand AGRIBANK =
+            new Brand("agribank", "Agribank", List.of("agribank"), List.of("agribank.com.vn"));
+    private static final Brand ACB = new Brand("acb", "ACB", List.of("acb"), List.of("acb.com.vn"));
+    private static final Brand SACOMBANK =
+            new Brand("sacombank", "Sacombank", List.of("sacombank"), List.of("sacombank.com.vn"));
+    private static final Brand MOMO = new Brand("momo", "MoMo", List.of("momo"), List.of("momo.vn"));
+    private static final Brand SHOPEE = new Brand("shopee", "Shopee", List.of("shopee"), List.of("shopee.vn"));
+    private static final Brand TIKI = new Brand("tiki", "Tiki", List.of("tiki"), List.of("tiki.vn"));
 
     private final UrlAnalyzer analyzer = new DefaultUrlAnalyzer(normalizer(), rules(), scorer());
 
@@ -177,6 +189,81 @@ class RegressionCorpusTest {
     }
 
     @Test
+    @DisplayName("a one-character typo of a brand token fires only BRAND_LOOKALIKE_HOSTNAME and scores MODERATE")
+    void oneCharacterBrandTypo() {
+        AnalysisResult result = analyzer.analyze("https://v1etcombank.evil-domain.xyz/");
+
+        assertRuleIds(result, "BRAND_LOOKALIKE_HOSTNAME");
+        assertThat(result.score()).isEqualTo(20);
+        assertThat(result.riskLevel()).isEqualTo(RiskLevel.MODERATE);
+        assertThat(result.findings().get(0).evidence())
+                .contains("Vietcombank")
+                .contains("vietcombank.com.vn")
+                .contains("one-character typo");
+    }
+
+    @Test
+    @DisplayName("an exact brand token on an unrelated domain fires only the exact mismatch rule, never the "
+            + "lookalike rule too")
+    void exactBrandTokenNeverAlsoFiresLookalike() {
+        AnalysisResult result = analyzer.analyze("https://vietcombank.evil-domain.xyz/");
+
+        assertRuleIds(result, "BRAND_DOMAIN_MISMATCH");
+    }
+
+    @Test
+    @DisplayName("a Cyrillic confusable lookalike of a brand token fires BRAND_LOOKALIKE_HOSTNAME, plus "
+            + "PUNYCODE_HOST for the same encoded label")
+    void confusableCharacterBrandLookalike() {
+        String confusableLabel = "vietc" + 'о' + "mbank"; // Cyrillic о in place of 'o'
+        AnalysisResult result = analyzer.analyze(
+                "https://" + java.net.IDN.toASCII(confusableLabel, java.net.IDN.USE_STD3_ASCII_RULES) + ".xyz/");
+
+        assertRuleIds(result, "BRAND_LOOKALIKE_HOSTNAME", "PUNYCODE_HOST");
+        assertThat(result.findings().get(0).evidence()).contains("Vietcombank").contains("lookalike character");
+    }
+
+    @Test
+    @DisplayName("an unrelated internationalized hostname fires no brand rule")
+    void unrelatedIdnHostnameFiresNoBrandRule() {
+        AnalysisResult result = analyzer.analyze(
+                "https://" + java.net.IDN.toASCII("münchen", java.net.IDN.USE_STD3_ASCII_RULES) + ".example/");
+
+        assertThat(result.findings()).extracting(RuleFinding::ruleId)
+                .doesNotContain("BRAND_DOMAIN_MISMATCH", "BRAND_LOOKALIKE_HOSTNAME");
+    }
+
+    @Test
+    @DisplayName("a distant spelling, generic word, and unrelated host never fire a brand rule")
+    void distantSpellingAndUnrelatedHostFireNoBrandRule() {
+        assertThat(analyzer.analyze("https://vcombk.xyz/").findings())
+                .extracting(RuleFinding::ruleId)
+                .doesNotContain("BRAND_DOMAIN_MISMATCH", "BRAND_LOOKALIKE_HOSTNAME");
+        assertThat(analyzer.analyze("https://example.com/").findings())
+                .extracting(RuleFinding::ruleId)
+                .doesNotContain("BRAND_DOMAIN_MISMATCH", "BRAND_LOOKALIKE_HOSTNAME");
+    }
+
+    @Test
+    @DisplayName("innocent text containing a brand-like substring only in the path never fires a brand rule")
+    void brandLikeSubstringInPathFiresNoBrandRule() {
+        AnalysisResult result = analyzer.analyze("https://example.com/vietcombank-reviews");
+
+        assertThat(result.findings()).extracting(RuleFinding::ruleId)
+                .doesNotContain("BRAND_DOMAIN_MISMATCH", "BRAND_LOOKALIKE_HOSTNAME");
+    }
+
+    @Test
+    @DisplayName("a brand lookalike finding never leaks a query secret carried by the same URL")
+    void brandLookalikeDoesNotLeakQuerySecret() {
+        AnalysisResult result = analyzer.analyze("https://v1etcombank.evil-domain.xyz/account?token=SECRET123");
+
+        assertThat(result.findings()).extracting(RuleFinding::ruleId).contains("BRAND_LOOKALIKE_HOSTNAME");
+        assertNoFindingLeaksSecret(result, "SECRET123");
+        assertThat(result.normalizedUrl().redactedDisplayValue()).doesNotContain("SECRET123");
+    }
+
+    @Test
     @DisplayName("a punycode host fires only PUNYCODE_HOST and scores MODERATE")
     void punycodeHost() {
         AnalysisResult result = analyzer.analyze("https://xn--80ak6aa92e.com/");
@@ -282,9 +369,15 @@ class RegressionCorpusTest {
                 new ExcessiveUrlLengthRule(100),
                 new ExcessiveSubdomainsRule(3),
                 new SuspiciousKeywordsRule(SUSPICIOUS_KEYWORDS),
-                new BrandDomainMismatchRule(new BrandRegistry(List.of(VIETCOMBANK, TECHCOMBANK))),
+                new BrandDomainMismatchRule(brandRegistry()),
+                new BrandLookalikeRule(brandRegistry()),
                 new PunycodeHostRule(),
                 new EncodedCharactersRule(),
                 new KnownUrlShortenerRule(KNOWN_SHORTENERS));
+    }
+
+    private static BrandRegistry brandRegistry() {
+        return new BrandRegistry(List.of(
+                VIETCOMBANK, TECHCOMBANK, BIDV, VIETINBANK, AGRIBANK, ACB, SACOMBANK, MOMO, SHOPEE, TIKI));
     }
 }
