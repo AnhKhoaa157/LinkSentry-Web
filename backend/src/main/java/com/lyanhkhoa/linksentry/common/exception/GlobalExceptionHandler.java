@@ -4,6 +4,7 @@ import com.lyanhkhoa.linksentry.analysis.domain.InvalidUrlException;
 import com.lyanhkhoa.linksentry.auth.application.EmailAlreadyRegisteredException;
 import com.lyanhkhoa.linksentry.auth.application.InvalidCredentialsException;
 import com.lyanhkhoa.linksentry.common.api.ErrorResponse;
+import com.lyanhkhoa.linksentry.explanation.application.ExplanationUnavailableException;
 import com.lyanhkhoa.linksentry.history.application.ScanNotFoundException;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -102,6 +103,22 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ErrorResponse.of("SCAN_NOT_FOUND", "The requested scan could not be found.", traceId));
+    }
+
+    /**
+     * The AI explanation feature is disabled, unconfigured, or the provider could
+     * not produce a result. One fixed, vendor-free message and status covers every
+     * cause — disabled, missing configuration, timeout, provider failure, and a
+     * malformed provider response are all indistinguishable to the client.
+     */
+    @ExceptionHandler(ExplanationUnavailableException.class)
+    public ResponseEntity<ErrorResponse> handleExplanationUnavailable(ExplanationUnavailableException exception) {
+        String traceId = newTraceId();
+        log.info("AI explanation unavailable [traceId={}]", traceId);
+
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ErrorResponse.of(
+                        "AI_EXPLANATION_UNAVAILABLE", "AI explanation is not available right now.", traceId));
     }
 
     /** Unparseable or absent request body. */

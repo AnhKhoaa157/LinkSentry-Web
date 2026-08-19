@@ -4,5 +4,6 @@ package com.lyanhkhoa.linksentry.common.ratelimit;
 enum RateLimitedRoute {
     SCAN_CREATE,
     SCAN_LOOKUP,
-    AUTH
+    AUTH,
+    EXPLANATION
 }

@@ -88,6 +88,11 @@ linksentry:
       # per-remote-address bucket than URL analysis.
       capacity: ${RATE_LIMIT_AUTH_CAPACITY:5}
       refill-per-minute: ${RATE_LIMIT_AUTH_REFILL_PER_MINUTE:5}
+    explanation:
+      # The costliest route: each request pays for an outbound Anthropic call.
+      # Deliberately the strictest bucket of the four.
+      capacity: ${RATE_LIMIT_EXPLANATION_CAPACITY:5}
+      refill-per-minute: ${RATE_LIMIT_EXPLANATION_REFILL_PER_MINUTE:2}
     store:
       # Hard cap on tracked addresses per route, plus how long an idle address is
       # kept before its bucket is swept — bounds memory against an attacker who
@@ -107,6 +112,18 @@ linksentry:
       # trial guard's own identity map.
       max-entries: ${ANONYMOUS_TRIAL_STORE_MAX_ENTRIES:10000}
       idle-expiration: ${ANONYMOUS_TRIAL_STORE_IDLE_EXPIRATION:24h}
+  ai-explanation:
+    # Optional, disabled-by-default AI explanation for a signed-in owner's own
+    # retained scan (POST /api/v1/scans/{scanId}/explanation). AI is advisory
+    # only — it never decides score, risk level, findings, persistence, or
+    # access control. See explanation.* and
+    # docs/adr/0005-anthropic-scan-explanation-integration.md.
+    enabled: ${AI_EXPLANATIONS_ENABLED:false}
+    anthropic:
+      # Secret. Never set a real value here — only through the environment.
+      api-key: ${ANTHROPIC_API_KEY:}
+      # Never client-controlled; selected only by this configuration.
+      model: ${ANTHROPIC_MODEL:}
   rules:
     # Tunable thresholds and word lists for analysis.rules. Changing these is a
     # scoring-policy decision, not a code change.

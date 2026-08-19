@@ -1,0 +1,21 @@
+package com.lyanhkhoa.linksentry.explanation.domain;
+
+/**
+ * Port for an advisory, plain-language explanation of a {@link ScanSummary}.
+ *
+ * <p>A provider never decides score, risk level, findings, persistence, or
+ * access control — it only turns an already-computed, already-safe summary into
+ * a short human-readable string. Implementations must perform no I/O beyond the
+ * one call this method represents: no retry loop, no streaming, no tool use, no
+ * logging of the summary or the returned text.
+ */
+public interface ExplanationProvider {
+
+    /**
+     * @param summary the safe summary to explain
+     * @return a short, plain-text, risk-oriented explanation
+     * @throws ExplanationProviderException when the provider is unavailable, times
+     *                                       out, fails, or returns an unusable response
+     */
+    String explain(ScanSummary summary);
+}

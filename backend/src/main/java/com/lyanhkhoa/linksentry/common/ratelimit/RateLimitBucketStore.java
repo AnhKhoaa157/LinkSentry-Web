@@ -85,6 +85,7 @@ public class RateLimitBucketStore {
             case SCAN_CREATE -> properties.scan();
             case SCAN_LOOKUP -> properties.scanLookup();
             case AUTH -> properties.auth();
+            case EXPLANATION -> properties.explanation();
         };
     }
 

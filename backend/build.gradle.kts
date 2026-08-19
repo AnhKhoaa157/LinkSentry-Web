@@ -32,6 +32,15 @@ dependencies {
     // Single-instance, in-memory token-bucket rate limiting. See common.ratelimit.
     implementation("com.bucket4j:bucket4j_jdk17-core:8.19.0")
 
+    // --- AI explanation (optional, disabled by default) ---
+    // Official Anthropic Java SDK. Pinned to the latest stable release as of this
+    // integration (2026-08-19). Used only by explanation.provider.
+    // AnthropicOkHttpClient.builder() is called with an explicit apiKey, timeout,
+    // and maxRetries(0) — never AnthropicOkHttpClient.fromEnv(), so the process's
+    // own environment cannot silently widen what this one adapter is allowed to do.
+    // See docs/adr/0005-anthropic-scan-explanation-integration.md.
+    implementation("com.anthropic:anthropic-java:2.54.0")
+
     // --- Persistence ---
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-flyway")

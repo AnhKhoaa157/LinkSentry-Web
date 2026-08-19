@@ -29,6 +29,22 @@ class RouteClassifierTest {
     }
 
     @Test
+    @DisplayName("POST /api/v1/scans/{scanId}/explanation classifies as EXPLANATION, its own strict bucket")
+    void classifiesExplanation() {
+        assertThat(classifier.classify(
+                        request("POST", "/api/v1/scans/2ce16fb9-d52d-4310-8d45-a4e48f31889e/explanation")))
+                .contains(RateLimitedRoute.EXPLANATION);
+    }
+
+    @Test
+    @DisplayName("GET on the explanation path is not classified as EXPLANATION")
+    void explanationRouteRequiresPost() {
+        assertThat(classifier.classify(
+                        request("GET", "/api/v1/scans/2ce16fb9-d52d-4310-8d45-a4e48f31889e/explanation")))
+                .isEmpty();
+    }
+
+    @Test
     @DisplayName("auth routes classify into their separate stricter bucket")
     void classifiesAuthRoutes() {
         assertThat(classifier.classify(request("POST", "/api/v1/auth/login"))).contains(RateLimitedRoute.AUTH);

@@ -4,6 +4,7 @@ import com.lyanhkhoa.linksentry.analysis.domain.AnalysisResult;
 import com.lyanhkhoa.linksentry.analysis.domain.UrlAnalyzer;
 import com.lyanhkhoa.linksentry.common.config.EngineProperties;
 import com.lyanhkhoa.linksentry.history.application.ScanHistoryService;
+import com.lyanhkhoa.linksentry.history.application.ScanIdParser;
 import com.lyanhkhoa.linksentry.history.application.ScanNotFoundException;
 import com.lyanhkhoa.linksentry.history.domain.ScanHistory;
 import com.lyanhkhoa.linksentry.history.domain.StoredFinding;
@@ -16,7 +17,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
-import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -32,9 +32,6 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class ScanService {
-
-    private static final Pattern CANONICAL_UUID = Pattern.compile(
-            "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
 
     private static final Logger log = LoggerFactory.getLogger(ScanService.class);
 
@@ -100,7 +97,7 @@ public class ScanService {
         if (ownerUserId == null) {
             throw new ScanNotFoundException();
         }
-        UUID scanId = parseScanId(rawScanId);
+        UUID scanId = ScanIdParser.parse(rawScanId);
         return historyService.findRetained(scanId, ownerUserId)
                 .map(ScanService::toResponse)
                 .orElseThrow(ScanNotFoundException::new);
@@ -215,17 +212,5 @@ public class ScanService {
                 findings,
                 scanHistory.analyzedAt());
         return new ScanResponse(data, new ScanResponse.ScanMeta(scanHistory.engineVersion()));
-    }
-
-    private UUID parseScanId(String rawScanId) {
-        if (rawScanId == null || !CANONICAL_UUID.matcher(rawScanId).matches()) {
-            throw new ScanNotFoundException();
-        }
-        try {
-            return UUID.fromString(rawScanId);
-        } catch (IllegalArgumentException exception) {
-            // Do not retain or expose a malformed path value in an exception cause.
-            throw new ScanNotFoundException();
-        }
     }
 }

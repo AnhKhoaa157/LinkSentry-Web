@@ -15,10 +15,12 @@ import org.springframework.validation.annotation.Validated;
  *
  * @param enabled    turns rate limiting on or off entirely; when {@code false} no
  *                   request is classified, consumed, or delayed
- * @param scan       bucket applied to {@code POST /api/v1/scans}
- * @param scanLookup bucket applied to {@code GET /api/v1/scans/{scanId}}
- * @param auth       stricter bucket applied to account/session routes
- * @param store      bounds on the in-memory identity store backing all buckets
+ * @param scan        bucket applied to {@code POST /api/v1/scans}
+ * @param scanLookup  bucket applied to {@code GET /api/v1/scans/{scanId}}
+ * @param auth        stricter bucket applied to account/session routes
+ * @param explanation strictest bucket, applied to
+ *                    {@code POST /api/v1/scans/{scanId}/explanation}
+ * @param store       bounds on the in-memory identity store backing all buckets
  */
 @Validated
 @ConfigurationProperties(prefix = "linksentry.ratelimit")
@@ -27,6 +29,7 @@ public record RateLimitProperties(
         @NotNull @Valid Bucket scan,
         @NotNull @Valid Bucket scanLookup,
         @NotNull @Valid Bucket auth,
+        @NotNull @Valid Bucket explanation,
         @NotNull @Valid Store store) {
 
     /**
