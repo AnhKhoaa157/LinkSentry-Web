@@ -1,13 +1,13 @@
 package com.lyanhkhoa.linksentry.analysis.rules;
 
 import com.lyanhkhoa.linksentry.analysis.domain.AnalysisRule;
+import com.lyanhkhoa.linksentry.analysis.domain.DomainFeatures;
 import com.lyanhkhoa.linksentry.analysis.domain.NormalizedUrl;
 import com.lyanhkhoa.linksentry.analysis.domain.RuleFinding;
 import com.lyanhkhoa.linksentry.analysis.domain.Severity;
 import java.net.IDN;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Locale;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -124,8 +124,8 @@ public final class BrandLookalikeRule implements AnalysisRule {
             return Optional.empty();
         }
 
-        Set<String> exactHostTokens = exactTokenize(url.asciiHost());
-        String[] labels = url.asciiHost().split("\\.", -1);
+        Set<String> exactHostTokens = url.domainFeatures().hostTokens();
+        List<DomainFeatures.Label> labels = url.domainFeatures().labels();
 
         for (Brand brand : registry.brands()) {
             if (brand.officialDomains().contains(registrableDomain)) {
@@ -147,29 +147,30 @@ public final class BrandLookalikeRule implements AnalysisRule {
         return Optional.empty();
     }
 
-    private Optional<String> findLookalikeSignal(String[] labels, Brand brand) {
-        for (String label : labels) {
-            if (label.isEmpty()) {
+    private Optional<String> findLookalikeSignal(List<DomainFeatures.Label> labels, Brand brand) {
+        for (DomainFeatures.Label label : labels) {
+            if (label.value().isEmpty()) {
                 continue;
             }
 
             for (String token : brand.tokens()) {
-                if (token.length() >= MIN_TOKEN_LENGTH_FOR_OBFUSCATION_SIGNALS && isSingleEditAway(label, token)) {
+                if (token.length() >= MIN_TOKEN_LENGTH_FOR_OBFUSCATION_SIGNALS
+                        && isSingleEditAway(label.value(), token)) {
                     return Optional.of(SIGNAL_ONE_CHARACTER_TYPO);
                 }
             }
 
-            if (label.indexOf('-') >= 0) {
-                String collapsed = label.replace("-", "");
+            if (label.value().indexOf('-') >= 0) {
                 for (String token : brand.tokens()) {
-                    if (token.length() >= MIN_TOKEN_LENGTH_FOR_OBFUSCATION_SIGNALS && collapsed.equals(token)) {
+                    if (token.length() >= MIN_TOKEN_LENGTH_FOR_OBFUSCATION_SIGNALS
+                            && label.hyphenCollapsed().equals(token)) {
                         return Optional.of(SIGNAL_HYPHEN_OBFUSCATION);
                     }
                 }
             }
 
-            if (label.toLowerCase(Locale.ROOT).startsWith("xn--")) {
-                Optional<String> normalized = confusableNormalize(decodeUnicodeLabel(label));
+            if (label.isPunycode()) {
+                Optional<String> normalized = confusableNormalize(label.punycodeDecoded());
                 if (normalized.isPresent()) {
                     for (String token : brand.tokens()) {
                         if (normalized.get().equals(token)) {
@@ -180,27 +181,6 @@ public final class BrandLookalikeRule implements AnalysisRule {
             }
         }
         return Optional.empty();
-    }
-
-    /** Same tokenization {@link BrandDomainMismatchRule} uses for exact matching. */
-    private static Set<String> exactTokenize(String asciiHost) {
-        Set<String> tokens = new HashSet<>();
-        for (String label : asciiHost.split("\\.", -1)) {
-            for (String part : label.split("-", -1)) {
-                if (!part.isEmpty()) {
-                    tokens.add(part);
-                }
-            }
-        }
-        return tokens;
-    }
-
-    private static String decodeUnicodeLabel(String label) {
-        try {
-            return IDN.toUnicode(label, IDN.USE_STD3_ASCII_RULES);
-        } catch (IllegalArgumentException exception) {
-            return label;
-        }
     }
 
     /**

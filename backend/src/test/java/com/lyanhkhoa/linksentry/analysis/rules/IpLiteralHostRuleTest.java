@@ -2,6 +2,7 @@ package com.lyanhkhoa.linksentry.analysis.rules;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.lyanhkhoa.linksentry.analysis.domain.DomainFeatures;
 import com.lyanhkhoa.linksentry.analysis.domain.NormalizedUrl;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -39,6 +40,7 @@ class IpLiteralHostRuleTest {
     private static NormalizedUrl urlWithHost(String host, String registrableDomain, boolean ipLiteral) {
         String raw = "https://" + host + "/";
         return new NormalizedUrl(
-                raw, raw, "https", host, host, registrableDomain, List.of(), null, "/", false, false, ipLiteral);
+                raw, raw, "https", host, host, DomainFeatures.fromAsciiHost(host), registrableDomain, List.of(),
+                null, "/", false, false, ipLiteral);
     }
 }

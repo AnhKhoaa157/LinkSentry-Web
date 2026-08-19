@@ -30,6 +30,12 @@ import java.util.Objects;
  * @param host                 lowercase hostname as submitted
  * @param asciiHost            IDNA/Punycode ASCII form of {@code host}, so rules
  *                             compare ASCII against ASCII
+ * @param domainFeatures       precomputed, host-only lexical features of {@code
+ *                             asciiHost} — ordered labels, exact tokens, hyphen
+ *                             collapse, and Punycode decode — built exactly once by
+ *                             the normalizer so rules sharing this work never
+ *                             recompute it. Never derived from anything but {@code
+ *                             asciiHost}.
  * @param registrableDomain    the domain actually registered, or {@code null} when
  *                             there is none (an IP literal, or a bare public
  *                             suffix). Deriving this needs the Public Suffix List,
@@ -51,6 +57,7 @@ public record NormalizedUrl(
         String scheme,
         String host,
         String asciiHost,
+        DomainFeatures domainFeatures,
         String registrableDomain,
         List<String> subdomains,
         Integer port,
@@ -74,6 +81,7 @@ public record NormalizedUrl(
         Objects.requireNonNull(scheme, "scheme");
         Objects.requireNonNull(host, "host");
         Objects.requireNonNull(asciiHost, "asciiHost");
+        Objects.requireNonNull(domainFeatures, "domainFeatures");
         subdomains = subdomains == null ? List.of() : List.copyOf(subdomains);
     }
 

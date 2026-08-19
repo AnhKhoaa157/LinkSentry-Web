@@ -2,6 +2,7 @@ package com.lyanhkhoa.linksentry.analysis.rules;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.lyanhkhoa.linksentry.analysis.domain.DomainFeatures;
 import com.lyanhkhoa.linksentry.analysis.domain.NormalizedUrl;
 import java.net.IDN;
 import java.util.List;
@@ -169,8 +170,8 @@ class BrandLookalikeRuleTest {
     void ipLiteralHostNeverFires() {
         String raw = "https://203.0.113.5/vietcombank";
         NormalizedUrl url = new NormalizedUrl(
-                raw, raw, "https", "203.0.113.5", "203.0.113.5", null, List.of(), null, "/vietcombank", false, false,
-                true);
+                raw, raw, "https", "203.0.113.5", "203.0.113.5", DomainFeatures.fromAsciiHost("203.0.113.5"), null,
+                List.of(), null, "/vietcombank", false, false, true);
 
         assertThat(rule.analyze(url)).isEmpty();
     }
@@ -190,7 +191,7 @@ class BrandLookalikeRuleTest {
             String asciiHost, String registrableDomain, List<String> subdomains, String path) {
         String raw = "https://" + asciiHost + path;
         return new NormalizedUrl(
-                raw, raw, "https", asciiHost, asciiHost, registrableDomain, subdomains, null, path, false, false,
-                false);
+                raw, raw, "https", asciiHost, asciiHost, DomainFeatures.fromAsciiHost(asciiHost), registrableDomain,
+                subdomains, null, path, false, false, false);
     }
 }

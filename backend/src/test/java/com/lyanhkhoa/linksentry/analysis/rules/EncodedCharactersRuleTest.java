@@ -2,6 +2,7 @@ package com.lyanhkhoa.linksentry.analysis.rules;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.lyanhkhoa.linksentry.analysis.domain.DomainFeatures;
 import com.lyanhkhoa.linksentry.analysis.domain.NormalizedUrl;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -49,7 +50,7 @@ class EncodedCharactersRuleTest {
     private static NormalizedUrl urlWithPath(String path) {
         String raw = "https://example.com" + path;
         return new NormalizedUrl(
-                raw, raw, "https", "example.com", "example.com", "example.com", List.of(), null, path, false, false,
-                false);
+                raw, raw, "https", "example.com", "example.com", DomainFeatures.fromAsciiHost("example.com"),
+                "example.com", List.of(), null, path, false, false, false);
     }
 }

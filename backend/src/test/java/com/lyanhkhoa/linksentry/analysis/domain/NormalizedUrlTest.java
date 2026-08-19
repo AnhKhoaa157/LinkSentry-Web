@@ -37,6 +37,7 @@ class NormalizedUrlTest {
                 "https",
                 "login.example.evil.xyz",
                 "login.example.evil.xyz",
+                DomainFeatures.fromAsciiHost("login.example.evil.xyz"),
                 "evil.xyz",
                 mutable,
                 null,
@@ -59,6 +60,7 @@ class NormalizedUrlTest {
                 "https",
                 "example.com",
                 "example.com",
+                DomainFeatures.fromAsciiHost("example.com"),
                 "example.com",
                 null,
                 null,
@@ -76,12 +78,14 @@ class NormalizedUrlTest {
     void requiresIdentifyingStrings() {
         assertThatNullPointerException()
                 .isThrownBy(() -> new NormalizedUrl(
-                        null, "https://example.com/", "https", "example.com", "example.com", "example.com",
+                        null, "https://example.com/", "https", "example.com", "example.com",
+                        DomainFeatures.fromAsciiHost("example.com"), "example.com",
                         List.of(), null, "/", false, false, false));
 
         assertThatNullPointerException()
                 .isThrownBy(() -> new NormalizedUrl(
-                        "https://example.com/", "https://example.com/", "https", null, "example.com", "example.com",
+                        "https://example.com/", "https://example.com/", "https", null, "example.com",
+                        DomainFeatures.fromAsciiHost("example.com"), "example.com",
                         List.of(), null, "/", false, false, false));
     }
 
@@ -97,6 +101,7 @@ class NormalizedUrlTest {
                 "https",
                 "login.vietcombank.com.vn.evil-domain.xyz",
                 "login.vietcombank.com.vn.evil-domain.xyz",
+                DomainFeatures.fromAsciiHost("login.vietcombank.com.vn.evil-domain.xyz"),
                 "evil-domain.xyz",
                 List.of("login", "vietcombank", "com", "vn"),
                 null,
