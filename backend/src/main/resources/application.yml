@@ -67,6 +67,12 @@ management:
       # Component detail would disclose infrastructure to anyone probing.
       show-details: never
       show-components: never
+  health:
+    mail:
+      # SMTP is an optional delivery dependency for verification codes, not a
+      # liveness/readiness signal — an unreachable or unconfigured mail host
+      # must never drag the whole service's health status to DOWN.
+      enabled: false
 
 springdoc:
   api-docs:
