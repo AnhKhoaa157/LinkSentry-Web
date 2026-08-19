@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link, useParams } from 'react-router';
 
+import { ExplainResult } from '@/features/explanation/components/ExplainResult';
 import { useScanQuery } from '@/features/scanner/api/useScanQuery';
 import { ScanResult } from '@/features/scanner/components/ScanResult';
 import { normalizeApiError } from '@/lib/api/errors';
@@ -61,6 +62,7 @@ export function ScanPage() {
         default).
       </p>
       <ScanResult data={query.data.data} />
+      <ExplainResult scanId={query.data.data.scanId} />
     </div>
   );
 }
