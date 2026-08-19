@@ -2,6 +2,7 @@ package com.lyanhkhoa.linksentry.analysis.rules;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.lyanhkhoa.linksentry.analysis.domain.DomainFeatures;
 import com.lyanhkhoa.linksentry.analysis.domain.NormalizedUrl;
 import com.lyanhkhoa.linksentry.analysis.domain.RuleFinding;
 import java.util.List;
@@ -57,6 +58,7 @@ class MissingHttpsRuleTest {
                 scheme,
                 "example.com",
                 "example.com",
+                DomainFeatures.fromAsciiHost("example.com"),
                 "example.com",
                 List.of(),
                 null,

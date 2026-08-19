@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.lyanhkhoa.linksentry.analysis.domain.AnalysisResult;
+import com.lyanhkhoa.linksentry.analysis.domain.DomainFeatures;
 import com.lyanhkhoa.linksentry.analysis.domain.InvalidUrlException;
 import com.lyanhkhoa.linksentry.analysis.domain.NormalizedUrl;
 import com.lyanhkhoa.linksentry.analysis.domain.RiskLevel;
@@ -198,6 +199,7 @@ class ScanServiceTest {
                     "https",
                     "example.com",
                     "example.com",
+                    DomainFeatures.fromAsciiHost("example.com"),
                     "example.com",
                     List.of(),
                     null,
@@ -219,6 +221,7 @@ class ScanServiceTest {
                     "https",
                     "example.com",
                     "example.com",
+                    DomainFeatures.fromAsciiHost("example.com"),
                     "example.com",
                     List.of(),
                     null,

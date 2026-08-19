@@ -19,6 +19,7 @@ class AnalysisResultTest {
             "https",
             "example.com",
             "example.com",
+            DomainFeatures.fromAsciiHost("example.com"),
             "example.com",
             List.of(),
             null,

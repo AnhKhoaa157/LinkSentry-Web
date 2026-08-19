@@ -1,5 +1,6 @@
 package com.lyanhkhoa.linksentry.analysis.normalization;
 
+import com.lyanhkhoa.linksentry.analysis.domain.DomainFeatures;
 import com.lyanhkhoa.linksentry.analysis.domain.InvalidUrlException;
 import com.lyanhkhoa.linksentry.analysis.domain.NormalizedUrl;
 import java.net.IDN;
@@ -128,6 +129,7 @@ public final class DefaultUrlNormalizer implements UrlNormalizer {
         String path = (uri.getRawPath() == null ? "" : uri.getRawPath());
 
         String redactedDisplayValue = scheme + "://" + host + (port == null ? "" : ":" + port) + path;
+        DomainFeatures domainFeatures = DomainFeatures.fromAsciiHost(asciiHost);
 
         return new NormalizedUrl(
                 rawInput,
@@ -135,6 +137,7 @@ public final class DefaultUrlNormalizer implements UrlNormalizer {
                 scheme,
                 host,
                 asciiHost,
+                domainFeatures,
                 domainParts.registrableDomain(),
                 domainParts.subdomains(),
                 port,

@@ -4,7 +4,6 @@ import com.lyanhkhoa.linksentry.analysis.domain.AnalysisRule;
 import com.lyanhkhoa.linksentry.analysis.domain.NormalizedUrl;
 import com.lyanhkhoa.linksentry.analysis.domain.RuleFinding;
 import com.lyanhkhoa.linksentry.analysis.domain.Severity;
-import java.util.HashSet;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -18,10 +17,11 @@ import java.util.Set;
  * That mismatch is the signal; the token appearing in a subdomain of an official
  * domain (or as the registrable domain itself) is not.
  *
- * <p>Only {@link NormalizedUrl#asciiHost()} is inspected, tokenized on {@code .}
- * and {@code -}, and compared for exact matches against each {@link Brand}'s
- * curated tokens. The path, query, fragment, credentials, DNS, page content,
- * redirects and network data are never consulted — see
+ * <p>Only {@link NormalizedUrl#asciiHost()} is inspected — via {@link
+ * NormalizedUrl#domainFeatures()}'s precomputed exact host tokens (split on
+ * {@code .} and {@code -}) — and compared for exact matches against each
+ * {@link Brand}'s curated tokens. The path, query, fragment, credentials, DNS,
+ * page content, redirects and network data are never consulted — see
  * {@code docs/SECURITY_BOUNDARY.md}.
  *
  * <p>When several configured brands match, exactly one is chosen — the first, in
@@ -68,7 +68,7 @@ public final class BrandDomainMismatchRule implements AnalysisRule {
             return Optional.empty();
         }
 
-        Set<String> hostTokens = tokenize(url.asciiHost());
+        Set<String> hostTokens = url.domainFeatures().hostTokens();
 
         for (Brand brand : registry.brands()) {
             boolean tokenMatched = brand.tokens().stream().anyMatch(hostTokens::contains);
@@ -84,17 +84,5 @@ public final class BrandDomainMismatchRule implements AnalysisRule {
         }
 
         return Optional.empty();
-    }
-
-    private static Set<String> tokenize(String asciiHost) {
-        Set<String> tokens = new HashSet<>();
-        for (String label : asciiHost.split("\\.", -1)) {
-            for (String part : label.split("-", -1)) {
-                if (!part.isEmpty()) {
-                    tokens.add(part);
-                }
-            }
-        }
-        return tokens;
     }
 }

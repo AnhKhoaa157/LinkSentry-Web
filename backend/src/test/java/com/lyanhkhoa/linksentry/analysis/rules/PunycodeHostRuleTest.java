@@ -2,6 +2,7 @@ package com.lyanhkhoa.linksentry.analysis.rules;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.lyanhkhoa.linksentry.analysis.domain.DomainFeatures;
 import com.lyanhkhoa.linksentry.analysis.domain.NormalizedUrl;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -47,7 +48,7 @@ class PunycodeHostRuleTest {
     private static NormalizedUrl urlWithAsciiHost(String asciiHost, boolean ipLiteral) {
         String raw = "https://" + asciiHost + "/";
         return new NormalizedUrl(
-                raw, raw, "https", asciiHost, asciiHost, ipLiteral ? null : "example.com", List.of(), null, "/",
-                false, false, ipLiteral);
+                raw, raw, "https", asciiHost, asciiHost, DomainFeatures.fromAsciiHost(asciiHost),
+                ipLiteral ? null : "example.com", List.of(), null, "/", false, false, ipLiteral);
     }
 }
