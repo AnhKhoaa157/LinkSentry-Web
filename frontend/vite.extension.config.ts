@@ -15,6 +15,9 @@ import { defineConfig } from 'vite';
  */
 export default defineConfig({
   root: fileURLToPath(new URL('./src/extension', import.meta.url)),
+  // Keep extension deployment configuration in frontend/.env.extension rather
+  // than inheriting the web app's local-development API default.
+  envDir: fileURLToPath(new URL('./', import.meta.url)),
   base: './',
   plugins: [react(), tailwindcss()],
   resolve: {

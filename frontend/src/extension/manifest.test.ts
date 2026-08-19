@@ -26,8 +26,8 @@ describe('extension manifest', () => {
     expect(manifest['permissions']).toEqual(['activeTab']);
   });
 
-  it('scopes host_permissions to exactly the local LinkSentry API', () => {
-    expect(manifest['host_permissions']).toEqual(['http://localhost:8080/*']);
+  it('scopes host_permissions to exactly the deployed LinkSentry API', () => {
+    expect(manifest['host_permissions']).toEqual(['https://linksentry-web.onrender.com/*']);
   });
 
   it('never requests a broad or wildcard host pattern', () => {
