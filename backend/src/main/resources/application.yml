@@ -30,9 +30,16 @@ spring:
       mail:
         smtp:
           auth: ${SMTP_AUTH:${SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH:true}}
-          connectiontimeout: ${SMTP_CONNECTION_TIMEOUT:10000}
-          timeout: ${SMTP_TIMEOUT:10000}
-          writetimeout: ${SMTP_WRITE_TIMEOUT:10000}
+          # Each stage (connect/write/read) previously defaulted to 10000ms, matching the
+          # frontend's 10s Axios timeout with zero margin: a single slow stage could let the
+          # browser's own clock expire before this backend returned its intended JSON 503,
+          # so the caller saw a raw network failure instead of EMAIL_DELIVERY_UNAVAILABLE.
+          # 2500ms per stage keeps the worst-case total (all three stages timing out in the
+          # same attempt) at 7500ms, leaving real margin under 10s for hashing, the DB write,
+          # and response serialization.
+          connectiontimeout: ${SMTP_CONNECTION_TIMEOUT:2500}
+          timeout: ${SMTP_TIMEOUT:2500}
+          writetimeout: ${SMTP_WRITE_TIMEOUT:2500}
           starttls:
             enable: ${SMTP_STARTTLS_ENABLE:${SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE:true}}
   jpa:
