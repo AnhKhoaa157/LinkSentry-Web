@@ -1,7 +1,6 @@
 package com.lyanhkhoa.linksentry.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -13,14 +12,19 @@ import static org.mockito.Mockito.when;
 
 import com.lyanhkhoa.linksentry.auth.api.LoginRequest;
 import com.lyanhkhoa.linksentry.auth.api.RegisterRequest;
+import com.lyanhkhoa.linksentry.auth.api.RegistrationVerificationRequest;
 import com.lyanhkhoa.linksentry.auth.application.AuthService;
 import com.lyanhkhoa.linksentry.auth.application.InvalidCredentialsException;
+import com.lyanhkhoa.linksentry.auth.application.RegistrationCodeSender;
 import com.lyanhkhoa.linksentry.auth.persistence.AuthSessionEntity;
+import com.lyanhkhoa.linksentry.auth.persistence.RegistrationVerificationEntity;
 import com.lyanhkhoa.linksentry.auth.persistence.SpringDataAuthSessionRepository;
+import com.lyanhkhoa.linksentry.auth.persistence.SpringDataRegistrationVerificationRepository;
 import com.lyanhkhoa.linksentry.auth.persistence.SpringDataUserAccountRepository;
 import com.lyanhkhoa.linksentry.auth.persistence.UserAccountEntity;
 import com.lyanhkhoa.linksentry.auth.security.AuthenticatedUser;
 import com.lyanhkhoa.linksentry.auth.security.TokenService;
+import com.lyanhkhoa.linksentry.common.config.AuthOtpProperties;
 import com.lyanhkhoa.linksentry.common.config.AuthProperties;
 import java.time.Clock;
 import java.time.Duration;
@@ -28,9 +32,9 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
-import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -38,41 +42,62 @@ class AuthServiceTest {
 
     private static final Instant NOW = Instant.parse("2026-08-18T12:00:00Z");
     private static final Clock CLOCK = Clock.fixed(NOW, ZoneOffset.UTC);
+    private static final AuthProperties AUTH_PROPERTIES = new AuthProperties(Duration.ofHours(1));
+    private static final AuthOtpProperties OTP_PROPERTIES =
+            new AuthOtpProperties(Duration.ofMinutes(10), 5, "no-reply@example.com");
 
     @Test
-    @DisplayName("registration returns a one-time opaque token and persists only a password hash and token hash")
-    void registrationDoesNotPersistRawSecrets() {
+    @DisplayName("registration stores only hashes, sends a code, and creates the account after verification")
+    void registrationVerifiesEmailBeforeCreatingAccount() {
         SpringDataUserAccountRepository users = mock(SpringDataUserAccountRepository.class);
         SpringDataAuthSessionRepository sessions = mock(SpringDataAuthSessionRepository.class);
+        SpringDataRegistrationVerificationRepository registrations =
+                mock(SpringDataRegistrationVerificationRepository.class);
+        RegistrationCodeSender sender = mock(RegistrationCodeSender.class);
         PasswordEncoder encoder = new BCryptPasswordEncoder();
         when(users.existsByEmail("person@example.com")).thenReturn(false);
-        when(users.saveAndFlush(any(UserAccountEntity.class)))
+        when(registrations.findById("person@example.com")).thenReturn(Optional.empty());
+        when(registrations.saveAndFlush(any(RegistrationVerificationEntity.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
-        when(sessions.save(any(AuthSessionEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
         AuthService service = new AuthService(
                 users,
                 sessions,
+                registrations,
                 encoder,
                 new TokenService(),
-                new AuthProperties(Duration.ofHours(1)),
+                sender,
+                AUTH_PROPERTIES,
+                OTP_PROPERTIES,
                 CLOCK);
 
         String rawPassword = "correct-horse-123";
-        var response = service.register(new RegisterRequest(" Person@Example.com ", rawPassword));
+        var started = service.register(new RegisterRequest(" Person@Example.com ", rawPassword));
+
+        assertThat(started.message()).contains("verification code");
+        ArgumentCaptor<RegistrationVerificationEntity> pendingCaptor =
+                ArgumentCaptor.forClass(RegistrationVerificationEntity.class);
+        verify(registrations).saveAndFlush(pendingCaptor.capture());
+        RegistrationVerificationEntity pending = pendingCaptor.getValue();
+        assertThat(pending.getPasswordHash()).startsWith("$2").doesNotContain(rawPassword);
+        assertThat(pending.getCodeHash()).startsWith("$2");
+
+        ArgumentCaptor<String> codeCaptor = ArgumentCaptor.forClass(String.class);
+        verify(sender).send(eq("person@example.com"), codeCaptor.capture(), eq(Duration.ofMinutes(10)));
+        String code = codeCaptor.getValue();
+        assertThat(code).matches("\\d{6}");
+        assertThat(encoder.matches(code, pending.getCodeHash())).isTrue();
+
+        when(registrations.findById("person@example.com")).thenReturn(Optional.of(pending));
+        when(users.saveAndFlush(any(UserAccountEntity.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(sessions.save(any(AuthSessionEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var response = service.verifyRegistration(new RegistrationVerificationRequest("person@example.com", code));
 
         assertThat(response.accessToken()).isNotBlank();
-        assertThat(response.accessToken()).doesNotContain(rawPassword);
         assertThat(response.user().email()).isEqualTo("person@example.com");
-
-        var userCaptor = org.mockito.ArgumentCaptor.forClass(UserAccountEntity.class);
-        verify(users).saveAndFlush(userCaptor.capture());
-        assertThat(userCaptor.getValue().getPasswordHash()).isNotEqualTo(rawPassword);
-        assertThat(userCaptor.getValue().getPasswordHash()).startsWith("$2");
-
-        var sessionCaptor = org.mockito.ArgumentCaptor.forClass(AuthSessionEntity.class);
-        verify(sessions).save(sessionCaptor.capture());
-        assertThat(sessionCaptor.getValue().getTokenHash()).hasSize(64);
-        assertThat(sessionCaptor.getValue().getTokenHash()).isNotEqualTo(response.accessToken());
+        verify(registrations).delete(pending);
     }
 
     @Test
@@ -83,18 +108,9 @@ class AuthServiceTest {
         PasswordEncoder encoder = spy(new BCryptPasswordEncoder());
         when(users.findByEmail("unknown@example.com")).thenReturn(Optional.empty());
         UserAccountEntity existingUser = new UserAccountEntity(
-                UUID.randomUUID(),
-                "person@example.com",
-                encoder.encode("different-password"),
-                NOW);
+                UUID.randomUUID(), "person@example.com", encoder.encode("different-password"), NOW);
         when(users.findByEmail("person@example.com")).thenReturn(Optional.of(existingUser));
-        AuthService service = new AuthService(
-                users,
-                sessions,
-                encoder,
-                new TokenService(),
-                new AuthProperties(Duration.ofHours(1)),
-                CLOCK);
+        AuthService service = service(users, sessions, encoder);
 
         Throwable unknownEmailFailure = catchThrowable(
                 () -> service.login(new LoginRequest("unknown@example.com", "secret-password")));
@@ -120,13 +136,8 @@ class AuthServiceTest {
     @DisplayName("authentication delegates expiry and revocation decisions to the active-session query")
     void inactiveTokensAreRejectedWithoutReturningIdentity() {
         SpringDataAuthSessionRepository sessions = mock(SpringDataAuthSessionRepository.class);
-        AuthService service = new AuthService(
-                mock(SpringDataUserAccountRepository.class),
-                sessions,
-                new BCryptPasswordEncoder(),
-                new TokenService(),
-                new AuthProperties(Duration.ofHours(1)),
-                CLOCK);
+        AuthService service = service(mock(SpringDataUserAccountRepository.class), sessions,
+                new BCryptPasswordEncoder());
         when(sessions.findActiveByTokenHash(any(String.class), any(Instant.class))).thenReturn(Optional.empty());
 
         assertThat(service.authenticate("test-only-token")).isEmpty();
@@ -143,16 +154,27 @@ class AuthServiceTest {
         AuthSessionEntity session = new AuthSessionEntity(
                 sessionId, user, "a".repeat(64), NOW.plus(Duration.ofHours(1)), NOW);
         when(sessions.findById(sessionId)).thenReturn(Optional.of(session));
-        AuthService service = new AuthService(
-                mock(SpringDataUserAccountRepository.class),
-                sessions,
-                new BCryptPasswordEncoder(),
-                new TokenService(),
-                new AuthProperties(Duration.ofHours(1)),
-                CLOCK);
+        AuthService service = service(mock(SpringDataUserAccountRepository.class), sessions,
+                new BCryptPasswordEncoder());
 
         service.logout(new AuthenticatedUser(user.getUserId(), user.getEmail(), sessionId, session.getExpiresAt()));
 
         assertThat(session.getRevokedAt()).isEqualTo(NOW);
+    }
+
+    private static AuthService service(
+            SpringDataUserAccountRepository users,
+            SpringDataAuthSessionRepository sessions,
+            PasswordEncoder encoder) {
+        return new AuthService(
+                users,
+                sessions,
+                mock(SpringDataRegistrationVerificationRepository.class),
+                encoder,
+                new TokenService(),
+                mock(RegistrationCodeSender.class),
+                AUTH_PROPERTIES,
+                OTP_PROPERTIES,
+                CLOCK);
     }
 }

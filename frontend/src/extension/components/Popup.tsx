@@ -106,7 +106,10 @@ export function Popup() {
 
   return (
     <main className="text-ink-100 w-full p-4">
-      <h1 className="text-ink-100 text-sm font-semibold">LinkSentry</h1>
+      <div className="flex items-center gap-2">
+        <img src="./icons/icon-32.png" alt="" className="size-7 rounded-lg" />
+        <h1 className="text-ink-100 text-sm font-semibold">LinkSentry</h1>
+      </div>
 
       <p id={STATUS_ID} role="status" aria-live="polite" className="text-ink-300 mt-2 text-sm">
         {statusText(tabPhase)}

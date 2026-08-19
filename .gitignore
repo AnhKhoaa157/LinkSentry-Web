@@ -75,3 +75,10 @@ docs/
 /AGENTS.md
 /CLAUDE.md
 /harness/
+
+# ---------- Python / ML ----------
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+ml/artifacts/

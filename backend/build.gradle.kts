@@ -29,6 +29,7 @@ dependencies {
 
     // --- Security ---
     implementation("org.springframework.boot:spring-boot-starter-security")
+    implementation("org.springframework.boot:spring-boot-starter-mail")
     // Single-instance, in-memory token-bucket rate limiting. See common.ratelimit.
     implementation("com.bucket4j:bucket4j_jdk17-core:8.19.0")
 

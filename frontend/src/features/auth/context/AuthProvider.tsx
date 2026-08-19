@@ -7,6 +7,8 @@ import {
   login as loginRequest,
   logout as logoutRequest,
   register as registerRequest,
+  resendRegistrationCode as resendRegistrationCodeRequest,
+  verifyRegistration as verifyRegistrationRequest,
   type AuthUser,
 } from '@/features/auth/api/auth';
 import { AuthContext, type AuthContextValue } from '@/features/auth/context/AuthContext';
@@ -95,12 +97,20 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
     [queryClient],
   );
 
-  const register = useCallback(
-    async (email: string, password: string) => {
-      await completeAuthentication(registerRequest(email, password));
+  const register = useCallback(async (email: string, password: string) => {
+    return registerRequest(email, password);
+  }, []);
+
+  const verifyRegistration = useCallback(
+    async (email: string, code: string) => {
+      await completeAuthentication(verifyRegistrationRequest(email, code));
     },
     [completeAuthentication],
   );
+
+  const resendRegistrationCode = useCallback(async (email: string) => {
+    return resendRegistrationCodeRequest(email);
+  }, []);
 
   const login = useCallback(
     async (email: string, password: string) => {
@@ -129,10 +139,12 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
       isLoading,
       isAuthenticated: user !== null,
       register,
+      verifyRegistration,
+      resendRegistrationCode,
       login,
       logout,
     }),
-    [user, expiresAt, isLoading, register, login, logout],
+    [user, expiresAt, isLoading, register, verifyRegistration, resendRegistrationCode, login, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

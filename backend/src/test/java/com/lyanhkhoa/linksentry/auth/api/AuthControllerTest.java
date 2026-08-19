@@ -62,7 +62,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("duplicate registration uses a safe conflict envelope")
     void duplicateRegistrationIsSafe() throws Exception {
-        given(authService.register(org.mockito.ArgumentMatchers.any(RegisterRequest.class)))
+        given(authService.registerLegacy(org.mockito.ArgumentMatchers.any(RegisterRequest.class)))
                 .willThrow(new EmailAlreadyRegisteredException());
         String email = "duplicate-email-sentinel@example.com";
         String password = "duplicate-password-sentinel";
@@ -77,6 +77,7 @@ class AuthControllerTest {
                 .andExpect(content().string(not(containsString(email))))
                 .andExpect(content().string(not(containsString(password))));
     }
+
 
     @Test
     @DisplayName("login failure does not echo email, password, or internal details")

@@ -11,7 +11,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "build:extension": "tsc --noEmit && vite build --config vite.extension.config.ts",
+    "build:extension": "tsc --noEmit && vite build --mode extension --config vite.extension.config.ts",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
