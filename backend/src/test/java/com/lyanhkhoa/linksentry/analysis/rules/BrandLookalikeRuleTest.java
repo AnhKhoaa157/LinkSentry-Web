@@ -108,6 +108,21 @@ class BrandLookalikeRuleTest {
     }
 
     @Test
+    @DisplayName("an uppercase XN-- Punycode prefix is still recognized and fires with the lookalike signal")
+    void uppercasePunycodePrefixFires() {
+        String confusableLabel = "vietc" + 'о' + "mbank"; // Cyrillic о (U+043E) in place of 'o'
+        String encodedLabel = IDN.toASCII(confusableLabel, IDN.USE_STD3_ASCII_RULES);
+        String uppercasePrefixLabel = "XN--" + encodedLabel.substring(4);
+        String asciiHost = uppercasePrefixLabel + ".xyz";
+        NormalizedUrl url = urlFor(asciiHost, asciiHost, List.of(), "/");
+
+        var finding = rule.analyze(url);
+
+        assertThat(finding).isPresent();
+        assertThat(finding.get().evidence()).contains("lookalike character");
+    }
+
+    @Test
     @DisplayName("an unrelated internationalized hostname with no confusable mapping to a token never fires")
     void unrelatedIdnHostNeverFires() {
         String label = "münchen"; // German umlaut, decodes cleanly but matches no brand token

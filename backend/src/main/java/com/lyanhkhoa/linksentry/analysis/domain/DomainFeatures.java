@@ -4,6 +4,7 @@ import java.net.IDN;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 
@@ -46,9 +47,10 @@ public record DomainFeatures(List<Label> labels, Set<String> hostTokens) {
      * @param hyphenCollapsed {@code value} with every {@code -} removed; equal to
      *                        {@code value} itself when it contains no hyphen
      * @param punycodeDecoded {@link IDN#toUnicode} applied to {@code value} when it
-     *                        is a Punycode label ({@code xn--} prefixed), falling
-     *                        back to {@code value} itself if decoding fails; {@code
-     *                        null} when {@code value} is not a Punycode label
+     *                        is a Punycode label ({@code xn--} prefixed, matched
+     *                        case-insensitively), falling back to {@code value}
+     *                        itself if decoding fails; {@code null} when {@code
+     *                        value} is not a Punycode label
      */
     public record Label(String value, String hyphenCollapsed, String punycodeDecoded) {
 
@@ -88,7 +90,7 @@ public record DomainFeatures(List<Label> labels, Set<String> hostTokens) {
     }
 
     private static String punycodeDecodedOrNull(String label) {
-        if (!label.startsWith("xn--")) {
+        if (!label.toLowerCase(Locale.ROOT).startsWith("xn--")) {
             return null;
         }
         try {
