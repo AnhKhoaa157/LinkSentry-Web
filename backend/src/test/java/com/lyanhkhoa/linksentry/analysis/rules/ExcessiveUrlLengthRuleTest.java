@@ -3,6 +3,7 @@ package com.lyanhkhoa.linksentry.analysis.rules;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
+import com.lyanhkhoa.linksentry.analysis.domain.DomainFeatures;
 import com.lyanhkhoa.linksentry.analysis.domain.NormalizedUrl;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -97,7 +98,7 @@ class ExcessiveUrlLengthRuleTest {
 
     private static NormalizedUrl urlWithRawAndRedacted(String raw, String redacted) {
         return new NormalizedUrl(
-                raw, redacted, "https", "example.com", "example.com", "example.com", List.of(), null, "/", false,
-                false, false);
+                raw, redacted, "https", "example.com", "example.com", DomainFeatures.fromAsciiHost("example.com"),
+                "example.com", List.of(), null, "/", false, false, false);
     }
 }

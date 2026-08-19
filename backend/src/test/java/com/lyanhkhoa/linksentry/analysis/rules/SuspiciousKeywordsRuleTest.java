@@ -3,6 +3,7 @@ package com.lyanhkhoa.linksentry.analysis.rules;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
+import com.lyanhkhoa.linksentry.analysis.domain.DomainFeatures;
 import com.lyanhkhoa.linksentry.analysis.domain.NormalizedUrl;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -55,6 +56,7 @@ class SuspiciousKeywordsRuleTest {
         String host = String.join(".", subdomains) + (subdomains.isEmpty() ? "" : ".") + "example.com";
         String raw = "https://" + host + path;
         return new NormalizedUrl(
-                raw, raw, "https", host, host, "example.com", subdomains, null, path, false, false, false);
+                raw, raw, "https", host, host, DomainFeatures.fromAsciiHost(host), "example.com", subdomains, null,
+                path, false, false, false);
     }
 }
