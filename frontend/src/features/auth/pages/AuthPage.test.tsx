@@ -67,14 +67,22 @@ describe('AuthPage', () => {
 
   it('registers with matching passwords and uses the same one-time token boundary', async () => {
     const token = 'test-only-registration-token';
-    const postSpy = vi.spyOn(apiClient, 'post').mockResolvedValue({
-      data: {
-        accessToken: token,
-        tokenType: 'Bearer',
-        expiresAt: '2026-08-19T12:00:00Z',
-        user: { email: 'new@example.com' },
-      },
-    });
+    const postSpy = vi
+      .spyOn(apiClient, 'post')
+      .mockResolvedValueOnce({
+        data: {
+          message: 'A verification code was sent to your email address.',
+          expiresAt: '2026-08-19T12:10:00Z',
+        },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          accessToken: token,
+          tokenType: 'Bearer',
+          expiresAt: '2026-08-19T12:00:00Z',
+          user: { email: 'new@example.com' },
+        },
+      });
     const user = userEvent.setup();
 
     renderWithProviders(<AuthPage />, { route: '/auth' });
@@ -85,9 +93,17 @@ describe('AuthPage', () => {
     await user.click(screen.getByRole('button', { name: 'Create account' }));
 
     await waitFor(() =>
-      expect(postSpy).toHaveBeenCalledWith('/api/v1/auth/register', {
+      expect(postSpy).toHaveBeenCalledWith('/api/v2/auth/register', {
         email: 'new@example.com',
         password: 'correct-horse',
+      }),
+    );
+    await user.type(await screen.findByLabelText('Verification code'), '123456');
+    await user.click(screen.getByRole('button', { name: 'Verify email' }));
+    await waitFor(() =>
+      expect(postSpy).toHaveBeenCalledWith('/api/v2/auth/register/verify', {
+        email: 'new@example.com',
+        code: '123456',
       }),
     );
     expect(sessionStorage.getItem('linksentry.accessToken')).toBe(token);

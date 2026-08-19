@@ -49,6 +49,8 @@ class RouteClassifierTest {
     void classifiesAuthRoutes() {
         assertThat(classifier.classify(request("POST", "/api/v1/auth/login"))).contains(RateLimitedRoute.AUTH);
         assertThat(classifier.classify(request("POST", "/api/v1/auth/register"))).contains(RateLimitedRoute.AUTH);
+        assertThat(classifier.classify(request("POST", "/api/v2/auth/register/verify")))
+                .contains(RateLimitedRoute.AUTH);
         assertThat(classifier.classify(request("GET", "/api/v1/auth/session"))).contains(RateLimitedRoute.AUTH);
         assertThat(classifier.classify(request("OPTIONS", "/api/v1/auth/login"))).isEmpty();
     }

@@ -30,6 +30,12 @@ public class RouteClassifier {
     private final RequestMatcher authWrite =
             PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, "/api/v1/auth/*");
 
+    private final RequestMatcher authV2Write =
+            PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, "/api/v2/auth/*");
+
+    private final RequestMatcher authV2RegisterVerify =
+            PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, "/api/v2/auth/register/verify");
+
     private final RequestMatcher authSession =
             PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.GET, "/api/v1/auth/session");
 
@@ -50,7 +56,10 @@ public class RouteClassifier {
         if (explanation.matches(request)) {
             return Optional.of(RateLimitedRoute.EXPLANATION);
         }
-        if (authWrite.matches(request) || authSession.matches(request)) {
+        if (authWrite.matches(request)
+                || authV2Write.matches(request)
+                || authV2RegisterVerify.matches(request)
+                || authSession.matches(request)) {
             return Optional.of(RateLimitedRoute.AUTH);
         }
         return Optional.empty();

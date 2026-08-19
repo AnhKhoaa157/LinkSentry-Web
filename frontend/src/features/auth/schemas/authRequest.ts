@@ -21,3 +21,8 @@ export const registerRequestSchema = loginRequestSchema
       });
     }
   });
+
+export const registrationVerificationSchema = z.object({
+  email: emailSchema,
+  code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit verification code.'),
+});

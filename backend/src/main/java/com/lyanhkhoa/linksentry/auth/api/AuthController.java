@@ -26,7 +26,7 @@ public class AuthController {
 
     @PostMapping("/register")
     public AuthResponse register(@Valid @RequestBody RegisterRequest request) {
-        return authService.register(request);
+        return authService.registerLegacy(request);
     }
 
     @PostMapping("/login")

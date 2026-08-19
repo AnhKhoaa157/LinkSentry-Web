@@ -1,6 +1,9 @@
 package com.lyanhkhoa.linksentry.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.hamcrest.Matchers.nullValue;
@@ -8,13 +11,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
+import com.lyanhkhoa.linksentry.auth.application.RegistrationCodeSender;
 import com.lyanhkhoa.linksentry.auth.security.TokenService;
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -25,6 +31,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -62,6 +69,9 @@ class AuthPostgresIntegrationTest {
     @Autowired
     private TokenService tokenService;
 
+    @MockitoBean
+    private RegistrationCodeSender registrationCodeSender;
+
     @DynamicPropertySource
     static void postgresProperties(DynamicPropertyRegistry registry) {
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
@@ -76,7 +86,43 @@ class AuthPostgresIntegrationTest {
     void cleanTables() {
         jdbcTemplate.update("DELETE FROM scan_history");
         jdbcTemplate.update("DELETE FROM auth_session");
+        jdbcTemplate.update("DELETE FROM auth_registration_verification");
         jdbcTemplate.update("DELETE FROM user_account");
+    }
+
+    @Test
+    @DisplayName("v2 registration creates an account only after the SMTP code is verified")
+    void emailVerificationGatesAccountCreation() throws Exception {
+        String email = "verified-" + UUID.randomUUID() + "@example.com";
+        clearInvocations(registrationCodeSender);
+
+        mockMvc.perform(post("/api/v2/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"" + email + "\",\"password\":\"correct-horse-123\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").doesNotExist());
+
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM user_account WHERE email = ?", Integer.class, email)).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM auth_registration_verification WHERE email = ?", Integer.class, email))
+                .isEqualTo(1);
+
+        ArgumentCaptor<String> codeCaptor = ArgumentCaptor.forClass(String.class);
+        verify(registrationCodeSender).send(any(String.class), codeCaptor.capture(), any(Duration.class));
+        MvcResult verified = mockMvc.perform(post("/api/v2/auth/register/verify")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"" + email + "\",\"code\":\"" + codeCaptor.getValue() + "\"}"))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        assertThat(JsonPath.parse(verified.getResponse().getContentAsString()).read("$.accessToken", String.class))
+                .isNotBlank();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM user_account WHERE email = ?", Integer.class, email)).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM auth_registration_verification WHERE email = ?", Integer.class, email))
+                .isZero();
     }
 
     @Test

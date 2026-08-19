@@ -3,6 +3,8 @@ package com.lyanhkhoa.linksentry.common.exception;
 import com.lyanhkhoa.linksentry.analysis.domain.InvalidUrlException;
 import com.lyanhkhoa.linksentry.auth.application.EmailAlreadyRegisteredException;
 import com.lyanhkhoa.linksentry.auth.application.InvalidCredentialsException;
+import com.lyanhkhoa.linksentry.auth.application.InvalidVerificationCodeException;
+import com.lyanhkhoa.linksentry.auth.application.MailDeliveryException;
 import com.lyanhkhoa.linksentry.common.api.ErrorResponse;
 import com.lyanhkhoa.linksentry.explanation.application.ExplanationUnavailableException;
 import com.lyanhkhoa.linksentry.history.application.ScanNotFoundException;
@@ -93,6 +95,22 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(ErrorResponse.of(
                         "INVALID_CREDENTIALS", "Email or password is incorrect.", newTraceId()));
+    }
+
+    @ExceptionHandler(InvalidVerificationCodeException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidVerificationCode(InvalidVerificationCodeException exception) {
+        return ResponseEntity.badRequest()
+                .body(ErrorResponse.of(
+                        "INVALID_VERIFICATION_CODE", "The verification code is invalid or expired.", newTraceId()));
+    }
+
+    @ExceptionHandler(MailDeliveryException.class)
+    public ResponseEntity<ErrorResponse> handleMailDelivery(MailDeliveryException exception) {
+        String traceId = newTraceId();
+        log.info("Verification email unavailable [traceId={}]", traceId);
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ErrorResponse.of(
+                        "EMAIL_DELIVERY_UNAVAILABLE", "Verification email could not be sent right now.", traceId));
     }
 
     /** Missing, malformed, and expired opaque scan IDs share one safe response. */
