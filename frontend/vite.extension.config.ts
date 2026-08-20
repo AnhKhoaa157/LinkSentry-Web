@@ -26,7 +26,7 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: fileURLToPath(new URL('./dist-extension', import.meta.url)),
+    outDir: fileURLToPath(new URL('../linksentry', import.meta.url)),
     emptyOutDir: true,
     modulePreload: false,
     rollupOptions: {
