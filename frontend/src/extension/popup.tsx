@@ -3,6 +3,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { Popup } from '@/extension/components/Popup';
+import { LicenseProvider } from '@/features/license/context/LicenseProvider';
 import { createQueryClient } from '@/lib/api/queryClient';
 import '@/app/styles.css';
 import '@/extension/popup.css';
@@ -16,7 +17,9 @@ if (!container) {
 createRoot(container).render(
   <StrictMode>
     <QueryClientProvider client={createQueryClient()}>
-      <Popup />
+      <LicenseProvider clientLabel="extension">
+        <Popup />
+      </LicenseProvider>
     </QueryClientProvider>
   </StrictMode>,
 );

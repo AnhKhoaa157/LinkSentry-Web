@@ -14,16 +14,18 @@ const manifest: Record<string, unknown> = JSON.parse(readFileSync(manifestPath, 
 /**
  * Asserts the manifest's actual permission surface, not just that it "has"
  * activeTab — `toEqual` fails equally on activeTab being removed and on any
- * extra permission (tabs, storage, scripting, webRequest, cookies,
- * contextMenus, notifications, host wildcards, ...) being added.
+ * extra permission (tabs, scripting, webRequest, cookies,
+ * contextMenus, notifications, host wildcards, ...) being added. `storage` is
+ * the one deliberate addition: it backs `chrome.storage.local`, where the
+ * device credential lives — see docs/adr/0008-device-license-authentication.md.
  */
 describe('extension manifest', () => {
   it('targets Manifest V3', () => {
     expect(manifest['manifest_version']).toBe(3);
   });
 
-  it('requests exactly the activeTab permission and nothing else', () => {
-    expect(manifest['permissions']).toEqual(['activeTab']);
+  it('requests exactly activeTab and storage, and nothing else', () => {
+    expect(manifest['permissions']).toEqual(['activeTab', 'storage']);
   });
 
   it('scopes host_permissions to exactly the deployed LinkSentry API', () => {
@@ -52,7 +54,7 @@ describe('extension manifest', () => {
     // A locked allow-list, not a denylist: any newly-requested Chrome API
     // permission must be added here deliberately, with its own review, rather
     // than slipping in silently.
-    const allowed = new Set(['activeTab']);
+    const allowed = new Set(['activeTab', 'storage']);
     const requested = (manifest['permissions'] as string[] | undefined) ?? [];
     for (const permission of requested) {
       expect(allowed.has(permission)).toBe(true);

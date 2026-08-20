@@ -5,6 +5,7 @@ import { AxiosError, AxiosHeaders } from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Popup } from '@/extension/components/Popup';
+import { LicenseProvider } from '@/features/license/context/LicenseProvider';
 import { apiClient } from '@/lib/api/client';
 import { createQueryClient } from '@/lib/api/queryClient';
 import { renderWithProviders } from '@/test/renderWithProviders';
@@ -74,7 +75,9 @@ function renderPopupWithQueryClient() {
   const queryClient = createQueryClient();
   const rendered = render(
     <QueryClientProvider client={queryClient}>
-      <Popup />
+      <LicenseProvider clientLabel="extension">
+        <Popup />
+      </LicenseProvider>
     </QueryClientProvider>,
   );
 
