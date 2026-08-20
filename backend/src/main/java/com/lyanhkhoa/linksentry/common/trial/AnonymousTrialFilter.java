@@ -3,8 +3,8 @@ package com.lyanhkhoa.linksentry.common.trial;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.lyanhkhoa.linksentry.auth.security.AuthenticatedUser;
 import com.lyanhkhoa.linksentry.common.api.ErrorResponse;
+import com.lyanhkhoa.linksentry.license.security.LicensedDeviceContext;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,16 +22,20 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * Gates unauthenticated {@code POST /api/v1/scans} to a rolling trial quota per
+ * Gates unlicensed {@code POST /api/v1/scans} to a rolling trial quota per
  * server-observed remote address, independent of {@code RateLimitFilter}'s general
  * anti-abuse control.
  *
- * <p>Placed immediately after {@code BearerTokenAuthenticationFilter} in the
- * security chain (see {@code SecurityConfig}) — after bearer authentication so
- * {@link SecurityContextHolder} already reflects any valid session, but before
+ * <p>Placed immediately after {@code DeviceAuthenticationFilter} in the
+ * security chain (see {@code SecurityConfig}) — after device authentication so
+ * {@link SecurityContextHolder} already reflects a licensed device, if any, but before
  * {@code AnonymousAuthenticationFilter}, the controller, analysis, or persistence.
- * An authenticated caller is never gated here, and the general rate limiter still
- * applies to everyone regardless of this filter's outcome.
+ * A licensed device is never gated here, and the general rate limiter still
+ * applies to everyone regardless of this filter's outcome. A device with no active
+ * license — pending activation, expired, or revoked — is gated exactly like a
+ * caller with no device credential at all: this filter has no license-aware logic
+ * of its own, because {@code DeviceAuthenticationFilter} only ever installs an
+ * authentication for a currently licensed device.
  *
  * <p>Deliberately not a {@code @Component} for the same reason as
  * {@code RateLimitFilter}: constructed directly inside {@code SecurityConfig} and
@@ -41,7 +45,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  */
 public final class AnonymousTrialFilter extends OncePerRequestFilter {
 
-    private static final String MESSAGE = "Sign in to continue scanning.";
+    private static final String MESSAGE = "Request a license to continue scanning.";
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper()
             .registerModule(new JavaTimeModule())
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
@@ -76,7 +80,7 @@ public final class AnonymousTrialFilter extends OncePerRequestFilter {
 
     private static boolean isAuthenticated() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        return authentication != null && authentication.getPrincipal() instanceof AuthenticatedUser;
+        return authentication != null && authentication.getPrincipal() instanceof LicensedDeviceContext;
     }
 
     private void rejectWithTrialExhausted(HttpServletResponse response) throws IOException {

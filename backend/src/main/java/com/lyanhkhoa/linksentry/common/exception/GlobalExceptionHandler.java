@@ -1,13 +1,17 @@
 package com.lyanhkhoa.linksentry.common.exception;
 
+import com.lyanhkhoa.linksentry.admin.application.InvalidAdminCredentialsException;
 import com.lyanhkhoa.linksentry.analysis.domain.InvalidUrlException;
-import com.lyanhkhoa.linksentry.auth.application.EmailAlreadyRegisteredException;
-import com.lyanhkhoa.linksentry.auth.application.InvalidCredentialsException;
-import com.lyanhkhoa.linksentry.auth.application.InvalidVerificationCodeException;
-import com.lyanhkhoa.linksentry.auth.application.MailDeliveryException;
 import com.lyanhkhoa.linksentry.common.api.ErrorResponse;
 import com.lyanhkhoa.linksentry.explanation.application.ExplanationUnavailableException;
 import com.lyanhkhoa.linksentry.history.application.ScanNotFoundException;
+import com.lyanhkhoa.linksentry.license.application.DeviceAlreadyAssignedException;
+import com.lyanhkhoa.linksentry.license.application.DeviceAssignmentNotFoundException;
+import com.lyanhkhoa.linksentry.license.application.DeviceLimitExceededException;
+import com.lyanhkhoa.linksentry.license.application.DeviceNotFoundException;
+import com.lyanhkhoa.linksentry.license.application.InvalidDeviceCredentialException;
+import com.lyanhkhoa.linksentry.license.application.LicenseNotFoundException;
+import com.lyanhkhoa.linksentry.license.application.LicenseRevokedException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -16,6 +20,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -79,38 +84,81 @@ public class GlobalExceptionHandler {
                         traceId));
     }
 
-    /** Registration conflict without echoing the submitted address. */
-    @ExceptionHandler(EmailAlreadyRegisteredException.class)
-    public ResponseEntity<ErrorResponse> handleEmailAlreadyRegistered(EmailAlreadyRegisteredException exception) {
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(ErrorResponse.of(
-                        "EMAIL_ALREADY_REGISTERED",
-                        "An account already exists for this email address.",
-                        newTraceId()));
+    /** An admin login attempt with an unknown username or wrong password. */
+    @ExceptionHandler(InvalidAdminCredentialsException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidAdminCredentials(InvalidAdminCredentialsException exception) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ErrorResponse.of("INVALID_CREDENTIALS", "Username or password is incorrect.", newTraceId()));
     }
 
-    /** Login failures intentionally do not distinguish an unknown email from a bad password. */
-    @ExceptionHandler(InvalidCredentialsException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidCredentials(InvalidCredentialsException exception) {
+    /**
+     * A genuinely authenticated principal with the wrong domain authority for the route — a licensed
+     * device on an admin-only route, or an administrator on a device-only route — reached a controller
+     * directly. {@code SecurityConfig}'s {@code hasAuthority(...)} check normally rejects this earlier,
+     * via {@code common.security.ApiAccessDeniedHandler}; this handler is what a controller's own
+     * defensive type check (see {@code scan.api.ScanController}, {@code explanation.api.ExplanationController},
+     * and {@code admin.api.AdminAuthController}) falls back to, and it also covers a {@code
+     * @WebMvcTest} slice with the security filter chain disabled. Same fixed {@code 403} envelope
+     * either way — never which authority was expected or which principal type was found.
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException exception) {
+        String traceId = newTraceId();
+        log.info("Access denied [traceId={}]", traceId);
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ErrorResponse.of(
+                        "FORBIDDEN", "You do not have permission to access this resource.", traceId));
+    }
+
+    /** A device status check without a recognisable {@code Authorization: Device ...} header. */
+    @ExceptionHandler(InvalidDeviceCredentialException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidDeviceCredential(InvalidDeviceCredentialException exception) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(ErrorResponse.of(
-                        "INVALID_CREDENTIALS", "Email or password is incorrect.", newTraceId()));
+                        "INVALID_DEVICE_CREDENTIAL", "The device credential is missing or invalid.", newTraceId()));
     }
 
-    @ExceptionHandler(InvalidVerificationCodeException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidVerificationCode(InvalidVerificationCodeException exception) {
-        return ResponseEntity.badRequest()
-                .body(ErrorResponse.of(
-                        "INVALID_VERIFICATION_CODE", "The verification code is invalid or expired.", newTraceId()));
+    /** An admin request naming an unknown license ID. */
+    @ExceptionHandler(LicenseNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleLicenseNotFound(LicenseNotFoundException exception) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ErrorResponse.of("LICENSE_NOT_FOUND", "The requested license could not be found.", newTraceId()));
     }
 
-    @ExceptionHandler(MailDeliveryException.class)
-    public ResponseEntity<ErrorResponse> handleMailDelivery(MailDeliveryException exception) {
-        String traceId = newTraceId();
-        log.info("Verification email unavailable [traceId={}]", traceId);
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                .body(ErrorResponse.of(
-                        "EMAIL_DELIVERY_UNAVAILABLE", "Verification email could not be sent right now.", traceId));
+    /** An admin request naming an unknown device or activation code. */
+    @ExceptionHandler(DeviceNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleDeviceNotFound(DeviceNotFoundException exception) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ErrorResponse.of("DEVICE_NOT_FOUND", "The requested device could not be found.", newTraceId()));
+    }
+
+    /** Granting a device that already holds an active assignment to some license. */
+    @ExceptionHandler(DeviceAlreadyAssignedException.class)
+    public ResponseEntity<ErrorResponse> handleDeviceAlreadyAssigned(DeviceAlreadyAssignedException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ErrorResponse.of("DEVICE_ALREADY_ASSIGNED", exception.getMessage(), newTraceId()));
+    }
+
+    /** Granting a device would exceed a license's configured device cap. */
+    @ExceptionHandler(DeviceLimitExceededException.class)
+    public ResponseEntity<ErrorResponse> handleDeviceLimitExceeded(DeviceLimitExceededException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ErrorResponse.of("DEVICE_LIMIT_EXCEEDED", exception.getMessage(), newTraceId()));
+    }
+
+    /** Granting a device against a license that is already revoked. */
+    @ExceptionHandler(LicenseRevokedException.class)
+    public ResponseEntity<ErrorResponse> handleLicenseRevoked(LicenseRevokedException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ErrorResponse.of("LICENSE_REVOKED", exception.getMessage(), newTraceId()));
+    }
+
+    /** Revoking a device that has no currently active license assignment. */
+    @ExceptionHandler(DeviceAssignmentNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleDeviceAssignmentNotFound(DeviceAssignmentNotFoundException exception) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ErrorResponse.of("DEVICE_ASSIGNMENT_NOT_FOUND", exception.getMessage(), newTraceId()));
     }
 
     /** Missing, malformed, and expired opaque scan IDs share one safe response. */

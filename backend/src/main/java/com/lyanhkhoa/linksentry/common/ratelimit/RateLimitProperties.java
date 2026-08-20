@@ -17,9 +17,13 @@ import org.springframework.validation.annotation.Validated;
  *                   request is classified, consumed, or delayed
  * @param scan        bucket applied to {@code POST /api/v1/scans}
  * @param scanLookup  bucket applied to {@code GET /api/v1/scans/{scanId}}
- * @param auth        stricter bucket applied to account/session routes
+ * @param device      stricter bucket applied to device bootstrap/status routes
  * @param explanation strictest bucket, applied to
  *                    {@code POST /api/v1/scans/{scanId}/explanation}
+ * @param admin       bucket applied to {@code /api/v1/admin/**}
+ * @param adminAuthLogin stricter bucket applied only to {@code POST /api/v1/admin-auth/login},
+ *                       independent of {@code admin} — a wholly separate route family and identity
+ *                       (a human administrator's own bearer session, never {@code ADMIN_API_KEY})
  * @param store       bounds on the in-memory identity store backing all buckets
  */
 @Validated
@@ -28,8 +32,10 @@ public record RateLimitProperties(
         boolean enabled,
         @NotNull @Valid Bucket scan,
         @NotNull @Valid Bucket scanLookup,
-        @NotNull @Valid Bucket auth,
+        @NotNull @Valid Bucket device,
         @NotNull @Valid Bucket explanation,
+        @NotNull @Valid Bucket admin,
+        @NotNull @Valid Bucket adminAuthLogin,
         @NotNull @Valid Store store) {
 
     /**

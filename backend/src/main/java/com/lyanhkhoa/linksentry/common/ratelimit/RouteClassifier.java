@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 /**
  * Decides whether a request counts against a rate-limit bucket.
  *
- * <p>Scan and authentication endpoints are limited, matched by exact method and path.
+ * <p>Scan, device, and admin endpoints are limited, matched by exact method and path.
  * Health, actuator health, Swagger/OpenAPI, static files, and CORS preflight are
  * never classified — there is no allow-list to keep in sync because everything
  * other than the matchers below simply falls through unmatched.
@@ -27,17 +27,11 @@ public class RouteClassifier {
     private final RequestMatcher scanLookup =
             PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.GET, "/api/v1/scans/*");
 
-    private final RequestMatcher authWrite =
-            PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, "/api/v1/auth/*");
+    private final RequestMatcher deviceBootstrap =
+            PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, "/api/v1/devices");
 
-    private final RequestMatcher authV2Write =
-            PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, "/api/v2/auth/*");
-
-    private final RequestMatcher authV2RegisterVerify =
-            PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, "/api/v2/auth/register/verify");
-
-    private final RequestMatcher authSession =
-            PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.GET, "/api/v1/auth/session");
+    private final RequestMatcher deviceStatus =
+            PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.GET, "/api/v1/devices/me");
 
     // The costliest route: each request pays for an outbound Anthropic call, so it
     // gets its own independent, deliberately strict bucket rather than sharing
@@ -45,6 +39,18 @@ public class RouteClassifier {
     // the same as scanLookup — never the bare collection path or a deeper path.
     private final RequestMatcher explanation =
             PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, "/api/v1/scans/*/explanation");
+
+    // Any method: admin routes include the browser dashboard and operator automation,
+    // so there is no preflight OPTIONS to exclude the way there is for the browser-facing
+    // matchers above.
+    private final RequestMatcher admin = PathPatternRequestMatcher.withDefaults().matcher("/api/v1/admin/**");
+
+    // A wholly separate route family from `admin` above: the browser-facing admin
+    // console login, never gated by ADMIN_API_KEY. Only the login attempt itself
+    // gets its own strict bucket — a brute-force target — the way scan/device
+    // bootstrap do; the session-check and logout routes do not.
+    private final RequestMatcher adminAuthLogin =
+            PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, "/api/v1/admin-auth/login");
 
     Optional<RateLimitedRoute> classify(HttpServletRequest request) {
         if (scanCreate.matches(request)) {
@@ -56,11 +62,14 @@ public class RouteClassifier {
         if (explanation.matches(request)) {
             return Optional.of(RateLimitedRoute.EXPLANATION);
         }
-        if (authWrite.matches(request)
-                || authV2Write.matches(request)
-                || authV2RegisterVerify.matches(request)
-                || authSession.matches(request)) {
-            return Optional.of(RateLimitedRoute.AUTH);
+        if (deviceBootstrap.matches(request) || deviceStatus.matches(request)) {
+            return Optional.of(RateLimitedRoute.DEVICE);
+        }
+        if (adminAuthLogin.matches(request)) {
+            return Optional.of(RateLimitedRoute.ADMIN_AUTH_LOGIN);
+        }
+        if (admin.matches(request)) {
+            return Optional.of(RateLimitedRoute.ADMIN);
         }
         return Optional.empty();
     }

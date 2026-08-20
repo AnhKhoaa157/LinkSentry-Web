@@ -50,8 +50,10 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
             "linksentry.ratelimit.scan.refill-per-minute=1",
             "linksentry.ratelimit.scan-lookup.capacity=2",
             "linksentry.ratelimit.scan-lookup.refill-per-minute=1",
-            "linksentry.ratelimit.auth.capacity=2",
-            "linksentry.ratelimit.auth.refill-per-minute=1"
+            "linksentry.ratelimit.device.capacity=2",
+            "linksentry.ratelimit.device.refill-per-minute=1",
+            "linksentry.ratelimit.admin-auth-login.capacity=2",
+            "linksentry.ratelimit.admin-auth-login.refill-per-minute=1"
         })
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class RateLimitIntegrationTest {
@@ -97,23 +99,39 @@ class RateLimitIntegrationTest {
     }
 
     @Test
-    @DisplayName("auth routes use a separate strict bucket")
-    void authRoutesHaveSeparateBucket() throws Exception {
+    @DisplayName("device routes use a separate strict bucket")
+    void deviceRoutesHaveSeparateBucket() throws Exception {
         for (int i = 0; i < 2; i++) {
-            mockMvc.perform(post("/api/v1/auth/login")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content("{not json"))
+            mockMvc.perform(post("/api/v1/devices").contentType(MediaType.APPLICATION_JSON).content("{not json"))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.code").value("MALFORMED_REQUEST"));
         }
 
-        mockMvc.perform(post("/api/v1/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{not json"))
+        mockMvc.perform(post("/api/v1/devices").contentType(MediaType.APPLICATION_JSON).content("{not json"))
                 .andExpect(status().isTooManyRequests())
                 .andExpect(jsonPath("$.code").value("RATE_LIMITED"));
 
-        // Auth exhaustion does not consume either scan bucket.
+        // Device-bucket exhaustion does not consume either scan bucket.
+        mockMvc.perform(invalidPost()).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("admin console login has its own separate strict bucket, keyed only by server-observed address")
+    void adminAuthLoginHasSeparateBucket() throws Exception {
+        // Malformed JSON, like the device-bucket case above: this class's H2 test profile has no
+        // schema (Flyway disabled), so the request must be rejected before AdminAuthService ever
+        // queries admin_user. Rate limiting still consumes a token before that validation runs.
+        for (int i = 0; i < 2; i++) {
+            mockMvc.perform(post("/api/v1/admin-auth/login").contentType(MediaType.APPLICATION_JSON).content("{not json"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("MALFORMED_REQUEST"));
+        }
+
+        mockMvc.perform(post("/api/v1/admin-auth/login").contentType(MediaType.APPLICATION_JSON).content("{not json"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("RATE_LIMITED"));
+
+        // Admin-login-bucket exhaustion does not consume either scan bucket.
         mockMvc.perform(invalidPost()).andExpect(status().isBadRequest());
     }
 

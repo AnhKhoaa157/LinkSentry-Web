@@ -70,14 +70,25 @@ class CorsConfigurationTest {
     }
 
     @Test
-    @DisplayName("an authenticated preflight allows the Authorization header")
+    @DisplayName("a device-status preflight allows the Authorization header")
     void preflightAllowsAuthorizationHeader() throws Exception {
-        mockMvc.perform(options("/api/v1/auth/login")
+        mockMvc.perform(options("/api/v1/devices/me")
                         .header(HttpHeaders.ORIGIN, ALLOWED_ORIGIN)
-                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "GET")
                         .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "Authorization, Content-Type"))
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS, containsString("Authorization")));
+    }
+
+    @Test
+    @DisplayName("a preflight never permits the operator-only admin API key header")
+    void preflightRejectsAdminApiKeyHeader() throws Exception {
+        mockMvc.perform(options("/api/v1/admin/licenses")
+                        .header(HttpHeaders.ORIGIN, ALLOWED_ORIGIN)
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "GET")
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "X-Admin-Api-Key"))
+                .andExpect(status().isForbidden())
+                .andExpect(header().doesNotExist(HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS));
     }
 
     @Test
