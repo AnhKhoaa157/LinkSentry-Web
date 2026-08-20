@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 
-import { useAuth } from '@/features/auth/context/useAuth';
+import { useLicense } from '@/features/license/context/useLicense';
 import { postScan } from '@/features/scanner/api/postScan';
 import { ScanResult } from '@/features/scanner/components/ScanResult';
 import { scanRequestSchema } from '@/features/scanner/schemas/scanRequest';
@@ -22,14 +22,14 @@ const RATE_LIMITED_MESSAGE = 'Too many scan requests. Wait a moment before tryin
 
 /**
  * The anonymous trial guard is a distinct scanner condition from rate limiting:
- * it means "sign in", not "wait". As with `RATE_LIMITED`, nothing about the
+ * it means "get a license", not "wait". As with `RATE_LIMITED`, nothing about the
  * quota is inferred here — no count, no reset time, no explanation tied to an
  * IP address, since the backend publishes none of it (docs/API_CONTRACT.md).
- * An authenticated caller never sees this code; the guard only ever gates
- * unauthenticated requests.
+ * A licensed device never sees this code; the guard only ever gates an
+ * unlicensed one.
  */
 const ANONYMOUS_TRIAL_EXHAUSTED_MESSAGE =
-  'Your free anonymous scan allowance is used up for now. Sign in to keep scanning.';
+  'Your free trial scan allowance is used up for now. Get a license to keep scanning.';
 
 function displayMessage(error: NormalizedApiError): string {
   if (error.code === 'RATE_LIMITED') {
@@ -49,7 +49,7 @@ function displayMessage(error: NormalizedApiError): string {
  * an API error, and success. Never more than one of these is shown at once.
  */
 export function Scanner() {
-  const { isAuthenticated, isLoading: isSessionLoading } = useAuth();
+  const { isLicensed, isLoading: isLicenseLoading } = useLicense();
   const [url, setUrl] = useState('');
   const [clientError, setClientError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
@@ -138,7 +138,7 @@ export function Scanner() {
           />
           <button
             type="submit"
-            disabled={isPending || isSessionLoading}
+            disabled={isPending || isLicenseLoading}
             className="bg-accent-500 text-ink-950 rounded-lg px-5 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isPending ? 'Analyzing…' : 'Analyze'}
@@ -162,10 +162,10 @@ export function Scanner() {
           ) : null}
           {apiError.code === 'ANONYMOUS_TRIAL_EXHAUSTED' ? (
             <Link
-              to="/auth"
+              to="/license"
               className="text-accent-400 hover:text-accent-300 mt-2 inline-block text-sm font-medium underline underline-offset-4"
             >
-              Sign in to continue scanning
+              Get a license to continue scanning
             </Link>
           ) : null}
         </div>
@@ -174,7 +174,7 @@ export function Scanner() {
       {scanResponse !== null ? (
         <>
           <ScanResult data={scanResponse.data} />
-          {isAuthenticated && scanResponse.data.scanId ? (
+          {isLicensed && scanResponse.data.scanId ? (
             <div className="border-ink-800 mt-5 border-t pt-4">
               <Link
                 to={`/scans/${encodeURIComponent(scanResponse.data.scanId)}`}
@@ -183,17 +183,17 @@ export function Scanner() {
                 Open your private result
               </Link>
               <p className="text-ink-500 mt-1 text-xs">
-                Only your signed-in account can view this saved result.
+                Only this license's installations can view this saved result.
               </p>
             </div>
           ) : (
             <div className="border-ink-800 mt-5 border-t pt-4">
               <p className="text-ink-500 text-xs">This one-off scan is not saved.</p>
               <Link
-                to="/auth"
+                to="/license"
                 className="text-accent-400 hover:text-accent-300 mt-1 inline-block text-sm font-medium underline underline-offset-4"
               >
-                Sign in to save future scans
+                Get a license to save future scans
               </Link>
             </div>
           )}

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-import { clearAccessToken, getAccessToken, notifyUnauthorized } from '@/features/auth/sessionStorage';
+import { deviceCredentialStorage } from '@/lib/device/deviceCredentialStorage';
 import { env } from '@/lib/config/env';
 import { normalizeApiError } from '@/lib/api/errors';
 
@@ -23,23 +23,27 @@ export const apiClient = axios.create({
   withCredentials: false,
 });
 
-apiClient.interceptors.request.use((config) => {
-  const token = getAccessToken();
-  if (token) {
-    config.headers.set('Authorization', `Bearer ${token}`);
+/**
+ * Attaches the device credential, when one is stored, as `Authorization: Device <credential>`.
+ * Async because `chrome.storage.local` (the extension's backend) is itself async — Axios awaits a
+ * Promise returned from a request interceptor before sending the request.
+ *
+ * Unlike the removed bearer-token interceptor, a `401` response here never clears the stored
+ * credential: a device that is merely unlicensed, expired, or revoked still has a valid identity
+ * and must keep presenting it. Only `LicenseProvider`'s own `INVALID_DEVICE_CREDENTIAL` handling
+ * ever discards it.
+ */
+apiClient.interceptors.request.use(async (config) => {
+  const credential = await deviceCredentialStorage.get();
+  if (credential) {
+    config.headers.set('Authorization', `Device ${credential}`);
   }
   return config;
 });
 
 apiClient.interceptors.response.use(
   (response) => response,
-  (error: unknown) => {
-    if (axios.isAxiosError(error) && error.response?.status === 401) {
-      clearAccessToken();
-      notifyUnauthorized();
-    }
-    // Do not let an AxiosError carrying Authorization or a submitted request
-    // body enter a query cache or a component state holder.
-    return Promise.reject(normalizeApiError(error));
-  },
+  // Do not let an AxiosError carrying Authorization or a submitted request
+  // body enter a query cache or a component state holder.
+  (error: unknown) => Promise.reject(normalizeApiError(error)),
 );
