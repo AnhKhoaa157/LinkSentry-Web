@@ -2,12 +2,14 @@ package com.lyanhkhoa.linksentry.scan.api;
 
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.lyanhkhoa.linksentry.admin.domain.AdminIdentity;
 import com.lyanhkhoa.linksentry.analysis.domain.InvalidUrlException;
 import com.lyanhkhoa.linksentry.analysis.domain.RiskLevel;
 import com.lyanhkhoa.linksentry.analysis.domain.RuleExecutionException;
@@ -25,6 +27,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -163,6 +166,21 @@ class ScanControllerTest {
                 .andExpect(jsonPath("$.message").value("The requested scan could not be found."))
                 .andExpect(jsonPath("$.traceId").isNotEmpty())
                 .andExpect(jsonPath("$.exception").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("an administrator's own principal is rejected with a clean 403, never treated as anonymous")
+    void adminPrincipalIsRejectedWithForbidden() throws Exception {
+        UUID scanId = UUID.fromString("2ce16fb9-d52d-4310-8d45-a4e48f31889e");
+        AdminIdentity admin = new AdminIdentity(UUID.randomUUID(), "ops", UUID.randomUUID(), Instant.MAX);
+
+        mockMvc.perform(get("/api/v1/scans/{scanId}", scanId)
+                        .principal(new UsernamePasswordAuthenticationToken(admin, null)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("ops"))));
+
+        verifyNoInteractions(scanService);
     }
 
     private static ScanResponse sampleResponse() {

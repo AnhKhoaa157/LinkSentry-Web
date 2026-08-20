@@ -64,21 +64,21 @@ public class ScanService {
     }
 
     /**
-     * Analyses one URL. Anonymous requests receive the safe result in memory and
-     * are deliberately neither assigned a retrievable ID nor persisted.
+     * Analyses one URL. A trial (unlicensed) request receives the safe result in memory and
+     * is deliberately neither assigned a retrievable ID nor persisted.
      */
-    public ScanResponse scan(String rawInput, UUID ownerUserId) {
+    public ScanResponse scan(String rawInput, UUID ownerLicenseId) {
         AnalysisResult result = urlAnalyzer.analyze(rawInput);
 
         Instant analyzedAt = Instant.now(clock);
-        if (ownerUserId == null) {
+        if (ownerLicenseId == null) {
             List<String> ruleIds = result.findings().stream().map(finding -> finding.ruleId()).toList();
-            log.info("Anonymous scan completed [riskLevel={}, rules={}]", result.riskLevel(), ruleIds);
+            log.info("Trial scan completed [riskLevel={}, rules={}]", result.riskLevel(), ruleIds);
             return toResponse(result, analyzedAt);
         }
 
         UUID scanId = UUID.randomUUID();
-        ScanHistory scanHistory = toHistory(scanId, ownerUserId, result, analyzedAt);
+        ScanHistory scanHistory = toHistory(scanId, ownerLicenseId, result, analyzedAt);
         historyService.save(scanHistory);
 
         List<String> ruleIds = scanHistory.findings().stream().map(StoredFinding::ruleId).toList();
@@ -92,18 +92,18 @@ public class ScanService {
         throw new ScanNotFoundException();
     }
 
-    /** Retrieves only a retained scan owned by {@code ownerUserId}. */
-    public ScanResponse get(String rawScanId, UUID ownerUserId) {
-        if (ownerUserId == null) {
+    /** Retrieves only a retained scan owned by {@code ownerLicenseId}. */
+    public ScanResponse get(String rawScanId, UUID ownerLicenseId) {
+        if (ownerLicenseId == null) {
             throw new ScanNotFoundException();
         }
         UUID scanId = ScanIdParser.parse(rawScanId);
-        return historyService.findRetained(scanId, ownerUserId)
+        return historyService.findRetained(scanId, ownerLicenseId)
                 .map(ScanService::toResponse)
                 .orElseThrow(ScanNotFoundException::new);
     }
 
-    private ScanHistory toHistory(UUID scanId, UUID ownerUserId, AnalysisResult result, Instant analyzedAt) {
+    private ScanHistory toHistory(UUID scanId, UUID ownerLicenseId, AnalysisResult result, Instant analyzedAt) {
         var normalizedUrl = result.normalizedUrl();
         StoredNormalizedUrl normalized = new StoredNormalizedUrl(
                 normalizedUrl.scheme(),
@@ -132,7 +132,7 @@ public class ScanService {
                 findings,
                 engineProperties.version(),
                 analyzedAt,
-                ownerUserId);
+                ownerLicenseId);
     }
 
     private ScanResponse toResponse(AnalysisResult result, Instant analyzedAt) {

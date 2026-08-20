@@ -21,7 +21,7 @@ public record ScanHistory(
         List<StoredFinding> findings,
         String engineVersion,
         Instant analyzedAt,
-        UUID ownerUserId) {
+        UUID ownerLicenseId) {
 
     /** Compatibility constructor for safe snapshots read from the V1 shape. */
     public ScanHistory(

@@ -30,17 +30,17 @@ public class ScanHistoryService {
     /** Persists one completed scan; callers invoke this only after analysis succeeds. */
     @Transactional
     public void save(ScanHistory scanHistory) {
-        Objects.requireNonNull(scanHistory.ownerUserId(), "ownerUserId");
+        Objects.requireNonNull(scanHistory.ownerLicenseId(), "ownerLicenseId");
         repository.save(scanHistory);
     }
 
     /** Returns a scan only when it has not crossed the configured retention boundary. */
     @Transactional(readOnly = true)
-    public Optional<ScanHistory> findRetained(UUID scanId, UUID ownerUserId) {
-        if (ownerUserId == null) {
+    public Optional<ScanHistory> findRetained(UUID scanId, UUID ownerLicenseId) {
+        if (ownerLicenseId == null) {
             return Optional.empty();
         }
-        return repository.findRetained(scanId, ownerUserId, retainedSince());
+        return repository.findRetained(scanId, ownerLicenseId, retainedSince());
     }
 
     private Instant retainedSince() {
