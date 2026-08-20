@@ -7,8 +7,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 
 /**
- * Proves only the documented scan and auth request shapes are ever charged against a bucket, and that
- * every excluded route (health, actuator, OpenAPI, CORS preflight, wrong method,
+ * Proves only the documented scan, device, and admin request shapes are ever charged against a bucket,
+ * and that every excluded route (health, actuator, OpenAPI, CORS preflight, wrong method,
  * wrong path depth) falls through unmatched rather than needing an allow-list.
  */
 class RouteClassifierTest {
@@ -45,14 +45,47 @@ class RouteClassifierTest {
     }
 
     @Test
-    @DisplayName("auth routes classify into their separate stricter bucket")
-    void classifiesAuthRoutes() {
-        assertThat(classifier.classify(request("POST", "/api/v1/auth/login"))).contains(RateLimitedRoute.AUTH);
-        assertThat(classifier.classify(request("POST", "/api/v1/auth/register"))).contains(RateLimitedRoute.AUTH);
-        assertThat(classifier.classify(request("POST", "/api/v2/auth/register/verify")))
-                .contains(RateLimitedRoute.AUTH);
-        assertThat(classifier.classify(request("GET", "/api/v1/auth/session"))).contains(RateLimitedRoute.AUTH);
-        assertThat(classifier.classify(request("OPTIONS", "/api/v1/auth/login"))).isEmpty();
+    @DisplayName("device bootstrap and status routes classify into their separate stricter bucket")
+    void classifiesDeviceRoutes() {
+        assertThat(classifier.classify(request("POST", "/api/v1/devices"))).contains(RateLimitedRoute.DEVICE);
+        assertThat(classifier.classify(request("GET", "/api/v1/devices/me"))).contains(RateLimitedRoute.DEVICE);
+        assertThat(classifier.classify(request("OPTIONS", "/api/v1/devices"))).isEmpty();
+    }
+
+    @Test
+    @DisplayName("the bare device collection GET is not classified as device status")
+    void bareDeviceCollectionGetIsNotClassified() {
+        assertThat(classifier.classify(request("GET", "/api/v1/devices"))).isEmpty();
+    }
+
+    @Test
+    @DisplayName("every admin route, of any method, classifies into the admin bucket")
+    void classifiesAdminRoutes() {
+        assertThat(classifier.classify(request("POST", "/api/v1/admin/licenses"))).contains(RateLimitedRoute.ADMIN);
+        assertThat(classifier.classify(request("GET", "/api/v1/admin/licenses"))).contains(RateLimitedRoute.ADMIN);
+        assertThat(classifier.classify(request("GET", "/api/v1/admin/licenses/2ce16fb9-d52d-4310-8d45-a4e48f31889e")))
+                .contains(RateLimitedRoute.ADMIN);
+        assertThat(classifier.classify(
+                        request("POST", "/api/v1/admin/licenses/2ce16fb9-d52d-4310-8d45-a4e48f31889e/devices")))
+                .contains(RateLimitedRoute.ADMIN);
+        assertThat(classifier.classify(
+                        request("POST", "/api/v1/admin/devices/2ce16fb9-d52d-4310-8d45-a4e48f31889e/revoke")))
+                .contains(RateLimitedRoute.ADMIN);
+    }
+
+    @Test
+    @DisplayName("admin console login classifies into its own bucket, separate from the admin-key bucket")
+    void classifiesAdminAuthLogin() {
+        assertThat(classifier.classify(request("POST", "/api/v1/admin-auth/login")))
+                .contains(RateLimitedRoute.ADMIN_AUTH_LOGIN);
+    }
+
+    @Test
+    @DisplayName("admin console session and logout routes are not rate limited")
+    void adminAuthSessionAndLogoutAreNotClassified() {
+        assertThat(classifier.classify(request("GET", "/api/v1/admin-auth/session"))).isEmpty();
+        assertThat(classifier.classify(request("POST", "/api/v1/admin-auth/logout"))).isEmpty();
+        assertThat(classifier.classify(request("GET", "/api/v1/admin-auth/login"))).isEmpty();
     }
 
     @Test

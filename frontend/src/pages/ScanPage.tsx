@@ -21,11 +21,11 @@ export function ScanPage() {
     const apiError = normalizeApiError(query.error);
     if (apiError.code === 'UNAUTHORIZED') {
       return (
-        <StateMessage title="Sign in to view this scan">
-          Saved scan history is private to the account that created it.
+        <StateMessage title="A license is required to view this scan">
+          Saved scan history is private to the license that created it.
           <br />
-          <Link to="/auth" className="text-accent-400 underline underline-offset-4">
-            Sign in or register
+          <Link to="/license" className="text-accent-400 underline underline-offset-4">
+            View this installation's license status
           </Link>
         </StateMessage>
       );
@@ -33,7 +33,7 @@ export function ScanPage() {
     if (apiError.code === 'SCAN_NOT_FOUND') {
       return (
         <StateMessage title="Saved scan unavailable">
-          This scan ID is invalid, expired, ownerless, or not available to the signed-in account.
+          This scan ID is invalid, expired, ownerless, or not available to this license.
         </StateMessage>
       );
     }

@@ -141,7 +141,7 @@ class ScanServiceTest {
         assertThat(saved.riskLevel()).isEqualTo(RiskLevel.HIGH);
         assertThat(saved.engineVersion()).isEqualTo("0.1.0");
         assertThat(saved.analyzedAt()).isEqualTo(FIXED_INSTANT);
-        assertThat(saved.ownerUserId()).isEqualTo(OWNER_ID);
+        assertThat(saved.ownerLicenseId()).isEqualTo(OWNER_ID);
         // Order must be preserved exactly as the analyzer produced it, not resorted.
         assertThat(saved.findings()).extracting(StoredFinding::ruleId).containsExactly("A_RULE", "Z_RULE");
         assertThat(saved.findings()).extracting(StoredFinding::points).containsExactly(40, 20);

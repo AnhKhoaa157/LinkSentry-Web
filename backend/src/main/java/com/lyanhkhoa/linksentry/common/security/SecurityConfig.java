@@ -1,6 +1,8 @@
 package com.lyanhkhoa.linksentry.common.security;
 
-import com.lyanhkhoa.linksentry.auth.application.AuthService;
+import com.lyanhkhoa.linksentry.admin.application.AdminAuthService;
+import com.lyanhkhoa.linksentry.admin.security.AdminSessionAuthenticationFilter;
+import com.lyanhkhoa.linksentry.common.config.AdminProperties;
 import com.lyanhkhoa.linksentry.common.config.CorsProperties;
 import com.lyanhkhoa.linksentry.common.ratelimit.RateLimitBucketStore;
 import com.lyanhkhoa.linksentry.common.ratelimit.RateLimitFilter;
@@ -9,28 +11,47 @@ import com.lyanhkhoa.linksentry.common.ratelimit.RouteClassifier;
 import com.lyanhkhoa.linksentry.common.trial.AnonymousTrialFilter;
 import com.lyanhkhoa.linksentry.common.trial.AnonymousTrialProperties;
 import com.lyanhkhoa.linksentry.common.trial.AnonymousTrialStore;
+import com.lyanhkhoa.linksentry.license.application.DeviceService;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.http.HttpMethod;
+import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
 /**
- * Stateless security baseline for public scans and private bearer history.
+ * Stateless security baseline for public scans, device bootstrap/status, licensed-only routes,
+ * backend-only admin routes, and the browser-facing admin console.
  *
- * <p>URL analysis remains public for one-off scans, while account/session routes
- * and retained history require the opaque bearer identity installed by the
- * custom filter. The API never uses cookies:
+ * <p>URL analysis remains public for one-off scans, device bootstrap/status are always public (a device
+ * must be able to ask "what is my state?" before it has anything to authenticate with), retained-history
+ * and AI-explanation routes require a currently licensed device, while {@code /api/v1/admin/**} accepts
+ * either an administrator session or {@code ADMIN_API_KEY}, and {@code /api/v1/admin-auth/session}/{@code
+ * logout} require an administrator's own bearer session (see {@code admin.security}) — a wholly separate,
+ * human-login mechanism from {@code ADMIN_API_KEY}. The API never uses cookies:
+ *
+ * <p><strong>Authority, not just authentication, gates the two authenticated route families above.</strong>
+ * {@link DeviceAuthenticationFilter} and {@link com.lyanhkhoa.linksentry.admin.security.AdminSessionAuthenticationFilter}
+ * both install a real, non-anonymous {@code Authentication}, so a bare {@code .authenticated()} check
+ * cannot tell a licensed device's session apart from an administrator's — either would satisfy it. Each
+ * filter instead grants its own distinct {@code GrantedAuthority} ({@link DeviceAuthenticationFilter#LICENSED_DEVICE_AUTHORITY}
+ * and {@link com.lyanhkhoa.linksentry.admin.security.AdminSessionAuthenticationFilter#ADMIN_AUTHORITY}), and
+ * {@code authorizeHttpRequests} below matches on that authority, not merely on "is authenticated." A
+ * request that is authenticated but holds the wrong authority is rejected with a clean {@code 403} via
+ * {@link ApiAccessDeniedHandler} — never silently downgraded to anonymous access and never a stack trace.
+ * A request with no valid credential at all still gets the existing {@code 401} via
+ * {@link ApiAuthenticationEntryPoint}, because {@code ExceptionTranslationFilter} recognises the
+ * anonymous token installed for every unauthenticated request and routes it to the entry point instead
+ * of the access-denied handler.
  *
  * <ul>
  *   <li><strong>No session.</strong> Nothing is stored between requests, so no
@@ -47,13 +68,15 @@ import org.springframework.web.filter.CorsFilter;
  *       {@link CorsFilter}, so a disallowed origin never reaches it and an allowed
  *       origin's response — including a {@code 429} — keeps its CORS headers. See
  *       {@code common.ratelimit} for the single-instance, in-memory token buckets.
+ *   <li><strong>Admin credentials checked early.</strong> {@link AdminSessionAuthenticationFilter} runs
+ *       before {@link AdminApiKeyFilter}, so the admin route gate can recognize a valid browser session
+ *       while every request is still rate limited before either credential is evaluated.
  *   <li><strong>Anonymous trial quota.</strong> {@link AnonymousTrialFilter} sits
- *       immediately after {@link BearerTokenAuthenticationFilter}, so it can tell an
- *       authenticated caller apart from an anonymous one and never gates the former.
+ *       immediately after {@link DeviceAuthenticationFilter}, so it can tell a
+ *       licensed device apart from every other caller and never gates the former.
  *       It is independent of rate limiting — both apply to every anonymous scan. See
  *       {@code common.trial}.
  * </ul>
- *
  */
 @Configuration
 @EnableWebSecurity
@@ -66,13 +89,18 @@ class SecurityConfig {
             RateLimitProperties rateLimitProperties,
             RouteClassifier rateLimitRouteClassifier,
             RateLimitBucketStore rateLimitBucketStore,
-            AuthService authService,
+            AdminProperties adminProperties,
+            AdminAuthService adminAuthService,
+            DeviceService deviceService,
             AnonymousTrialProperties anonymousTrialProperties,
             AnonymousTrialStore anonymousTrialStore)
             throws Exception {
         RateLimitFilter rateLimitFilter =
                 new RateLimitFilter(rateLimitProperties, rateLimitRouteClassifier, rateLimitBucketStore);
-        BearerTokenAuthenticationFilter bearerTokenFilter = new BearerTokenAuthenticationFilter(authService);
+        AdminApiKeyFilter adminApiKeyFilter = new AdminApiKeyFilter(adminProperties);
+        AdminSessionAuthenticationFilter adminSessionAuthenticationFilter =
+                new AdminSessionAuthenticationFilter(adminAuthService);
+        DeviceAuthenticationFilter deviceAuthenticationFilter = new DeviceAuthenticationFilter(deviceService);
         AnonymousTrialFilter anonymousTrialFilter =
                 new AnonymousTrialFilter(anonymousTrialProperties, anonymousTrialStore);
         return http.cors(cors -> cors.configurationSource(corsConfigurationSource))
@@ -82,24 +110,31 @@ class SecurityConfig {
                 .logout(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterAfter(rateLimitFilter, CorsFilter.class)
-                .addFilterBefore(bearerTokenFilter, AnonymousAuthenticationFilter.class)
-                .addFilterAfter(anonymousTrialFilter, BearerTokenAuthenticationFilter.class)
-                .exceptionHandling(exception -> exception.authenticationEntryPoint(new ApiAuthenticationEntryPoint()))
+                .addFilterAfter(adminSessionAuthenticationFilter, RateLimitFilter.class)
+                .addFilterAfter(adminApiKeyFilter, AdminSessionAuthenticationFilter.class)
+                .addFilterBefore(deviceAuthenticationFilter, AnonymousAuthenticationFilter.class)
+                .addFilterAfter(anonymousTrialFilter, DeviceAuthenticationFilter.class)
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint(new ApiAuthenticationEntryPoint())
+                        .accessDeniedHandler(new ApiAccessDeniedHandler()))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(
-                                "/api/v1/auth/register",
-                                "/api/v1/auth/login",
-                                "/api/v2/auth/register",
-                                "/api/v2/auth/register/verify",
-                                "/api/v2/auth/register/resend")
-                        .permitAll()
-                        .requestMatchers("/api/v1/auth/session", "/api/v1/auth/logout").authenticated()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/scans/*").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/scans/*/explanation").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/scans/*")
+                        .hasAuthority(DeviceAuthenticationFilter.LICENSED_DEVICE_AUTHORITY)
+                        .requestMatchers(HttpMethod.POST, "/api/v1/scans/*/explanation")
+                        .hasAuthority(DeviceAuthenticationFilter.LICENSED_DEVICE_AUTHORITY)
+                        .requestMatchers(HttpMethod.GET, "/api/v1/admin-auth/session")
+                        .hasAuthority(AdminSessionAuthenticationFilter.ADMIN_AUTHORITY)
+                        .requestMatchers(HttpMethod.POST, "/api/v1/admin-auth/logout")
+                        .hasAuthority(AdminSessionAuthenticationFilter.ADMIN_AUTHORITY)
                         .anyRequest().permitAll())
                 .build();
     }
 
+    /**
+     * BCrypt for administrator passwords ({@code admin.application.AdminAuthService}). No other
+     * password model exists in this codebase: end users have none, and {@code ADMIN_API_KEY} is a
+     * constant-time-compared shared secret, not a hashed password.
+     */
     @Bean
     PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -124,6 +159,9 @@ class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(properties.allowedOrigins());
         configuration.setAllowedMethods(properties.allowedMethods());
+        // X-Admin-Api-Key is deliberately absent: it is an operator-only fallback,
+        // never a browser credential, even though browser admin sessions may call
+        // the same admin routes with Authorization: Bearer.
         configuration.setAllowedHeaders(List.of("Content-Type", "Accept", "Authorization"));
         configuration.setAllowCredentials(false);
         configuration.setMaxAge(3600L);

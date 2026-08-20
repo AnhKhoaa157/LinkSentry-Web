@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 
+import { getActiveTabUrl } from '@/extension/lib/activeTabUrl';
+import { LicenseStatusCard } from '@/features/license/components/LicenseStatusCard';
 import { postScan } from '@/features/scanner/api/postScan';
 import type { ScanResponse } from '@/features/scanner/schemas/scanResponse';
 import { FindingsList } from '@/features/scanner/components/FindingsList';
 import { NextSteps } from '@/features/scanner/components/NextSteps';
 import { RiskBadge } from '@/features/scanner/components/RiskBadge';
-import { getActiveTabUrl } from '@/extension/lib/activeTabUrl';
 import { normalizeApiError, type NormalizedApiError } from '@/lib/api/errors';
 
 const STATUS_ID = 'popup-tab-status';
@@ -114,6 +115,10 @@ export function Popup() {
       <p id={STATUS_ID} role="status" aria-live="polite" className="text-ink-300 mt-2 text-sm">
         {statusText(tabPhase)}
       </p>
+
+      <div className="mt-3">
+        <LicenseStatusCard />
+      </div>
 
       <button
         ref={scanButtonRef}

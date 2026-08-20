@@ -1,10 +1,11 @@
 package com.lyanhkhoa.linksentry.explanation.api;
 
-import com.lyanhkhoa.linksentry.auth.security.AuthenticatedUser;
 import com.lyanhkhoa.linksentry.explanation.api.ExplanationResponse.ExplanationData;
+import com.lyanhkhoa.linksentry.license.security.LicensedDeviceContext;
 import com.lyanhkhoa.linksentry.explanation.application.ExplanationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -12,14 +13,16 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * HTTP boundary for the optional AI explanation of one retained, owned scan.
+ * HTTP boundary for the optional AI explanation of one retained, license-owned scan.
  *
- * <p>{@code SecurityConfig} requires authentication for this route, so
- * {@code authentication} always carries an {@link AuthenticatedUser} by the time
- * a request reaches here — an anonymous scan has no persisted scan ID to invoke
- * this endpoint with in the first place. No analysis logic lives here: this
- * class validates nothing beyond what Spring Security already guarantees and
- * delegates entirely to {@link ExplanationService}.
+ * <p>{@code SecurityConfig} requires {@code
+ * com.lyanhkhoa.linksentry.common.security.DeviceAuthenticationFilter#LICENSED_DEVICE_AUTHORITY} for
+ * this route, so {@code authentication} should always carry a {@link LicensedDeviceContext} by the
+ * time a request reaches here — a trial scan has no persisted scan ID to invoke this endpoint with in
+ * the first place. {@link #requireLicensedDevice} still checks defensively rather than casting: a
+ * present-but-wrong-type principal (e.g. {@code admin.domain.AdminIdentity}) must produce a clean
+ * {@code 403}, never an unchecked-cast {@code ClassCastException} surfacing as a generic {@code 500}.
+ * No analysis logic lives here; this class delegates entirely to {@link ExplanationService}.
  */
 @RestController
 @RequestMapping("/api/v1/scans")
@@ -35,8 +38,15 @@ public class ExplanationController {
     @PostMapping("/{scanId}/explanation")
     @Operation(summary = "Generate a short, advisory AI explanation of a retained scan result")
     public ExplanationResponse explain(@PathVariable String scanId, Authentication authentication) {
-        AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
-        String explanation = explanationService.explain(scanId, user.userId());
+        LicensedDeviceContext device = requireLicensedDevice(authentication);
+        String explanation = explanationService.explain(scanId, device.licenseId());
         return new ExplanationResponse(new ExplanationData(explanation));
+    }
+
+    private static LicensedDeviceContext requireLicensedDevice(Authentication authentication) {
+        if (authentication != null && authentication.getPrincipal() instanceof LicensedDeviceContext device) {
+            return device;
+        }
+        throw new AccessDeniedException("A licensed device session is required to generate an explanation.");
     }
 }

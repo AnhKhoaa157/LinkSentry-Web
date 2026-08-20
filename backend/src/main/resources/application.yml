@@ -64,23 +64,38 @@ linksentry:
     # interpreted correctly after the rules or scoring bands change.
     version: ${ENGINE_VERSION:0.1.0}
   history:
-    # Authenticated owners can retrieve safe result snapshots for this many days.
+    # A licensed device can retrieve safe result snapshots for this many days.
     retention-days: ${HISTORY_RETENTION_DAYS:30}
-  auth:
-    # Opaque bearer sessions are stateless at the HTTP layer and expire here.
-    session-ttl: ${AUTH_SESSION_TTL:24h}
-    otp:
-      # Passwords and verification codes are hashed before this temporary row is persisted.
-      ttl: ${OTP_TTL:10m}
-      max-attempts: ${OTP_MAX_ATTEMPTS:5}
-  mail:
-    resend:
-      # Registration verification email goes out over the Resend HTTPS API only
-      # (POST https://api.resend.com/emails, port 443) — never SMTP, which Render
-      # Free blocks on ports 25/465/587. See auth.provider.ResendRegistrationCodeSender
-      # and docs/SECURITY_BOUNDARY.md §9.
-      api-key: ${RESEND_API_KEY:}
-      from: ${MAIL_FROM:}
+  license:
+    # Used when an admin creates a license without specifying maxDevices. The
+    # documented default is one web installation plus one extension installation.
+    default-max-devices: ${LICENSE_DEFAULT_MAX_DEVICES:2}
+    # A device installation that POST /api/v1/devices created but that was never
+    # assigned to any license is deleted
+    # this long after creation, bounding unbounded table growth from that public,
+    # unauthenticated endpoint. A device with any assignment history — even a
+    # revoked one — is never deleted regardless of age. See
+    # license.application.DevicePendingRetentionService.
+    pending-device-retention: ${LICENSE_PENDING_DEVICE_RETENTION:30d}
+  admin:
+    # Optional operator credential for /api/v1/admin/**. Never exposed to
+    # the frontend or extension. Blank disables only the API-key path; browser admin
+    # sessions remain valid. See
+    # common.security.AdminApiKeyFilter and docs/SECURITY_BOUNDARY.md.
+    api-key: ${ADMIN_API_KEY:}
+  admin-auth:
+    # A human administrator's own browser login for the protected /admin dashboard
+    # (admin.* package) — wholly separate from linksentry.admin's ADMIN_API_KEY
+    # above and from the removed end-user account model. Bootstrap creates exactly
+    # one admin_user row the first time the backend starts with none yet; leaving
+    # either value blank does not fail startup — bootstrap is skipped and every
+    # login attempt then fails with the same safe invalid-credentials response
+    # until both are set and the backend restarts with still no admin present.
+    # Never logged, returned, or persisted raw — only the BCrypt hash is stored.
+    bootstrap-username: ${ADMIN_BOOTSTRAP_USERNAME:}
+    bootstrap-password: ${ADMIN_BOOTSTRAP_PASSWORD:}
+    # Admin login session lifetime.
+    session-ttl: ${ADMIN_SESSION_TTL:30m}
   cors:
     # Exact origins only. A wildcard is never acceptable here.
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
@@ -95,16 +110,27 @@ linksentry:
     scan-lookup:
       capacity: ${RATE_LIMIT_SCAN_LOOKUP_CAPACITY:30}
       refill-per-minute: ${RATE_LIMIT_SCAN_LOOKUP_REFILL_PER_MINUTE:60}
-    auth:
-      # Registration/login/session routes get a separate, deliberately stricter
+    device:
+      # Device bootstrap/status routes get a separate, deliberately stricter
       # per-remote-address bucket than URL analysis.
-      capacity: ${RATE_LIMIT_AUTH_CAPACITY:5}
-      refill-per-minute: ${RATE_LIMIT_AUTH_REFILL_PER_MINUTE:5}
+      capacity: ${RATE_LIMIT_DEVICE_CAPACITY:5}
+      refill-per-minute: ${RATE_LIMIT_DEVICE_REFILL_PER_MINUTE:5}
     explanation:
       # The costliest route: each request pays for an outbound Anthropic call.
-      # Deliberately the strictest bucket of the four.
+      # Deliberately the strictest bucket.
       capacity: ${RATE_LIMIT_EXPLANATION_CAPACITY:5}
       refill-per-minute: ${RATE_LIMIT_EXPLANATION_REFILL_PER_MINUTE:2}
+    admin:
+      # /api/v1/admin/** is an admin surface for browser sessions and operators,
+      # but still rate limited so a leaked or brute-forced ADMIN_API_KEY attempt
+      # cannot be hammered freely.
+      capacity: ${RATE_LIMIT_ADMIN_CAPACITY:10}
+      refill-per-minute: ${RATE_LIMIT_ADMIN_REFILL_PER_MINUTE:10}
+    admin-auth-login:
+      # Strict per-address bucket for POST /api/v1/admin-auth/login only — a human
+      # administrator's browser login, independent of the admin bucket above.
+      capacity: ${RATE_LIMIT_ADMIN_AUTH_LOGIN_CAPACITY:5}
+      refill-per-minute: ${RATE_LIMIT_ADMIN_AUTH_LOGIN_REFILL_PER_MINUTE:5}
     store:
       # Hard cap on tracked addresses per route, plus how long an idle address is
       # kept before its bucket is swept — bounds memory against an attacker who
@@ -112,10 +138,10 @@ linksentry:
       max-entries: ${RATE_LIMIT_STORE_MAX_ENTRIES:10000}
       idle-expiration: ${RATE_LIMIT_STORE_IDLE_EXPIRATION:10m}
   anonymous-trial:
-    # Rolling-window trial quota for unauthenticated POST /api/v1/scans, keyed only
-    # by remote address — independent of linksentry.ratelimit's general anti-abuse
-    # control, which still applies on top of this. See common.trial and
-    # docs/SECURITY_BOUNDARY.md.
+    # Rolling-window trial quota for POST /api/v1/scans from a device that is not
+    # currently licensed, keyed only by remote address — independent of
+    # linksentry.ratelimit's general anti-abuse control, which still applies on
+    # top of this. See common.trial and docs/SECURITY_BOUNDARY.md.
     enabled: ${ANONYMOUS_TRIAL_ENABLED:true}
     max-scans: ${ANONYMOUS_TRIAL_MAX_SCANS:3}
     window: ${ANONYMOUS_TRIAL_WINDOW:24h}
@@ -125,7 +151,7 @@ linksentry:
       max-entries: ${ANONYMOUS_TRIAL_STORE_MAX_ENTRIES:10000}
       idle-expiration: ${ANONYMOUS_TRIAL_STORE_IDLE_EXPIRATION:24h}
   ai-explanation:
-    # Optional, disabled-by-default AI explanation for a signed-in owner's own
+    # Optional, disabled-by-default AI explanation for a licensed device's own
     # retained scan (POST /api/v1/scans/{scanId}/explanation). AI is advisory
     # only — it never decides score, risk level, findings, persistence, or
     # access control. See explanation.* and

@@ -3,12 +3,14 @@ import { render, type RenderOptions, type RenderResult } from '@testing-library/
 import type { ReactElement, ReactNode } from 'react';
 import { MemoryRouter } from 'react-router';
 
-import { AuthProvider } from '@/features/auth/context/AuthProvider';
+import { LicenseProvider } from '@/features/license/context/LicenseProvider';
 import { createQueryClient } from '@/lib/api/queryClient';
 
 interface Options extends Omit<RenderOptions, 'wrapper'> {
   /** Initial history entry. */
   readonly route?: string;
+  /** Set to false to omit `LicenseProvider`, e.g. when testing it in isolation. */
+  readonly withLicenseProvider?: boolean;
 }
 
 /**
@@ -19,16 +21,15 @@ interface Options extends Omit<RenderOptions, 'wrapper'> {
  */
 export function renderWithProviders(
   ui: ReactElement,
-  { route = '/', ...options }: Options = {},
+  { route = '/', withLicenseProvider = true, ...options }: Options = {},
 ): RenderResult {
   const queryClient = createQueryClient();
 
   function Wrapper({ children }: { children: ReactNode }) {
+    const routed = <MemoryRouter initialEntries={[route]}>{children}</MemoryRouter>;
     return (
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <MemoryRouter initialEntries={[route]}>{children}</MemoryRouter>
-        </AuthProvider>
+        {withLicenseProvider ? <LicenseProvider clientLabel="web">{routed}</LicenseProvider> : routed}
       </QueryClientProvider>
     );
   }

@@ -5,7 +5,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
-import com.lyanhkhoa.linksentry.auth.security.AuthenticatedUser;
+import com.lyanhkhoa.linksentry.license.security.LicensedDeviceContext;
 import jakarta.servlet.FilterChain;
 import java.time.Clock;
 import java.time.Duration;
@@ -70,7 +70,7 @@ class AnonymousTrialFilterTest {
         assertThat(response.getContentType()).startsWith("application/json");
         assertThat(response.getContentAsString())
                 .contains("\"code\":\"ANONYMOUS_TRIAL_EXHAUSTED\"")
-                .contains("Sign in to continue scanning.")
+                .contains("Request a license to continue scanning.")
                 .contains("\"traceId\"");
     }
 
@@ -90,12 +90,12 @@ class AnonymousTrialFilterTest {
     }
 
     @Test
-    @DisplayName("an authenticated caller bypasses the guard even from an already-exhausted address")
-    void authenticatedCallerBypassesGuard() throws Exception {
+    @DisplayName("a licensed device bypasses the guard even from an already-exhausted address")
+    void licensedDeviceBypassesGuard() throws Exception {
         AnonymousTrialFilter filter = newFilter(properties(1, true));
         exhaust(filter, "203.0.113.5", 1);
 
-        installAuthenticatedUser();
+        installLicensedDevice();
         FilterChain chain = mock(FilterChain.class);
         MockHttpServletRequest request = anonymousPostRequest("203.0.113.5");
         MockHttpServletResponse response = new MockHttpServletResponse();
@@ -210,11 +210,11 @@ class AnonymousTrialFilterTest {
         }
     }
 
-    private static void installAuthenticatedUser() {
-        AuthenticatedUser user = new AuthenticatedUser(
-                UUID.randomUUID(), "person@example.com", UUID.randomUUID(), NOW.plusSeconds(3600));
+    private static void installLicensedDevice() {
+        LicensedDeviceContext device =
+                new LicensedDeviceContext(UUID.randomUUID(), UUID.randomUUID(), NOW.plusSeconds(3600));
         SecurityContextHolder.getContext()
-                .setAuthentication(UsernamePasswordAuthenticationToken.authenticated(user, null, List.of()));
+                .setAuthentication(UsernamePasswordAuthenticationToken.authenticated(device, null, List.of()));
     }
 
     private static AnonymousTrialFilter newFilter(AnonymousTrialProperties properties) {

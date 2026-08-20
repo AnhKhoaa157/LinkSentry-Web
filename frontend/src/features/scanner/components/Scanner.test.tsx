@@ -4,7 +4,9 @@ import { AxiosError, AxiosHeaders } from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Scanner } from '@/features/scanner/components/Scanner';
+import { getDeviceStatus } from '@/features/license/api/device';
 import { apiClient } from '@/lib/api/client';
+import { deviceCredentialStorage } from '@/lib/device/deviceCredentialStorage';
 import { renderWithProviders } from '@/test/renderWithProviders';
 
 function axiosErrorWithResponse(status: number, data: unknown) {
@@ -96,20 +98,22 @@ describe('Scanner', () => {
     expect(screen.getByText('Connection is not encrypted')).toBeInTheDocument();
     expect(screen.getByText('security-check.invalid')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /open your private result/i })).not.toBeInTheDocument();
-    const signInLink = screen.getByRole('link', { name: /sign in to save future scans/i });
-    expect(signInLink).toHaveAttribute('href', '/auth');
-    // Anonymous scans expose only the auth route, never a URL-derived target.
-    expect(signInLink.getAttribute('href')).not.toMatch(/login|example|security-check|http/i);
+    const licenseLink = screen.getByRole('link', { name: /get a license to save future scans/i });
+    expect(licenseLink).toHaveAttribute('href', '/license');
+    // A trial scan exposes only the license route, never a URL-derived target.
+    expect(licenseLink.getAttribute('href')).not.toMatch(/login|example|security-check|http/i);
 
     // A success is not a field error: the input stays valid and plainly described.
     expect(urlInput()).toHaveAttribute('aria-invalid', 'false');
     expect(describedByText(urlInput())).toEqual([HINT_TEXT]);
   });
 
-  it('shows a private result link only after a signed-in session is established', async () => {
-    sessionStorage.setItem('linksentry.accessToken', 'test-only-token');
-    vi.spyOn(apiClient, 'get').mockResolvedValue({
-      data: { expiresAt: '2026-08-19T12:00:00Z', user: { email: 'person@example.com' } },
+  it('shows a private result link only for a licensed device', async () => {
+    await deviceCredentialStorage.set('licensed-device-credential');
+    vi.mocked(getDeviceStatus).mockResolvedValue({
+      state: 'LICENSED',
+      activationCode: 'AAAA-BBBB',
+      licenseExpiresAt: null,
     });
     vi.spyOn(apiClient, 'post').mockResolvedValue({ data: validScanResponse });
     const user = userEvent.setup();
@@ -120,7 +124,7 @@ describe('Scanner', () => {
 
     const privateLink = await screen.findByRole('link', { name: /open your private result/i });
     expect(privateLink).toHaveAttribute('href', '/scans/2ce16fb9-d52d-4310-8d45-a4e48f31889e');
-    expect(document.body).not.toHaveTextContent('test-only-token');
+    expect(document.body).not.toHaveTextContent('licensed-device-credential');
   });
 
   it('renders the analysed URL as inert text, never as a target or markup', async () => {
@@ -263,11 +267,11 @@ describe('Scanner', () => {
     expect(postSpy).toHaveBeenCalledTimes(2);
   });
 
-  it('shows a distinct message and a safe sign-in link for an exhausted anonymous trial', async () => {
+  it('shows a distinct message and a safe license link for an exhausted trial', async () => {
     vi.spyOn(apiClient, 'post').mockRejectedValue(
       axiosErrorWithResponse(429, {
         code: 'ANONYMOUS_TRIAL_EXHAUSTED',
-        message: 'Sign in to continue scanning.',
+        message: 'Request a license to continue scanning.',
         traceId: 'trace-trial',
       }),
     );
@@ -278,17 +282,17 @@ describe('Scanner', () => {
     await user.click(analyzeButton());
 
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent(/free anonymous scan allowance is used up/i);
-    expect(alert).toHaveTextContent(/sign in/i);
+    expect(alert).toHaveTextContent(/free trial scan allowance is used up/i);
+    expect(alert).toHaveTextContent(/license/i);
     // No countdown, no reset time, no remaining count, no IP explanation: the
     // backend publishes none of it and the UI must never invent one.
     expect(alert).not.toHaveTextContent(/\d+\s*(second|minute|hour|s\b)/i);
     expect(alert).not.toHaveTextContent(/remaining|reset|quota|address|ip\b/i);
 
-    const signInLink = screen.getByRole('link', { name: /sign in to continue scanning/i });
-    expect(signInLink).toHaveAttribute('href', '/auth');
+    const licenseLink = screen.getByRole('link', { name: /get a license to continue scanning/i });
+    expect(licenseLink).toHaveAttribute('href', '/license');
     // The link must never carry the submitted URL or any address.
-    expect(signInLink.getAttribute('href')).not.toMatch(/login|example|security-check|http/i);
+    expect(licenseLink.getAttribute('href')).not.toMatch(/login|example|security-check|http/i);
 
     // A quota failure says nothing about the URL, so the field stays valid.
     expect(urlInput()).toHaveAttribute('aria-invalid', 'false');

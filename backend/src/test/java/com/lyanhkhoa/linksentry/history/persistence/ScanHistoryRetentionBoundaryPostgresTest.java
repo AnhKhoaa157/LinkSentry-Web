@@ -2,13 +2,13 @@ package com.lyanhkhoa.linksentry.history.persistence;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.lyanhkhoa.linksentry.auth.persistence.SpringDataUserAccountRepository;
-import com.lyanhkhoa.linksentry.auth.persistence.UserAccountEntity;
 import com.lyanhkhoa.linksentry.analysis.domain.RiskLevel;
 import com.lyanhkhoa.linksentry.history.application.ScanHistoryRetentionService;
 import com.lyanhkhoa.linksentry.history.application.ScanHistoryService;
 import com.lyanhkhoa.linksentry.history.domain.ScanHistory;
 import com.lyanhkhoa.linksentry.history.domain.StoredNormalizedUrl;
+import com.lyanhkhoa.linksentry.license.domain.License;
+import com.lyanhkhoa.linksentry.license.domain.LicenseRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -51,8 +51,6 @@ class ScanHistoryRetentionBoundaryPostgresTest {
     private static final int RETENTION_DAYS = 30;
     private static final Instant CUTOFF = FIXED_NOW.minus(RETENTION_DAYS, ChronoUnit.DAYS);
     private static final UUID OWNER_ID = UUID.fromString("11111111-1111-4111-8111-111111111111");
-    private static final String TEST_PASSWORD_HASH =
-            "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
 
     @Container
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine")
@@ -90,19 +88,19 @@ class ScanHistoryRetentionBoundaryPostgresTest {
     private JdbcTemplate jdbcTemplate;
 
     @Autowired
-    private SpringDataUserAccountRepository userAccountRepository;
+    private LicenseRepository licenseRepository;
 
     @AfterEach
     void cleanTables() {
         jdbcTemplate.update("DELETE FROM scan_history");
-        jdbcTemplate.update("DELETE FROM auth_session");
-        jdbcTemplate.update("DELETE FROM user_account");
+        jdbcTemplate.update("DELETE FROM device_license_assignment");
+        jdbcTemplate.update("DELETE FROM license");
+        jdbcTemplate.update("DELETE FROM device_installation");
     }
 
     @BeforeEach
     void createOwner() {
-        userAccountRepository.saveAndFlush(new UserAccountEntity(
-                OWNER_ID, "retention@example.com", TEST_PASSWORD_HASH, FIXED_NOW));
+        licenseRepository.save(new License(OWNER_ID, "retention-test", null, 2, null, FIXED_NOW));
     }
 
     @Test

@@ -6,7 +6,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
+import com.lyanhkhoa.linksentry.license.api.CreateLicenseRequest;
+import com.lyanhkhoa.linksentry.license.application.LicenseAdminService;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -34,11 +37,11 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  * controllers, and a real PostgreSQL-backed persistence layer — not a mocked slice.
  *
  * <p>Each test method uses its own dedicated fake remote address so methods never
- * interfere with each other despite sharing one cached Spring context (same pattern
- * as {@code AuthPostgresIntegrationTest}). {@code linksentry.ratelimit.scan.capacity}
- * is overridden to a small, exact value in the authenticated-bypass test so the
- * general rate limiter's own independent 429 can be triggered deterministically
- * within a handful of requests, without waiting on real refill timing.
+ * interfere with each other despite sharing one cached Spring context. {@code
+ * linksentry.ratelimit.scan.capacity} is overridden to a small, exact value in the
+ * licensed-device-bypass test so the general rate limiter's own independent 429 can
+ * be triggered deterministically within a handful of requests, without waiting on
+ * real refill timing.
  */
 @Testcontainers
 @SpringBootTest(properties = {
@@ -48,8 +51,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @TestPropertySource(properties = {
-        "linksentry.ratelimit.auth.capacity=100",
-        "linksentry.ratelimit.auth.refill-per-minute=100",
+        "linksentry.ratelimit.device.capacity=100",
+        "linksentry.ratelimit.device.refill-per-minute=100",
         "linksentry.ratelimit.scan.capacity=6",
         "linksentry.ratelimit.scan.refill-per-minute=6",
         "linksentry.ratelimit.scan-lookup.capacity=100",
@@ -70,6 +73,9 @@ class AnonymousTrialPostgresIntegrationTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    private LicenseAdminService licenseAdminService;
+
     @DynamicPropertySource
     static void postgresProperties(DynamicPropertyRegistry registry) {
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
@@ -83,8 +89,9 @@ class AnonymousTrialPostgresIntegrationTest {
     @AfterEach
     void cleanTables() {
         jdbcTemplate.update("DELETE FROM scan_history");
-        jdbcTemplate.update("DELETE FROM auth_session");
-        jdbcTemplate.update("DELETE FROM user_account");
+        jdbcTemplate.update("DELETE FROM device_license_assignment");
+        jdbcTemplate.update("DELETE FROM license");
+        jdbcTemplate.update("DELETE FROM device_installation");
     }
 
     @Test
@@ -102,7 +109,7 @@ class AnonymousTrialPostgresIntegrationTest {
         mockMvc.perform(scanRequest(address, "https://example.com/account"))
                 .andExpect(status().isTooManyRequests())
                 .andExpect(jsonPath("$.code").value("ANONYMOUS_TRIAL_EXHAUSTED"))
-                .andExpect(jsonPath("$.message").value("Sign in to continue scanning."));
+                .andExpect(jsonPath("$.message").value("Request a license to continue scanning."));
         assertThat(scanCount()).isZero();
     }
 
@@ -124,8 +131,8 @@ class AnonymousTrialPostgresIntegrationTest {
 
     @Test
     @DisplayName(
-            "an authenticated scan from an exhausted IP succeeds and persists; the general rate limiter still independently applies")
-    void authenticatedCallerBypassesExhaustedTrialButRateLimitStillApplies() throws Exception {
+            "a licensed device's scan from an exhausted IP succeeds and persists; the general rate limiter still independently applies")
+    void licensedDeviceBypassesExhaustedTrialButRateLimitStillApplies() throws Exception {
         String address = "203.0.113.20";
 
         for (int i = 0; i < 3; i++) {
@@ -136,36 +143,38 @@ class AnonymousTrialPostgresIntegrationTest {
                 .andExpect(jsonPath("$.code").value("ANONYMOUS_TRIAL_EXHAUSTED"));
         assertThat(scanCount()).isZero();
 
-        String email = "user-" + UUID.randomUUID() + "@example.com";
-        MvcResult registerResult = mockMvc.perform(post("/api/v1/auth/register")
-                        .with(withRemoteAddr(address))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"" + email + "\",\"password\":\"correct-horse-123\"}"))
+        MvcResult bootstrapResult = mockMvc.perform(post("/api/v1/devices").with(withRemoteAddr(address)))
                 .andExpect(status().isOk())
                 .andReturn();
-        String token = JsonPath.parse(registerResult.getResponse().getContentAsString())
-                .read("$.accessToken", String.class);
+        DocumentContext bootstrap = JsonPath.parse(bootstrapResult.getResponse().getContentAsString());
+        String activationCode = bootstrap.read("$.activationCode", String.class);
+        String credential = bootstrap.read("$.credential", String.class);
+        UUID licenseId = licenseAdminService
+                .create(new CreateLicenseRequest("trial-bypass-test-" + UUID.randomUUID(), null, null))
+                .licenseId();
+        licenseAdminService.grantDevice(licenseId, activationCode);
+        String authorizationHeader = "Device " + credential;
 
-        // The trial guard never gates this authenticated caller, even from the same
-        // exhausted address: both authenticated scans succeed and persist.
+        // The trial guard never gates this licensed device, even from the same
+        // exhausted address: both licensed scans succeed and persist.
         mockMvc.perform(scanRequest(address, "https://example.com/account")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                        .header(HttpHeaders.AUTHORIZATION, authorizationHeader))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.scanId").isNotEmpty());
         assertThat(scanCount()).isEqualTo(1);
 
         mockMvc.perform(scanRequest(address, "https://example.com/account")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                        .header(HttpHeaders.AUTHORIZATION, authorizationHeader))
                 .andExpect(status().isOk());
         assertThat(scanCount()).isEqualTo(2);
 
         // scan.capacity=6 above: 3 accepted anonymous + 1 trial-rejected (still
         // consumes a rate-limit token, per RateLimitFilter's documented behaviour) +
-        // 2 authenticated successes = 6 tokens spent. The general rate limiter — not
-        // the trial guard, which would let an authenticated caller through — is what
+        // 2 licensed successes = 6 tokens spent. The general rate limiter — not
+        // the trial guard, which would let a licensed device through — is what
         // stops this 7th request; the code proves which control fired.
         mockMvc.perform(scanRequest(address, "https://example.com/account")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                        .header(HttpHeaders.AUTHORIZATION, authorizationHeader))
                 .andExpect(status().isTooManyRequests())
                 .andExpect(jsonPath("$.code").value("RATE_LIMITED"));
         assertThat(scanCount()).isEqualTo(2);

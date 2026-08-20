@@ -34,8 +34,8 @@ public class JpaScanHistoryRepositoryAdapter implements ScanHistoryRepository {
     }
 
     @Override
-    public Optional<ScanHistory> findRetained(UUID scanId, UUID ownerUserId, Instant retainedSince) {
-        return repository.findRetained(scanId, ownerUserId, retainedSince).map(ScanHistoryEntity::toDomain);
+    public Optional<ScanHistory> findRetained(UUID scanId, UUID ownerLicenseId, Instant retainedSince) {
+        return repository.findRetained(scanId, ownerLicenseId, retainedSince).map(ScanHistoryEntity::toDomain);
     }
 
     @Override

@@ -15,6 +15,8 @@ import com.lyanhkhoa.linksentry.history.application.ScanHistoryService;
 import com.lyanhkhoa.linksentry.history.domain.ScanHistory;
 import com.lyanhkhoa.linksentry.history.domain.StoredFinding;
 import com.lyanhkhoa.linksentry.history.domain.StoredNormalizedUrl;
+import com.lyanhkhoa.linksentry.license.api.CreateLicenseRequest;
+import com.lyanhkhoa.linksentry.license.application.LicenseAdminService;
 import com.lyanhkhoa.linksentry.scan.application.ScanService;
 import java.time.Clock;
 import java.time.Instant;
@@ -55,8 +57,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @TestPropertySource(properties = {
-        "linksentry.ratelimit.auth.capacity=100",
-        "linksentry.ratelimit.auth.refill-per-minute=100",
+        "linksentry.ratelimit.device.capacity=100",
+        "linksentry.ratelimit.device.refill-per-minute=100",
         "linksentry.ratelimit.scan.capacity=100",
         "linksentry.ratelimit.scan-lookup.capacity=100"
 })
@@ -99,6 +101,9 @@ class ScanHistoryPostgresIntegrationTest {
     private ScanService scanService;
 
     @Autowired
+    private LicenseAdminService licenseAdminService;
+
+    @Autowired
     private MockMvc mockMvc;
 
     @Autowired
@@ -118,12 +123,13 @@ class ScanHistoryPostgresIntegrationTest {
     @AfterEach
     void cleanTables() {
         jdbcTemplate.update("DELETE FROM scan_history");
-        jdbcTemplate.update("DELETE FROM auth_session");
-        jdbcTemplate.update("DELETE FROM user_account");
+        jdbcTemplate.update("DELETE FROM device_license_assignment");
+        jdbcTemplate.update("DELETE FROM license");
+        jdbcTemplate.update("DELETE FROM device_installation");
     }
 
     @Test
-    @DisplayName("Flyway applies the history migration to an empty PostgreSQL database")
+    @DisplayName("Flyway applies the history and licensing migrations to an empty PostgreSQL database")
     void migrationAppliesToEmptyDatabase() {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM flyway_schema_history WHERE version = '1'", Integer.class))
@@ -135,6 +141,16 @@ class ScanHistoryPostgresIntegrationTest {
                 "SELECT to_regclass('public.scan_history_finding')", String.class))
                 .isEqualTo("scan_history_finding");
         assertThat(jdbcTemplate.queryForObject(
+                "SELECT to_regclass('public.license')", String.class))
+                .isEqualTo("license");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT to_regclass('public.device_installation')", String.class))
+                .isEqualTo("device_installation");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT to_regclass('public.device_license_assignment')", String.class))
+                .isEqualTo("device_license_assignment");
+        // V2/V3 auth tables are retired in place, not dropped — see V4's migration comment.
+        assertThat(jdbcTemplate.queryForObject(
                 "SELECT to_regclass('public.user_account')", String.class))
                 .isEqualTo("user_account");
         assertThat(jdbcTemplate.queryForObject(
@@ -145,25 +161,25 @@ class ScanHistoryPostgresIntegrationTest {
     @Test
     @DisplayName("save and retrieval preserve every public field and finding order")
     void roundTripsSafeSnapshotAndFindingOrder() throws Exception {
-        TestUser user = registerUser();
+        TestDevice device = licensedDevice();
         UUID scanId = UUID.fromString("2ce16fb9-d52d-4310-8d45-a4e48f31889e");
-        ScanHistory original = snapshot(scanId, Instant.parse("2026-08-16T12:00:00Z"), user.userId());
+        ScanHistory original = snapshot(scanId, Instant.parse("2026-08-16T12:00:00Z"), device.licenseId());
 
         historyService.save(original);
 
-        assertThat(historyService.findRetained(scanId, user.userId())).contains(original);
+        assertThat(historyService.findRetained(scanId, device.licenseId())).contains(original);
     }
 
     @Test
     @DisplayName("raw query, fragment, and credential values never enter stored columns")
     void sensitiveUrlPartsNeverPersist() throws Exception {
-        TestUser user = registerUser();
+        TestDevice device = licensedDevice();
         String querySecret = "query-secret-123";
         String fragmentSecret = "fragment-secret-456";
         String rawUrl = "https://example.com/account?token=" + querySecret + "#" + fragmentSecret;
         int rowsBeforeScan = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM scan_history", Integer.class);
 
-        var response = scanService.scan(rawUrl, user.userId());
+        var response = scanService.scan(rawUrl, device.licenseId());
 
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM scan_history", Integer.class))
                 .isEqualTo(rowsBeforeScan + 1);
@@ -185,11 +201,11 @@ class ScanHistoryPostgresIntegrationTest {
     @Test
     @DisplayName("expired records are unavailable and purge cascades to finding rows")
     void expiredRecordsAreUnavailableAndPurged() throws Exception {
-        TestUser user = registerUser();
+        TestDevice device = licensedDevice();
         UUID scanId = UUID.fromString("9f3d7a0c-421f-4d38-bc5d-5a57f2d4f3c1");
-        historyService.save(snapshot(scanId, clock.instant().minusSeconds(31L * 24 * 60 * 60), user.userId()));
+        historyService.save(snapshot(scanId, clock.instant().minusSeconds(31L * 24 * 60 * 60), device.licenseId()));
 
-        assertThat(historyService.findRetained(scanId, user.userId())).isEmpty();
+        assertThat(historyService.findRetained(scanId, device.licenseId())).isEmpty();
         // The parent row exists but is outside the retention window; the two findings from
         // snapshot() must actually be present before purge, or the post-purge zero below would
         // be a false positive (never inserted, rather than deleted by the cascade).
@@ -210,16 +226,18 @@ class ScanHistoryPostgresIntegrationTest {
     @Test
     @DisplayName("missing, malformed, and expired IDs all return an identical safe 404")
     void missingMalformedAndExpiredIdsReturnIdenticalSafeNotFound() throws Exception {
-        TestUser user = registerUser();
+        TestDevice device = licensedDevice();
         UUID expiredScanId = UUID.fromString("5b1e9c3a-6f2d-4a7b-9e3c-2d1f8a6b4c0e");
-        historyService.save(snapshot(expiredScanId, clock.instant().minusSeconds(31L * 24 * 60 * 60), user.userId()));
+        historyService.save(
+                snapshot(expiredScanId, clock.instant().minusSeconds(31L * 24 * 60 * 60), device.licenseId()));
 
-        mockMvc.perform(get("/api/v1/scans/{scanId}", UUID.randomUUID()).header(HttpHeaders.AUTHORIZATION, user.bearer()))
+        mockMvc.perform(get("/api/v1/scans/{scanId}", UUID.randomUUID())
+                        .header(HttpHeaders.AUTHORIZATION, device.authorizationHeader()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("SCAN_NOT_FOUND"))
                 .andExpect(jsonPath("$.message").value("The requested scan could not be found."));
 
-        mockMvc.perform(get("/api/v1/scans/not-a-uuid").header(HttpHeaders.AUTHORIZATION, user.bearer()))
+        mockMvc.perform(get("/api/v1/scans/not-a-uuid").header(HttpHeaders.AUTHORIZATION, device.authorizationHeader()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("SCAN_NOT_FOUND"))
                 .andExpect(jsonPath("$.message").value("The requested scan could not be found."));
@@ -227,7 +245,7 @@ class ScanHistoryPostgresIntegrationTest {
         // A record that genuinely existed but expired must be indistinguishable from one that
         // never existed at all: same status, same code, same message.
         mockMvc.perform(get("/api/v1/scans/{scanId}", expiredScanId)
-                        .header(HttpHeaders.AUTHORIZATION, user.bearer()))
+                        .header(HttpHeaders.AUTHORIZATION, device.authorizationHeader()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("SCAN_NOT_FOUND"))
                 .andExpect(jsonPath("$.message").value("The requested scan could not be found."));
@@ -236,7 +254,7 @@ class ScanHistoryPostgresIntegrationTest {
     @Test
     @DisplayName("POST then GET round-trip every public response field through the real schema")
     void postThenGetRoundTripsEveryResponseField() throws Exception {
-        TestUser user = registerUser();
+        TestDevice device = licensedDevice();
         String querySecret = "roundtrip-query-secret";
         String fragmentSecret = "roundtrip-fragment-secret";
         // Host mirrors PublicSuffixDomainResolverTest.keepsDeceptiveBrandLabelsAsSubdomains(),
@@ -248,7 +266,7 @@ class ScanHistoryPostgresIntegrationTest {
 
         MvcResult postResult = mockMvc.perform(post("/api/v1/scans")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .header(HttpHeaders.AUTHORIZATION, user.bearer())
+                        .header(HttpHeaders.AUTHORIZATION, device.authorizationHeader())
                         .content(requestBody))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -257,7 +275,7 @@ class ScanHistoryPostgresIntegrationTest {
         String scanId = post.read("$.data.scanId", String.class);
 
         MvcResult getResult = mockMvc.perform(get("/api/v1/scans/{scanId}", scanId)
-                        .header(HttpHeaders.AUTHORIZATION, user.bearer()))
+                        .header(HttpHeaders.AUTHORIZATION, device.authorizationHeader()))
                 .andExpect(status().isOk())
                 .andReturn();
         String getBody = getResult.getResponse().getContentAsString();
@@ -293,16 +311,16 @@ class ScanHistoryPostgresIntegrationTest {
     @Test
     @DisplayName("multiple retained scans stay isolated from each other")
     void multipleScansRemainIsolated() throws Exception {
-        TestUser user = registerUser();
+        TestDevice device = licensedDevice();
         MvcResult firstPost = mockMvc.perform(post("/api/v1/scans")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .header(HttpHeaders.AUTHORIZATION, user.bearer())
+                        .header(HttpHeaders.AUTHORIZATION, device.authorizationHeader())
                         .content("{\"url\":\"https://example.com/first-account\"}"))
                 .andExpect(status().isOk())
                 .andReturn();
         MvcResult secondPost = mockMvc.perform(post("/api/v1/scans")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .header(HttpHeaders.AUTHORIZATION, user.bearer())
+                        .header(HttpHeaders.AUTHORIZATION, device.authorizationHeader())
                         .content("{\"url\":\"http://other-example.org/second-page\"}"))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -314,19 +332,19 @@ class ScanHistoryPostgresIntegrationTest {
         assertThat(firstScanId).isNotEqualTo(secondScanId);
 
         mockMvc.perform(get("/api/v1/scans/{scanId}", firstScanId)
-                        .header(HttpHeaders.AUTHORIZATION, user.bearer()))
+                        .header(HttpHeaders.AUTHORIZATION, device.authorizationHeader()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.input").value("https://example.com/first-account"))
                 .andExpect(jsonPath("$.data.normalized.host").value("example.com"));
 
         mockMvc.perform(get("/api/v1/scans/{scanId}", secondScanId)
-                        .header(HttpHeaders.AUTHORIZATION, user.bearer()))
+                        .header(HttpHeaders.AUTHORIZATION, device.authorizationHeader()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.input").value("http://other-example.org/second-page"))
                 .andExpect(jsonPath("$.data.normalized.host").value("other-example.org"));
     }
 
-    private ScanHistory snapshot(UUID scanId, Instant analyzedAt, UUID ownerUserId) {
+    private ScanHistory snapshot(UUID scanId, Instant analyzedAt, UUID ownerLicenseId) {
         StoredNormalizedUrl normalized = new StoredNormalizedUrl(
                 "https",
                 "login.example.com",
@@ -352,26 +370,29 @@ class ScanHistoryPostgresIntegrationTest {
                 findings,
                 "0.1.0",
                 analyzedAt,
-                ownerUserId);
+                ownerLicenseId);
     }
 
-    private TestUser registerUser() throws Exception {
-        String email = "integration-" + UUID.randomUUID() + "@example.com";
-        String password = "test-password-123";
-        MvcResult result = mockMvc.perform(post("/api/v1/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"" + email + "\",\"password\":\"" + password + "\"}"))
+    /** Bootstraps a device over HTTP, then licenses it directly through the admin service. */
+    private TestDevice licensedDevice() throws Exception {
+        MvcResult bootstrapResult = mockMvc.perform(post("/api/v1/devices"))
                 .andExpect(status().isOk())
                 .andReturn();
-        String token = JsonPath.parse(result.getResponse().getContentAsString()).read("$.accessToken", String.class);
-        UUID userId = jdbcTemplate.queryForObject(
-                "SELECT user_id FROM user_account WHERE email = ?", UUID.class, email);
-        return new TestUser(userId, token);
+        DocumentContext bootstrap = JsonPath.parse(bootstrapResult.getResponse().getContentAsString());
+        String activationCode = bootstrap.read("$.activationCode", String.class);
+        String credential = bootstrap.read("$.credential", String.class);
+
+        UUID licenseId = licenseAdminService
+                .create(new CreateLicenseRequest("integration-test-" + UUID.randomUUID(), null, null))
+                .licenseId();
+        licenseAdminService.grantDevice(licenseId, activationCode);
+
+        return new TestDevice(licenseId, credential);
     }
 
-    private record TestUser(UUID userId, String token) {
-        String bearer() {
-            return "Bearer " + token;
+    private record TestDevice(UUID licenseId, String credential) {
+        String authorizationHeader() {
+            return "Device " + credential;
         }
     }
 

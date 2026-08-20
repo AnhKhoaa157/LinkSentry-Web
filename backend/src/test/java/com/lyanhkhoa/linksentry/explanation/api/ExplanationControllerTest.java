@@ -1,17 +1,22 @@
 package com.lyanhkhoa.linksentry.explanation.api;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.lyanhkhoa.linksentry.auth.security.AuthenticatedUser;
+import com.lyanhkhoa.linksentry.admin.domain.AdminIdentity;
 import com.lyanhkhoa.linksentry.common.exception.GlobalExceptionHandler;
 import com.lyanhkhoa.linksentry.explanation.application.ExplanationService;
 import com.lyanhkhoa.linksentry.explanation.application.ExplanationUnavailableException;
 import com.lyanhkhoa.linksentry.history.application.ScanNotFoundException;
+import com.lyanhkhoa.linksentry.license.security.LicensedDeviceContext;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -26,7 +31,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 /**
  * Covers the wiring of {@code POST /api/v1/scans/{scanId}/explanation}: delegation
- * to {@link ExplanationService} with the authenticated caller's own user ID, and
+ * to {@link ExplanationService} with the licensed caller's own license ID, and
  * exception mapping to the documented safe responses.
  *
  * <p>The real security filter chain is disabled in this slice
@@ -43,7 +48,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @AutoConfigureMockMvc(addFilters = false)
 class ExplanationControllerTest {
 
-    private static final UUID USER_ID = UUID.fromString("11111111-1111-4111-8111-111111111111");
+    private static final UUID LICENSE_ID = UUID.fromString("11111111-1111-4111-8111-111111111111");
     private static final UUID SCAN_ID = UUID.fromString("2ce16fb9-d52d-4310-8d45-a4e48f31889e");
 
     @Autowired
@@ -53,23 +58,23 @@ class ExplanationControllerTest {
     private ExplanationService explanationService;
 
     @Test
-    @DisplayName("an authenticated owner receives the generated explanation, addressed by their own user ID")
-    void authenticatedOwnerReceivesExplanation() throws Exception {
+    @DisplayName("a licensed device receives the generated explanation, addressed by its own license ID")
+    void licensedDeviceReceivesExplanation() throws Exception {
         given(explanationService.explain(anyString(), any(UUID.class)))
                 .willReturn("This link shows several risk signals worth a second look.");
 
-        mockMvc.perform(post("/api/v1/scans/{scanId}/explanation", SCAN_ID).principal(authenticationOf(USER_ID)))
+        mockMvc.perform(post("/api/v1/scans/{scanId}/explanation", SCAN_ID).principal(authenticationOf(LICENSE_ID)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.explanation")
                         .value("This link shows several risk signals worth a second look."));
     }
 
     @Test
-    @DisplayName("a missing, malformed, expired, or another owner's scan returns the same safe not-found")
+    @DisplayName("a missing, malformed, expired, or another license's scan returns the same safe not-found")
     void notFoundScanReturnsSafeNotFound() throws Exception {
         given(explanationService.explain(anyString(), any(UUID.class))).willThrow(new ScanNotFoundException());
 
-        mockMvc.perform(post("/api/v1/scans/{scanId}/explanation", SCAN_ID).principal(authenticationOf(USER_ID)))
+        mockMvc.perform(post("/api/v1/scans/{scanId}/explanation", SCAN_ID).principal(authenticationOf(LICENSE_ID)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("SCAN_NOT_FOUND"))
                 .andExpect(jsonPath("$.exception").doesNotExist());
@@ -81,15 +86,29 @@ class ExplanationControllerTest {
         given(explanationService.explain(anyString(), any(UUID.class)))
                 .willThrow(new ExplanationUnavailableException());
 
-        mockMvc.perform(post("/api/v1/scans/{scanId}/explanation", SCAN_ID).principal(authenticationOf(USER_ID)))
+        mockMvc.perform(post("/api/v1/scans/{scanId}/explanation", SCAN_ID).principal(authenticationOf(LICENSE_ID)))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("AI_EXPLANATION_UNAVAILABLE"))
                 .andExpect(jsonPath("$.message").value("AI explanation is not available right now."))
                 .andExpect(jsonPath("$.exception").doesNotExist());
     }
 
-    private static UsernamePasswordAuthenticationToken authenticationOf(UUID userId) {
-        AuthenticatedUser user = new AuthenticatedUser(userId, "owner@example.com", UUID.randomUUID(), Instant.MAX);
-        return new UsernamePasswordAuthenticationToken(user, null);
+    @Test
+    @DisplayName("an administrator's own principal is rejected with a clean 403, never an unchecked-cast 500")
+    void adminPrincipalIsRejectedWithForbidden() throws Exception {
+        AdminIdentity admin = new AdminIdentity(UUID.randomUUID(), "ops", UUID.randomUUID(), Instant.MAX);
+
+        mockMvc.perform(post("/api/v1/scans/{scanId}/explanation", SCAN_ID)
+                        .principal(new UsernamePasswordAuthenticationToken(admin, null)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"))
+                .andExpect(content().string(not(containsString("ops"))));
+
+        verifyNoInteractions(explanationService);
+    }
+
+    private static UsernamePasswordAuthenticationToken authenticationOf(UUID licenseId) {
+        LicensedDeviceContext device = new LicensedDeviceContext(UUID.randomUUID(), licenseId, Instant.MAX);
+        return new UsernamePasswordAuthenticationToken(device, null);
     }
 }

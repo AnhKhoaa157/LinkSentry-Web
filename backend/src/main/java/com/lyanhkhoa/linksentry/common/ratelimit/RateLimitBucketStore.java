@@ -84,8 +84,10 @@ public class RateLimitBucketStore {
         return switch (route) {
             case SCAN_CREATE -> properties.scan();
             case SCAN_LOOKUP -> properties.scanLookup();
-            case AUTH -> properties.auth();
+            case DEVICE -> properties.device();
             case EXPLANATION -> properties.explanation();
+            case ADMIN -> properties.admin();
+            case ADMIN_AUTH_LOGIN -> properties.adminAuthLogin();
         };
     }
 

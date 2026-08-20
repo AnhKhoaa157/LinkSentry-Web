@@ -80,9 +80,7 @@ describe('ScanPage', () => {
 
     renderScanPage();
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      /ownerless|not available to the signed-in account/i,
-    );
+    expect(await screen.findByRole('alert')).toHaveTextContent(/ownerless|not available to this license/i);
     expect(screen.getByRole('link', { name: /back to scanner/i })).toHaveAttribute('href', '/');
   });
 
@@ -117,7 +115,7 @@ describe('ScanPage', () => {
     expect(screen.getByRole('alert')).not.toHaveTextContent('trace-2');
   });
 
-  it('offers sign-in when a private result request is unauthorized', async () => {
+  it('points to the License page when a private result request is unauthorized', async () => {
     vi.spyOn(apiClient, 'get').mockRejectedValue(
       axiosErrorWithResponse(401, {
         code: 'UNAUTHORIZED',
@@ -127,8 +125,13 @@ describe('ScanPage', () => {
 
     renderScanPage();
 
-    expect(await screen.findByRole('heading', { name: /sign in to view this scan/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /sign in or register/i })).toHaveAttribute('href', '/auth');
+    expect(
+      await screen.findByRole('heading', { name: /a license is required to view this scan/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /view this installation's license status/i })).toHaveAttribute(
+      'href',
+      '/license',
+    );
   });
 
   it('treats a malformed scan id in the URL the same as a missing one, accessibly', async () => {
@@ -145,9 +148,7 @@ describe('ScanPage', () => {
 
     renderScanPage('not-a-uuid');
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      /ownerless|not available to the signed-in account/i,
-    );
+    expect(await screen.findByRole('alert')).toHaveTextContent(/ownerless|not available to this license/i);
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Saved scan unavailable');
     expect(screen.getByRole('link', { name: /back to scanner/i })).toHaveAttribute('href', '/');
     expect(getSpy).toHaveBeenCalledWith(

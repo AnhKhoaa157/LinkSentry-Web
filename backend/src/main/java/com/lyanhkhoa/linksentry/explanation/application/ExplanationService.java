@@ -19,8 +19,8 @@ import org.springframework.stereotype.Service;
  * Application boundary for the optional, advisory AI scan explanation.
  *
  * <p>Reuses {@link ScanHistoryService#findRetained(UUID, UUID)} — the same
- * owner-scoped, retention-aware lookup {@code ScanService} uses — so a missing,
- * malformed, expired, ownerless, or another owner's scan ID produces the
+ * license-scoped, retention-aware lookup {@code ScanService} uses — so a missing,
+ * malformed, expired, ownerless, or another license's scan ID produces the
  * identical safe {@link ScanNotFoundException} here as everywhere else. Nothing
  * about explanation availability changes that lookup or its result.
  */
@@ -41,28 +41,28 @@ public class ExplanationService {
     }
 
     /**
-     * Produces a short, advisory explanation of one retained, owned scan.
+     * Produces a short, advisory explanation of one retained scan owned by the caller's license.
      *
-     * @param rawScanId   opaque scan ID path value, as submitted
-     * @param ownerUserId authenticated caller; the endpoint requires authentication,
-     *                    so this is never null in production, but a defensive null
-     *                    still yields the same safe {@link ScanNotFoundException}
-     *                    as an unowned scan
+     * @param rawScanId      opaque scan ID path value, as submitted
+     * @param ownerLicenseId authenticated caller's license; the endpoint requires a
+     *                       licensed device, so this is never null in production, but
+     *                       a defensive null still yields the same safe
+     *                       {@link ScanNotFoundException} as an unowned scan
      * @throws ScanNotFoundException          for a missing, malformed, expired,
      *                                          ownerless, or cross-owner scan
      * @throws ExplanationUnavailableException when the feature is disabled or the
      *                                          provider could not produce a result
      */
-    public String explain(String rawScanId, UUID ownerUserId) {
+    public String explain(String rawScanId, UUID ownerLicenseId) {
         if (!properties.enabled()) {
             throw new ExplanationUnavailableException();
         }
-        if (ownerUserId == null) {
+        if (ownerLicenseId == null) {
             throw new ScanNotFoundException();
         }
         UUID scanId = ScanIdParser.parse(rawScanId);
         ScanHistory history =
-                historyService.findRetained(scanId, ownerUserId).orElseThrow(ScanNotFoundException::new);
+                historyService.findRetained(scanId, ownerLicenseId).orElseThrow(ScanNotFoundException::new);
 
         ScanSummary summary = toSummary(history);
         try {

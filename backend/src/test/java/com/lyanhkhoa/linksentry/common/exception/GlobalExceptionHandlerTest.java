@@ -14,6 +14,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -83,6 +84,17 @@ class GlobalExceptionHandlerTest {
                 .andExpect(jsonPath("$.code").value("METHOD_NOT_ALLOWED"));
     }
 
+    @Test
+    @DisplayName("an access-denied failure returns a generic 403 that names neither the required authority nor the principal")
+    void accessDeniedReturnsGenericForbidden() throws Exception {
+        mockMvc.perform(post("/test-fixture/forbidden"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"))
+                .andExpect(jsonPath("$.message").value("You do not have permission to access this resource."))
+                .andExpect(jsonPath("$.traceId").isNotEmpty())
+                .andExpect(jsonPath("$.exception").doesNotExist());
+    }
+
     /** Test-only endpoints that trigger each error path. Never registered in production. */
     @RestController
     static class FixtureController {
@@ -97,6 +109,11 @@ class GlobalExceptionHandlerTest {
         @PostMapping("/test-fixture/boom")
         String boom() {
             throw new IllegalStateException("internal detail that must not reach the client");
+        }
+
+        @PostMapping("/test-fixture/forbidden")
+        String forbidden() {
+            throw new AccessDeniedException("internal detail that must not reach the client");
         }
     }
 }
