@@ -1,0 +1,38 @@
+id|category|source_host|expected_uts46_ascii|intended_classification|expected_failure_behavior|security_interpretation|reference_key
+BENIGN-001|benign-idn|Bücher.de|xn--bcher-kva.de|VALID_IDN|NONE|VALID_IDN; no phishing conclusion|UTS46-17:208-214
+BENIGN-002|benign-idn|faß.de|xn--fa-hia.de|VALID_IDN_NONTRANSITIONAL|NONE|VALID_IDN; transitional and nontransitional behavior must stay explicit|UTS46-17:105-108
+BENIGN-003|benign-idn|\u03B2\u03CC\u03BB\u03BF\u03C2.com|xn--nxasmm1c.com|VALID_IDN|NONE|VALID_IDN; no phishing conclusion|UTS46-17:224-235
+BENIGN-004|benign-idn|www.eXample.cOm|www.example.com|VALID_IDN_CASEFOLD|NONE|VALID_IDN; case mapping is not a finding|UTS46-17:207
+BENIGN-005|benign-idn|www.example\u3002com|www.example.com|VALID_IDN_SEPARATOR_MAPPING|NONE|VALID_IDN; separator mapping is not a finding|UTS46-17:UTS46-mapping
+VALID-001|valid-punycode|xn--bcher-kva.de|xn--bcher-kva.de|VALID_A_LABEL|NONE|VALID_PUNYCODE; Punycode is a weak signal only|UTS46-17:214
+VALID-002|valid-punycode|xn--fa-hia.de|xn--fa-hia.de|VALID_A_LABEL|NONE|VALID_PUNYCODE; Punycode is a weak signal only|UTS46-17:108
+VALID-003|valid-punycode|xn--nxasmm1c.com|xn--nxasmm1c.com|VALID_A_LABEL|NONE|VALID_PUNYCODE; Punycode is a weak signal only|UTS46-17:235
+VALID-004|valid-punycode|xn--ab-fsf604u|xn--ab-fsf604u|VALID_A_LABEL_WITH_CONTEXTJ|NONE|VALID_PUNYCODE; ContextJ validity is separate from brand risk|UTS46-17:153-160
+MALFORMED-001|malformed-label|xn--0.example|-|REJECT_IDNA|INVALID_ACE_LABEL_OR_PUNYCODE|REJECT; do not score malformed encoding as a finding|UTS46-17:A3
+MALFORMED-002|malformed-label|-leading.example|-|REJECT_IDNA|HYPHEN_POSITION_ERROR|REJECT; do not score malformed syntax as phishing|UTS46-17:V2-V3
+MALFORMED-003|malformed-label|ab--cd.example|-|REJECT_IDNA|HYPHEN_POSITION_ERROR|REJECT; do not score malformed syntax as phishing|UTS46-17:V2-V3
+MALFORMED-004|malformed-label|aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.example|-|REJECT_IDNA|LABEL_TOO_LONG|REJECT; do not score length failure as a brand finding|UTS46-17:A4_2
+MALFORMED-005|malformed-label|\u0308.example|-|REJECT_IDNA|LEADING_COMBINING_MARK|REJECT; do not score invalid label syntax as phishing|UTS46-17:130-131
+MALFORMED-006|malformed-label|.example|-|REJECT_IDNA|EMPTY_LABEL|REJECT; do not score empty-label failure as phishing|UTS46-17:X4_2-A4_2
+BIDI-001|bidi|\u00E0\u05D0.example|-|REJECT_IDNA|BIDI_ERROR_B5_B6|REJECT; Bidi failure is a validity result, not intent evidence|UTS46-17:110-114
+BIDI-002|bidi|0\u00E0.\u05D0.example|-|REJECT_IDNA|BIDI_ERROR_B1|REJECT; Bidi failure is a validity result, not intent evidence|UTS46-17:115-119
+BIDI-003|bidi|\u00E0.\u05D0\u0308.example|xn--0ca.xn--ssa73l.example|VALID_IDN_RTL_MIX|NONE|VALID_IDN; Bidi validity does not establish trust|UTS46-17:120-124
+BIDI-004|bidi|\u00E0.\u05D00\u0660\u05D0.example|-|REJECT_IDNA|BIDI_ERROR_B4|REJECT; mixed numeral directionality is not a phishing score|UTS46-17:125-129
+CONTEXTJ-001|contextj|a\u200Cb.example|-|REJECT_IDNA|CONTEXTJ_ERROR_C1|REJECT; invalid joiner context is not brand evidence|UTS46-17:148-152
+CONTEXTJ-002|contextj|a\u200Db.example|-|REJECT_IDNA|CONTEXTJ_ERROR_C2|REJECT; invalid joiner context is not brand evidence|UTS46-17:174-177
+CONTEXTJ-003|contextj|a\u094D\u200Cb.example|xn--ab-fsf604u.example|VALID_IDN_CONTEXTJ|NONE|VALID_IDN; valid ContextJ is not phishing evidence|UTS46-17:153-160
+CONTEXTJ-004|contextj|a\u094D\u200Db.example|xn--ab-fsf014u.example|VALID_IDN_CONTEXTJ|NONE|VALID_IDN; valid ContextJ is not phishing evidence|UTS46-17:178-181
+CONTEXTO-001|contexto-policy|l\u00B7l.example|xn--ll-0ea.example|VALID_IDN_WITH_EXPLICIT_CONTEXTO|NONE|VALID_IDN; CONTEXTO acceptance is policy-controlled|ICU4J-IDNA-Error
+CONTEXTO-002|contexto-policy|a\u00B7b.example|-|REJECT_IDNA|CONTEXTO_PUNCTUATION_WITH_CHECK_CONTEXTO|REJECT_WITH_CHECK_CONTEXTO; stricter policy, not phishing proof|ICU4J-IDNA-Error
+CONTEXTO-003|contexto-policy|\u0661\u06F2.example|-|REJECT_IDNA|CONTEXTO_DIGITS_WITH_CHECK_CONTEXTO|REJECT_WITH_CHECK_CONTEXTO; stricter policy, not phishing proof|ICU4J-IDNA-Error
+DISALLOWED-001|disallowed-code-point|a b.example|-|REJECT_IDNA|DISALLOWED_CODE_POINT|REJECT; do not score disallowed input as phishing|UTS46-17:V1-V8
+DISALLOWED-002|disallowed-code-point|a\u0000b.example|-|REJECT_IDNA|DISALLOWED_CODE_POINT|REJECT; do not score disallowed input as phishing|UTS46-17:V1-V8
+DISALLOWED-003|disallowed-code-point|a\u0378b.example|-|REJECT_IDNA|DISALLOWED_OR_UNASSIGNED_CODE_POINT|REJECT; do not score unassigned input as phishing|UTS46-17:IdnaMappingTable
+DISALLOWED-004|disallowed-code-point|a\uFDD0b.example|-|REJECT_IDNA|DISALLOWED_NONCHARACTER|REJECT; do not score invalid Unicode as phishing|UTS46-17:V1-V8
+MIXED-001|mixed-script|pay\u0430l.example|xn--payl-73d.example|VALID_IDN_MIXED_SCRIPT_REVIEW|NONE|ACCEPT_IDNA; route to separate bounded confusable/brand review|ADR-0003
+MIXED-002|mixed-script|techc\u03BFmbank.example|xn--techcmbank-lqh.example|VALID_IDN_MIXED_SCRIPT_REVIEW|NONE|ACCEPT_IDNA; route to separate bounded confusable/brand review|ADR-0003
+MIXED-003|mixed-script|\u65E5\u672Cshop.example|xn--shop-f79hm9d.example|VALID_IDN_MIXED_SCRIPT_REVIEW|NONE|ACCEPT_IDNA; script mixing is not proof of phishing|ADR-0003
+BRAND-001|confusable-brand|pay\u0430l.example|xn--payl-73d.example|VALID_IDN_BRAND_LOOKALIKE_CANDIDATE|NONE|VALID_PUNYCODE_AND_MIXED_SCRIPT; candidate only, never proof|ADR-0003
+BRAND-002|confusable-brand|techc\u03BFmbank.example|xn--techcmbank-lqh.example|VALID_IDN_BRAND_LOOKALIKE_CANDIDATE|NONE|VALID_PUNYCODE_AND_MIXED_SCRIPT; candidate only, never proof|ADR-0003
+BRAND-003|confusable-brand|vietc\u043Embank.example|xn--vietcmbank-ivi.example|VALID_IDN_BRAND_LOOKALIKE_CANDIDATE|NONE|VALID_IDN; bounded brand evidence is separate from IDNA validity|ADR-0003
+BRAND-004|confusable-brand|xn--mnchen-3ya.example|xn--mnchen-3ya.example|VALID_A_LABEL_NON_BRAND_BASELINE|NONE|VALID_PUNYCODE; Punycode alone proves nothing|ADR-0003
