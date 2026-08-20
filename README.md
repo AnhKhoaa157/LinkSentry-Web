@@ -363,6 +363,7 @@ put a secret in `frontend/.env*`.
 | [ADR 0001](docs/adr/0001-static-analysis-only.md)                            | Why analysis never touches the network           |
 | [ADR 0002](docs/adr/0002-explainable-rule-engine.md)                         | Why rules, not a model                           |
 | [ADR 0004](docs/adr/0004-authenticated-private-scan-history.md)               | Opaque sessions and owner-bound history          |
+| [backend/DEPLOYMENT.md](backend/DEPLOYMENT.md)                               | Render environment variables, including registration email (Resend) |
 
 ## Where to start
 

@@ -29,7 +29,9 @@ dependencies {
 
     // --- Security ---
     implementation("org.springframework.boot:spring-boot-starter-security")
-    implementation("org.springframework.boot:spring-boot-starter-mail")
+    // Registration verification email goes out over the Resend HTTPS API via the
+    // JDK's built-in java.net.http.HttpClient — see auth.provider.ResendRegistrationCodeSender.
+    // No mail-specific dependency is needed.
     // Single-instance, in-memory token-bucket rate limiting. See common.ratelimit.
     implementation("com.bucket4j:bucket4j_jdk17-core:8.19.0")
 

@@ -91,7 +91,7 @@ class AuthPostgresIntegrationTest {
     }
 
     @Test
-    @DisplayName("v2 registration creates an account only after the SMTP code is verified")
+    @DisplayName("v2 registration creates an account only after the emailed code is verified")
     void emailVerificationGatesAccountCreation() throws Exception {
         String email = "verified-" + UUID.randomUUID() + "@example.com";
         clearInvocations(registrationCodeSender);
