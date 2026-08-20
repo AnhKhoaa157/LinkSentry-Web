@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.lyanhkhoa.linksentry.analysis.domain.InvalidUrlException;
 import com.lyanhkhoa.linksentry.analysis.domain.NormalizedUrl;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvFileSource;
 
 class DefaultUrlNormalizerTest {
 
@@ -143,6 +145,26 @@ class DefaultUrlNormalizerTest {
 
         assertThat(result.ipLiteral()).isTrue();
         assertThat(result.registrableDomain()).isNull();
+    }
+
+    @ParameterizedTest(name = "[{index}] {0}")
+    @CsvFileSource(
+            resources = "/url-regression-corpus.csv", numLinesToSkip = 1, delimiterString = "|", encoding = "UTF-8")
+    void enforcesCanonicalIpv4AndPreservesOtherHostParsing(String id, String url, String expected) {
+        if ("REJECTED".equals(expected)) {
+            assertThatThrownBy(() -> normalizer.normalize(url))
+                    .as(id)
+                    .isInstanceOf(InvalidUrlException.class);
+            return;
+        }
+
+        NormalizedUrl result = normalizer.normalize(url);
+        boolean expectedIpLiteral = switch (expected) {
+            case "IPV4", "IPV6" -> true;
+            case "HOSTNAME" -> false;
+            default -> throw new AssertionError("Unknown regression outcome: " + expected);
+        };
+        assertThat(result.ipLiteral()).as(id).isEqualTo(expectedIpLiteral);
     }
 
     @Test

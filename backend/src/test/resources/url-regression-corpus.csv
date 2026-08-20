@@ -1,0 +1,23 @@
+id|url|expected
+ipv4-canonical-zero|https://0.0.0.0/|IPV4
+ipv4-canonical-loopback|https://127.0.0.1/|IPV4
+ipv4-canonical-documentation|https://192.0.2.1/|IPV4
+ipv4-canonical-boundary|https://255.255.255.255/|IPV4
+ipv4-leading-zero-first-octet|https://017.0.0.1/|REJECTED
+ipv4-leading-zero-octet|https://127.000.0.1/|REJECTED
+ipv4-octal-like|https://0177.0.0.1/|REJECTED
+ipv4-hexadecimal-dword|https://0x7f000001/|REJECTED
+ipv4-uppercase-hexadecimal-dword|https://0X7F000001/|REJECTED
+ipv4-hexadecimal-octets|https://0x7f.0x0.0x0.0x1/|REJECTED
+ipv4-decimal-dword|https://2130706433/|REJECTED
+ipv4-partial-two-part|https://127.1/|REJECTED
+ipv4-partial-three-part|https://127.0.1/|REJECTED
+ipv4-extra-part|https://127.0.0.1.1/|REJECTED
+ipv4-mixed-decimal-hex|https://127.0.0x1/|REJECTED
+ipv4-out-of-range|https://256.0.0.1/|REJECTED
+ipv4-empty-octet|https://127..0.1/|REJECTED
+ipv6-loopback|https://[::1]/|IPV6
+ipv6-mapped-canonical|https://[::ffff:192.0.2.1]/|IPV6
+ipv6-mapped-leading-zero-tail|https://[::ffff:192.0.2.01]/|REJECTED
+valid-hostname|https://example.com/|HOSTNAME
+malformed-input|not a url|REJECTED

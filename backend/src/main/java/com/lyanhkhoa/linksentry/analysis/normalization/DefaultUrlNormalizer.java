@@ -180,7 +180,7 @@ public final class DefaultUrlNormalizer implements UrlNormalizer {
             return host;
         }
 
-        if (looksLikeMalformedIpv4(host) && !isValidIpv4Literal(host)) {
+        if (!isValidIpv4Literal(host) && looksLikeNonCanonicalIpv4(host)) {
             throw new InvalidUrlException("URL must have a valid host");
         }
         return host;
@@ -204,25 +204,48 @@ public final class DefaultUrlNormalizer implements UrlNormalizer {
         return isValidIpv4Literal(host) || isValidIpv6Literal(host);
     }
 
-    private boolean looksLikeMalformedIpv4(String host) {
+    private boolean looksLikeNonCanonicalIpv4(String host) {
         String[] parts = host.split("\\.", -1);
-        return parts.length == 4 && java.util.Arrays.stream(parts)
-                .allMatch(part -> !part.isEmpty() && part.chars().allMatch(this::isAsciiDigit));
+        if (parts.length == 1) {
+            return isAsciiDecimalPart(parts[0]) || isPrefixedHexadecimalPart(parts[0]);
+        }
+        return java.util.Arrays.stream(parts).allMatch(this::isIpv4AlternativePart);
     }
 
     private boolean isValidIpv4Literal(String host) {
         String[] parts = host.split("\\.", -1);
-        if (parts.length != 4 || !java.util.Arrays.stream(parts)
-                .allMatch(part -> !part.isEmpty() && part.chars().allMatch(this::isAsciiDigit))) {
+        if (parts.length != 4) {
             return false;
         }
 
         for (String part : parts) {
-            if (part.length() > 3 || Integer.parseInt(part) > 255) {
+            if (!isCanonicalIpv4Octet(part)) {
                 return false;
             }
         }
         return true;
+    }
+
+    private boolean isCanonicalIpv4Octet(String part) {
+        if (!isAsciiDecimalPart(part) || part.length() > 3
+                || (part.length() > 1 && part.charAt(0) == '0')) {
+            return false;
+        }
+        return Integer.parseInt(part) <= 255;
+    }
+
+    private boolean isIpv4AlternativePart(String part) {
+        return isAsciiDecimalPart(part) || isPrefixedHexadecimalPart(part);
+    }
+
+    private boolean isAsciiDecimalPart(String part) {
+        return !part.isEmpty() && part.chars().allMatch(this::isAsciiDigit);
+    }
+
+    private boolean isPrefixedHexadecimalPart(String part) {
+        return part.length() > 2
+                && part.startsWith("0x")
+                && part.substring(2).chars().allMatch(this::isHexDigit);
     }
 
     private boolean isValidIpv6Literal(String host) {
