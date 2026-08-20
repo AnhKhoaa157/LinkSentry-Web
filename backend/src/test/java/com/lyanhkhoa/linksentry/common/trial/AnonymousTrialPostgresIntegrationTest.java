@@ -109,7 +109,7 @@ class AnonymousTrialPostgresIntegrationTest {
         mockMvc.perform(scanRequest(address, "https://example.com/account"))
                 .andExpect(status().isTooManyRequests())
                 .andExpect(jsonPath("$.code").value("ANONYMOUS_TRIAL_EXHAUSTED"))
-                .andExpect(jsonPath("$.message").value("Sign in to continue scanning."));
+                .andExpect(jsonPath("$.message").value("Request a license to continue scanning."));
         assertThat(scanCount()).isZero();
     }
 
