@@ -66,6 +66,12 @@ dependencies {
     testImplementation("org.testcontainers:junit-jupiter:$testcontainersVersion")
     testImplementation("org.testcontainers:postgresql:$testcontainersVersion")
 
+    // Architecture boundary test for the analysis package: test-only, zero production
+    // runtime impact. Apache 2.0. Transitive footprint is just archunit-junit5-api ->
+    // archunit (core, ASM shaded internally) + slf4j-api. See
+    // docs/LinkSentry-Domain-Analysis-Roadmap.md M2 for the dependency assessment.
+    testImplementation("com.tngtech.archunit:archunit-junit5:1.5.0")
+
     // In-memory database for the `test` profile so context-loading tests run
     // without Docker. Real SQL must be verified against PostgreSQL instead.
     testRuntimeOnly("com.h2database:h2")
