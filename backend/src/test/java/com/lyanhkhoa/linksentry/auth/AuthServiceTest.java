@@ -43,8 +43,7 @@ class AuthServiceTest {
     private static final Instant NOW = Instant.parse("2026-08-18T12:00:00Z");
     private static final Clock CLOCK = Clock.fixed(NOW, ZoneOffset.UTC);
     private static final AuthProperties AUTH_PROPERTIES = new AuthProperties(Duration.ofHours(1));
-    private static final AuthOtpProperties OTP_PROPERTIES =
-            new AuthOtpProperties(Duration.ofMinutes(10), 5, "no-reply@example.com");
+    private static final AuthOtpProperties OTP_PROPERTIES = new AuthOtpProperties(Duration.ofMinutes(10), 5);
 
     @Test
     @DisplayName("registration stores only hashes, sends a code, and creates the account after verification")

@@ -9,7 +9,7 @@ import org.springframework.validation.annotation.Validated;
 /** Expiry and brute-force limits for email registration verification. */
 @Validated
 @ConfigurationProperties(prefix = "linksentry.auth.otp")
-public record AuthOtpProperties(@NotNull Duration ttl, @Min(1) int maxAttempts, String mailFrom) {
+public record AuthOtpProperties(@NotNull Duration ttl, @Min(1) int maxAttempts) {
 
     public AuthOtpProperties {
         if (ttl == null || ttl.isZero() || ttl.isNegative()) {
