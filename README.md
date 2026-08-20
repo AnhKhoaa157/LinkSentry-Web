@@ -178,7 +178,7 @@ npm install
 npm run build:extension
 ```
 
-Output goes to `frontend/dist-extension/` — `popup.html`, its bundled JS/CSS,
+Output goes to `linksentry/` at the repository root — `popup.html`, its bundled JS/CSS,
 and `manifest.json` copied unmodified from `src/extension/public/`.
 
 ### Load it unpacked
@@ -186,7 +186,7 @@ and `manifest.json` copied unmodified from `src/extension/public/`.
 1. Start PostgreSQL and the backend (Quick start, steps 1–2 above) — the
    extension calls `http://localhost:8080` directly and needs it running.
 2. Open `chrome://extensions` (or `edge://extensions`), enable **Developer
-   mode**, click **Load unpacked**, and select `frontend/dist-extension/`.
+   mode**, click **Load unpacked**, and select `linksentry/`.
 3. Open any `http://` or `https://` tab, click the LinkSentry toolbar icon,
    then click **Scan this tab**.
 
@@ -232,7 +232,7 @@ shipped in the bundle).
 | `npm run test`         | Vitest in watch mode                          |
 | `npm run test:run`     | Vitest once (what CI runs)                    |
 | `npm run build`        | Type check, then production build to `dist/`  |
-| `npm run build:extension` | Type check, then build the MV3 popup to `dist-extension/` |
+| `npm run build:extension` | Type check, then build the MV3 popup to `linksentry/` |
 | `npm run preview`      | Serve the production build locally            |
 
 ### Backend (`cd backend`)

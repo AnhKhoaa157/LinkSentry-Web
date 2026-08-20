@@ -106,19 +106,23 @@ export function Popup() {
   const canScan = tabPhase === 'ready' && !isPending;
 
   return (
-    <main className="text-ink-100 w-full p-4">
-      <div className="flex items-center gap-2">
-        <img src="./icons/icon-32.png" alt="" className="size-7 rounded-lg" />
-        <h1 className="text-ink-100 text-sm font-semibold">LinkSentry</h1>
-      </div>
+    <main className="popup-shell">
+      <header className="popup-brand">
+        <img src="./icons/icon-32.png" alt="" className="popup-brand-mark" />
+        <div>
+          <p className="popup-eyebrow">Tab analysis</p>
+          <h1>LinkSentry</h1>
+        </div>
+      </header>
 
-      <p id={STATUS_ID} role="status" aria-live="polite" className="text-ink-300 mt-2 text-sm">
+      <p id={STATUS_ID} role="status" aria-live="polite" className="popup-tab-status">
+        <span aria-hidden="true" className="popup-status-dot" />
         {statusText(tabPhase)}
       </p>
 
-      <div className="mt-3">
+      <section className="popup-license-panel" aria-label="License status">
         <LicenseStatusCard />
-      </div>
+      </section>
 
       <button
         ref={scanButtonRef}
@@ -126,32 +130,36 @@ export function Popup() {
         onClick={() => void handleScan()}
         disabled={!canScan}
         aria-describedby={STATUS_ID}
-        className="bg-accent-500 text-ink-950 mt-3 w-full rounded-lg px-4 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+        className="popup-primary-action"
       >
         {isPending ? 'Scanning…' : scanResponse ? 'Scan again' : 'Scan this tab'}
       </button>
 
       {apiError ? (
-        <div role="alert" className="mt-4 rounded-lg border border-rose-600/40 bg-rose-500/10 p-3">
-          <p className="text-sm font-medium text-rose-400">{displayMessage(apiError)}</p>
+        <div role="alert" className="popup-error">
+          <p>{displayMessage(apiError)}</p>
         </div>
       ) : null}
 
       {scanResponse ? (
-        <div className="mt-4 space-y-4" aria-live="polite">
-          <div className="flex flex-wrap items-center gap-3">
-            <p className="flex items-baseline gap-1">
-              <span className="text-2xl font-bold tracking-tight">{scanResponse.data.score}</span>
-              <span className="text-ink-500 text-xs">/100</span>
-            </p>
+        <section className="popup-result" aria-live="polite">
+          <div className="popup-score-card">
+            <div>
+              <p className="popup-section-label">Analysis result</p>
+              <p className="popup-score">
+                <span>{scanResponse.data.score}</span>
+                <small>/100</small>
+              </p>
+            </div>
             <RiskBadge riskLevel={scanResponse.data.riskLevel} />
           </div>
 
-          <div>
-            <h2 className="text-ink-100 text-sm font-semibold">Findings</h2>
-            <div className="mt-2">
-              <FindingsList findings={scanResponse.data.findings} />
+          <div className="popup-findings">
+            <div className="popup-section-heading">
+              <h2>Signals detected</h2>
+              <span>{scanResponse.data.findings.length}</span>
             </div>
+            <FindingsList findings={scanResponse.data.findings} />
           </div>
 
           {/* Only risk level, score, registrable domain, and finding titles are
@@ -162,7 +170,7 @@ export function Popup() {
             registrableDomain={scanResponse.data.normalized.registrableDomain}
             findings={scanResponse.data.findings}
           />
-        </div>
+        </section>
       ) : null}
     </main>
   );

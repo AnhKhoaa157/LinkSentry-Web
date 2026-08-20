@@ -29,6 +29,8 @@ replay_pid*
 node_modules/
 dist/
 dist-extension/
+/linksentry/
+/extension-releases/
 dist-ssr/
 .vite/
 vite.config.ts.timestamp-*

@@ -1,6 +1,208 @@
-/* Popup-specific sizing. Chrome/Edge size the popup to its content by default,
-   which makes a mostly-empty "ready" state look cramped and a full result look
-   unpredictably wide; a fixed width keeps both states readable. */
 body {
-  width: 360px;
+  width: 380px;
+  min-height: 0;
+  margin: 0;
+  background:
+    radial-gradient(circle at 86% -8%, rgb(6 182 212 / 18%), transparent 38%),
+    linear-gradient(160deg, #07101d 0%, #05080f 62%);
+}
+
+#root {
+  min-height: 100%;
+}
+
+.popup-shell {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 18px;
+  color: var(--color-ink-100);
+}
+
+.popup-brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.popup-brand-mark {
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgb(34 211 238 / 30%);
+  border-radius: 12px;
+  box-shadow: 0 10px 24px rgb(6 182 212 / 15%);
+}
+
+.popup-brand h1 {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.popup-eyebrow,
+.popup-section-label {
+  margin: 0 0 3px;
+  color: var(--color-accent-400);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.popup-tab-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 15px 0 0;
+  color: var(--color-ink-300);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.popup-status-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--color-accent-400);
+  box-shadow: 0 0 0 4px rgb(34 211 238 / 10%);
+}
+
+.popup-license-panel {
+  margin-top: 14px;
+}
+
+.popup-license-panel > div {
+  gap: 10px;
+  padding: 13px;
+  border-color: rgb(31 51 85 / 90%);
+  border-radius: 14px;
+  background: rgb(11 18 32 / 78%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 3%);
+}
+
+.popup-license-panel p {
+  line-height: 1.45;
+}
+
+.popup-license-panel button:not(:disabled) {
+  color: var(--color-accent-400);
+}
+
+.popup-primary-action {
+  width: 100%;
+  margin-top: 14px;
+  padding: 12px 16px;
+  border: 1px solid rgb(103 232 249 / 70%);
+  border-radius: 12px;
+  color: #03131a;
+  background: linear-gradient(135deg, #22d3ee, #06b6d4);
+  box-shadow: 0 10px 22px rgb(6 182 212 / 22%);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 750;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    filter 160ms ease;
+}
+
+.popup-primary-action:hover:not(:disabled) {
+  filter: brightness(1.06);
+  box-shadow: 0 13px 28px rgb(6 182 212 / 30%);
+  transform: translateY(-1px);
+}
+
+.popup-primary-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.popup-error {
+  margin-top: 14px;
+  padding: 12px 13px;
+  border: 1px solid rgb(244 63 94 / 42%);
+  border-radius: 12px;
+  color: #fda4af;
+  background: rgb(136 19 55 / 20%);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.popup-error p {
+  margin: 0;
+}
+
+.popup-result {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.popup-score-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgb(31 51 85 / 90%);
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgb(16 26 44 / 95%), rgb(11 18 32 / 78%));
+}
+
+.popup-score {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  margin: 0;
+}
+
+.popup-score span {
+  color: var(--color-ink-100);
+  font-size: 32px;
+  font-weight: 750;
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
+
+.popup-score small {
+  color: var(--color-ink-500);
+  font-size: 12px;
+}
+
+.popup-findings {
+  display: grid;
+  gap: 9px;
+}
+
+.popup-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.popup-section-heading h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.popup-section-heading > span {
+  display: inline-grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 1px solid rgb(31 51 85 / 90%);
+  border-radius: 999px;
+  color: var(--color-ink-300);
+  background: rgb(16 26 44 / 80%);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .popup-primary-action {
+    transition: none;
+  }
 }
