@@ -4,12 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.lyanhkhoa.linksentry.analysis.domain.DomainFeatures;
 import com.lyanhkhoa.linksentry.analysis.domain.NormalizedUrl;
-import java.net.IDN;
+import com.lyanhkhoa.linksentry.analysis.normalization.IdnaProcessor;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 class BrandLookalikeRuleTest {
+
+    private static final IdnaProcessor IDNA_PROCESSOR = new IdnaProcessor();
 
     private static final Brand VIETCOMBANK =
             new Brand("vietcombank", "Vietcombank", List.of("vietcombank"), List.of("vietcombank.com.vn"));
@@ -98,7 +100,7 @@ class BrandLookalikeRuleTest {
     @DisplayName("a Cyrillic confusable substitution that decodes exactly to a token fires with the lookalike signal")
     void confusableCharacterFires() {
         String confusableLabel = "vietc" + 'о' + "mbank"; // Cyrillic о (U+043E) in place of 'o'
-        String asciiHost = IDN.toASCII(confusableLabel, IDN.USE_STD3_ASCII_RULES) + ".xyz";
+        String asciiHost = IDNA_PROCESSOR.toAscii(confusableLabel) + ".xyz";
         NormalizedUrl url = urlFor(asciiHost, asciiHost, List.of(), "/");
 
         var finding = rule.analyze(url);
@@ -111,7 +113,7 @@ class BrandLookalikeRuleTest {
     @DisplayName("an uppercase XN-- Punycode prefix is still recognized and fires with the lookalike signal")
     void uppercasePunycodePrefixFires() {
         String confusableLabel = "vietc" + 'о' + "mbank"; // Cyrillic о (U+043E) in place of 'o'
-        String encodedLabel = IDN.toASCII(confusableLabel, IDN.USE_STD3_ASCII_RULES);
+        String encodedLabel = IDNA_PROCESSOR.toAscii(confusableLabel);
         String uppercasePrefixLabel = "XN--" + encodedLabel.substring(4);
         String asciiHost = uppercasePrefixLabel + ".xyz";
         NormalizedUrl url = urlFor(asciiHost, asciiHost, List.of(), "/");
@@ -126,7 +128,7 @@ class BrandLookalikeRuleTest {
     @DisplayName("an unrelated internationalized hostname with no confusable mapping to a token never fires")
     void unrelatedIdnHostNeverFires() {
         String label = "münchen"; // German umlaut, decodes cleanly but matches no brand token
-        String asciiHost = IDN.toASCII(label, IDN.USE_STD3_ASCII_RULES) + ".example";
+        String asciiHost = IDNA_PROCESSOR.toAscii(label) + ".example";
         NormalizedUrl url = urlFor(asciiHost, asciiHost, List.of(), "/");
 
         assertThat(rule.analyze(url)).isEmpty();

@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
-import java.net.IDN;
+import com.lyanhkhoa.linksentry.analysis.normalization.IdnaProcessor;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
@@ -68,7 +68,7 @@ class DomainFeaturesTest {
     @DisplayName("a Punycode label carries its decoded Unicode form")
     void punycodeLabelDecodesToUnicode() {
         String confusableLabel = "vietc" + 'о' + "mbank"; // Cyrillic о (U+043E)
-        String encodedLabel = IDN.toASCII(confusableLabel, IDN.USE_STD3_ASCII_RULES);
+        String encodedLabel = new IdnaProcessor().toAscii(confusableLabel);
         DomainFeatures features = DomainFeatures.fromAsciiHost(encodedLabel + ".xyz");
 
         DomainFeatures.Label label = features.labels().get(0);

@@ -86,6 +86,13 @@ class DefaultUrlNormalizerTest {
     }
 
     @Test
+    void usesNontransitionalUts46MappingForSharpS() {
+        NormalizedUrl result = normalizer.normalize("https://fa\u00DF.de");
+
+        assertThat(result.asciiHost()).isEqualTo("xn--fa-hia.de");
+    }
+
+    @Test
     void identifiesIpv4LiteralHost() {
         NormalizedUrl result = normalizer.normalize("https://127.0.0.1/login");
 
@@ -137,6 +144,18 @@ class DefaultUrlNormalizerTest {
         assertInvalidUrl("https://example-.com");
         assertInvalidUrl("https://256.256.256.256");
         assertInvalidUrl("https://[not-an-ip]");
+    }
+
+    @Test
+    void rejectsIdnaErrorsWithTheGenericHostContract() {
+        assertThatThrownBy(() -> normalizer.normalize(
+                        "https://xn--0.example/path?token=IDNA_SECRET#fragment"))
+                .isExactlyInstanceOf(InvalidUrlException.class)
+                .hasMessage("URL must have a valid host")
+                .hasMessageNotContaining("xn--0")
+                .hasMessageNotContaining("IDNA_SECRET")
+                .hasMessageNotContaining("INVALID_ACE_LABEL")
+                .hasNoCause();
     }
 
     @Test
