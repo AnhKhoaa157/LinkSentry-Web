@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "LinkSentry Scanner",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Scans the current tab's link for lexical phishing risk signals using the LinkSentry API. Never visits the link.",
   "action": {
     "default_popup": "popup.html",

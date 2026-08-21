@@ -39,6 +39,37 @@ const RAW_URL_SENTINELS = [
   SCAN_URL,
 ];
 
+const validTrialScanResponse = {
+  data: {
+    scanId: null,
+    input: 'https://login.example.com.security-check.invalid/account',
+    normalized: {
+      scheme: 'https',
+      host: 'login.example.com.security-check.invalid',
+      asciiHost: 'login.example.com.security-check.invalid',
+      registrableDomain: 'security-check.invalid',
+      port: null,
+      path: '/account',
+      queryPresent: true,
+      fragmentPresent: true,
+    },
+    score: 55,
+    riskLevel: 'HIGH',
+    findings: [
+      {
+        ruleId: 'SUSPICIOUS_KEYWORDS',
+        severity: 'MEDIUM',
+        points: 20,
+        title: 'Subdomain uses a sensitive-sounding word',
+        explanation: 'A subdomain contains a word commonly used in credential phishing.',
+        evidence: null,
+      },
+    ],
+    analyzedAt: '2026-08-18T00:00:00Z',
+  },
+  meta: { engineVersion: '0.1.0' },
+};
+
 const validScanResponse = {
   data: {
     scanId: '2ce16fb9-d52d-4310-8d45-a4e48f31889e',
@@ -354,5 +385,57 @@ describe('Popup', () => {
     for (const sentinel of RAW_URL_SENTINELS) {
       expect(document.body.innerHTML).not.toContain(sentinel);
     }
+  });
+
+  it("offers the AI advisory entry point for a licensed device's result (a non-null scanId)", async () => {
+    stubActiveTab(SCAN_URL);
+    vi.spyOn(apiClient, 'post').mockResolvedValue({ data: validScanResponse });
+    const user = userEvent.setup();
+
+    renderWithProviders(<Popup />);
+    await waitFor(() => expect(scanButton()).toBeEnabled());
+    await user.click(scanButton());
+    await screen.findByText('55');
+
+    expect(screen.getByRole('button', { name: 'Explain this result' })).toBeInTheDocument();
+  });
+
+  it('shows only the core scan flow for a trial result, with no AI advisory entry point', async () => {
+    stubActiveTab(SCAN_URL);
+    vi.spyOn(apiClient, 'post').mockResolvedValue({ data: validTrialScanResponse });
+    const user = userEvent.setup();
+
+    renderWithProviders(<Popup />);
+    await waitFor(() => expect(scanButton()).toBeEnabled());
+    await user.click(scanButton());
+    await screen.findByText('55');
+
+    expect(screen.getByRole('heading', { name: 'Recommended next steps' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Explain this result' })).not.toBeInTheDocument();
+  });
+
+  it('switches the popup to Vietnamese and back via the language toggle, and persists the choice', async () => {
+    stubActiveTab(SCAN_URL);
+    const user = userEvent.setup();
+
+    const { unmount } = renderWithProviders(<Popup />);
+    await waitFor(() => expect(scanButton()).toBeEnabled());
+    expect(screen.getByText('Ready to scan the current tab.')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'VI' }));
+
+    expect(screen.getByText('Sẵn sàng quét tab hiện tại.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Quét tab này' })).toBeInTheDocument();
+    expect(localStorage.getItem('linksentry.locale')).toBe('vi');
+
+    unmount();
+    stubActiveTab(SCAN_URL);
+    renderWithProviders(<Popup />);
+
+    expect(await screen.findByText('Sẵn sàng quét tab hiện tại.')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'EN' }));
+    expect(screen.getByText('Ready to scan the current tab.')).toBeInTheDocument();
+    expect(localStorage.getItem('linksentry.locale')).toBe('en');
   });
 });
