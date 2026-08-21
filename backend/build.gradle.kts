@@ -26,6 +26,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:$springdocVersion")
     implementation("com.google.guava:guava:33.4.8-jre")
+    implementation("com.ibm.icu:icu4j:78.3")
 
     // --- Security ---
     implementation("org.springframework.boot:spring-boot-starter-security")
