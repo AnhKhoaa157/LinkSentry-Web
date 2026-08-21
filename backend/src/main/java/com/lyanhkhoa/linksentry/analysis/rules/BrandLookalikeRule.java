@@ -5,7 +5,6 @@ import com.lyanhkhoa.linksentry.analysis.domain.DomainFeatures;
 import com.lyanhkhoa.linksentry.analysis.domain.NormalizedUrl;
 import com.lyanhkhoa.linksentry.analysis.domain.RuleFinding;
 import com.lyanhkhoa.linksentry.analysis.domain.Severity;
-import java.net.IDN;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,13 +39,13 @@ import java.util.Set;
  *       of too many unrelated hyphenated labels (e.g. {@code a-c-b}) to be a
  *       reliable signal.
  *   <li><strong>Unicode confusable substitution.</strong> A Punycode label
- *       ({@code xn--...}) is decoded locally via {@link IDN#toUnicode} — no network
- *       call, no external service — and every character is looked up in a small,
- *       explicit, hand-curated map of common Latin/Cyrillic/Greek lookalike letters
- *       ({@link #CONFUSABLE_MAP}). If every character maps to plain ASCII and the
- *       substituted string exactly equals a configured token, and at least one
- *       character actually needed substitution, this fires. A label containing any
- *       character outside that small map is left alone rather than guessed at.
+ *       ({@code xn--...}) is decoded locally into {@link DomainFeatures} — no
+ *       network call, no external service — and every character is looked up in a
+ *       small, explicit, hand-curated map of common Latin/Cyrillic/Greek lookalike
+ *       letters ({@link #CONFUSABLE_MAP}). If every character maps to plain ASCII
+ *       and the substituted string exactly equals a configured token, and at least
+ *       one character actually needed substitution, this fires. A label containing
+ *       any character outside that small map is left alone rather than guessed at.
  * </ol>
  *
  * <p>Only {@link NormalizedUrl#asciiHost()} is inspected. The path, query,

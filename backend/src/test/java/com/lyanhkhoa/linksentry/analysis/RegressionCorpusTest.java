@@ -8,6 +8,7 @@ import com.lyanhkhoa.linksentry.analysis.domain.InvalidUrlException;
 import com.lyanhkhoa.linksentry.analysis.domain.RiskLevel;
 import com.lyanhkhoa.linksentry.analysis.domain.RuleFinding;
 import com.lyanhkhoa.linksentry.analysis.domain.UrlAnalyzer;
+import com.lyanhkhoa.linksentry.analysis.normalization.IdnaProcessor;
 import com.lyanhkhoa.linksentry.analysis.normalization.UrlNormalizer;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,6 +29,8 @@ import org.junit.jupiter.api.Test;
  * keeps only a representative slice of brand cases alongside the non-brand rules.
  */
 class RegressionCorpusTest {
+
+    private static final IdnaProcessor IDNA_PROCESSOR = new IdnaProcessor();
 
     private final UrlAnalyzer analyzer = AnalyzerFixture.productionAnalyzer();
 
@@ -178,7 +181,7 @@ class RegressionCorpusTest {
     void confusableCharacterBrandLookalike() {
         String confusableLabel = "vietc" + 'о' + "mbank"; // Cyrillic о in place of 'o'
         AnalysisResult result = analyzer.analyze(
-                "https://" + java.net.IDN.toASCII(confusableLabel, java.net.IDN.USE_STD3_ASCII_RULES) + ".xyz/");
+                "https://" + IDNA_PROCESSOR.toAscii(confusableLabel) + ".xyz/");
 
         assertRuleIds(result, "BRAND_LOOKALIKE_HOSTNAME", "PUNYCODE_HOST");
         assertThat(result.findings().get(0).evidence()).contains("Vietcombank").contains("lookalike character");
@@ -188,7 +191,7 @@ class RegressionCorpusTest {
     @DisplayName("an unrelated internationalized hostname fires no brand rule")
     void unrelatedIdnHostnameFiresNoBrandRule() {
         AnalysisResult result = analyzer.analyze(
-                "https://" + java.net.IDN.toASCII("münchen", java.net.IDN.USE_STD3_ASCII_RULES) + ".example/");
+                "https://" + IDNA_PROCESSOR.toAscii("münchen") + ".example/");
 
         assertThat(result.findings()).extracting(RuleFinding::ruleId)
                 .doesNotContain("BRAND_DOMAIN_MISMATCH", "BRAND_LOOKALIKE_HOSTNAME");
