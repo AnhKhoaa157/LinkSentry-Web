@@ -1,5 +1,6 @@
 import { Badge } from '@/components/ui/Badge';
 import type { Finding, Severity } from '@/features/scanner/schemas/scanResponse';
+import { useLocale } from '@/lib/i18n/useLocale';
 
 const SEVERITY_TONE: Record<Severity, 'low' | 'moderate' | 'high' | 'critical'> = {
   INFO: 'low',
@@ -19,12 +20,10 @@ interface Props {
  * "safe" — the absence of a detected signal is not the presence of safety.
  */
 export function FindingsList({ findings }: Props) {
+  const { t } = useLocale();
+
   if (findings.length === 0) {
-    return (
-      <p className="text-ink-300 text-sm">
-        No signals were detected by the current rules. This does not mean the link is safe.
-      </p>
-    );
+    return <p className="text-ink-300 text-sm">{t('findings.empty')}</p>;
   }
 
   return (

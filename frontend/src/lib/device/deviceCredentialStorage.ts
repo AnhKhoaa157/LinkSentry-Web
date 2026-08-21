@@ -1,3 +1,5 @@
+import { hasExtensionStorage } from '@/lib/device/environment';
+
 const STORAGE_KEY = 'linksentry.deviceCredential';
 
 /**
@@ -63,15 +65,6 @@ const webStorageBackend: DeviceCredentialStorage = {
     }
   },
 };
-
-/**
- * `chrome` exists as a global in some ordinary browser tabs too (not just extension contexts),
- * but `chrome.storage` is populated only inside an actual extension page — so this check
- * correctly selects the web backend even when `typeof chrome !== 'undefined'` alone would not.
- */
-function hasExtensionStorage(): boolean {
-  return typeof chrome !== 'undefined' && typeof chrome.storage !== 'undefined' && !!chrome.storage.local;
-}
 
 export const deviceCredentialStorage: DeviceCredentialStorage = hasExtensionStorage()
   ? chromeStorageBackend

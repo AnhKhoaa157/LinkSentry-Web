@@ -5,6 +5,7 @@ import { postExplanation } from '@/features/explanation/api/postExplanation';
 import type { ExplanationData } from '@/features/explanation/schemas/explanationResponse';
 import type { RiskLevel, Severity } from '@/features/scanner/schemas/scanResponse';
 import { normalizeApiError, type NormalizedApiError } from '@/lib/api/errors';
+import { useLocale } from '@/lib/i18n/useLocale';
 
 interface Props {
   /**
@@ -31,10 +32,6 @@ const SEVERITY_TONE: Record<Severity, 'low' | 'moderate' | 'high' | 'critical'> 
   HIGH: 'high',
 };
 
-function riskBadgeLabel(riskLevel: RiskLevel): string {
-  return `${riskLevel} LEXICAL RISK`;
-}
-
 /**
  * "Explain this result" — an optional, advisory AI explanation of one owned,
  * retained scan result.
@@ -50,6 +47,7 @@ function riskBadgeLabel(riskLevel: RiskLevel): string {
  * and `docs/adr/0005-deepseek-scan-explanation-integration.md`.
  */
 export function ExplainResult({ scanId }: Props) {
+  const { t } = useLocale();
   const [status, setStatus] = useState<Status>('idle');
   const [data, setData] = useState<ExplanationData | null>(null);
   const [error, setError] = useState<NormalizedApiError | null>(null);
@@ -87,13 +85,13 @@ export function ExplainResult({ scanId }: Props) {
           aria-busy={status === 'loading'}
           className="border-ink-700 text-ink-100 hover:bg-ink-800 rounded-lg border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {status === 'loading' ? 'Generating explanation…' : 'Explain this result'}
+          {status === 'loading' ? t('explain.button.loading') : t('explain.button.idle')}
         </button>
       ) : null}
 
       {status === 'loading' ? (
         <p role="status" className="text-ink-500 mt-2 text-sm">
-          Generating explanation…
+          {t('explain.button.loading')}
         </p>
       ) : null}
 
@@ -105,21 +103,21 @@ export function ExplainResult({ scanId }: Props) {
             onClick={handleExplain}
             className="text-accent-400 hover:text-accent-300 mt-1 text-sm font-medium underline underline-offset-4"
           >
-            Try again
+            {t('explain.tryAgain')}
           </button>
         </div>
       ) : null}
 
       {status === 'success' && data ? (
         <div aria-live="polite" className="space-y-4">
-          <Badge tone={RISK_TONE[data.riskLevel]}>{riskBadgeLabel(data.riskLevel)}</Badge>
+          <Badge tone={RISK_TONE[data.riskLevel]}>
+            {t('explain.riskBadgeLabel', { level: data.riskLevel })}
+          </Badge>
 
           <section>
-            <h3 className="text-ink-100 text-sm font-semibold">What LinkSentry detected</h3>
+            <h3 className="text-ink-100 text-sm font-semibold">{t('explain.detectedHeading')}</h3>
             {data.keyFindings.length === 0 ? (
-              <p className="text-ink-300 mt-2 text-sm">
-                No lexical signals were detected by the current rules. This does not mean the link is safe.
-              </p>
+              <p className="text-ink-300 mt-2 text-sm">{t('explain.noSignals')}</p>
             ) : (
               <ul className="mt-2 space-y-2">
                 {data.keyFindings.map((finding, index) => (
@@ -142,12 +140,14 @@ export function ExplainResult({ scanId }: Props) {
           </section>
 
           <section>
-            <p className="text-ink-500 text-xs font-medium tracking-wide uppercase">AI context (advisory)</p>
+            <p className="text-ink-500 text-xs font-medium tracking-wide uppercase">
+              {t('explain.aiContextLabel')}
+            </p>
             <p className="text-ink-100 mt-1 text-sm">{data.summary}</p>
           </section>
 
           <section>
-            <h3 className="text-ink-100 text-sm font-semibold">What to do</h3>
+            <h3 className="text-ink-100 text-sm font-semibold">{t('explain.whatToDoHeading')}</h3>
             <ul className="text-ink-300 mt-2 list-disc space-y-1 pl-5 text-sm">
               {data.recommendedActions.map((action, index) => (
                 <li key={index}>{action}</li>
@@ -155,10 +155,7 @@ export function ExplainResult({ scanId }: Props) {
             </ul>
           </section>
 
-          <p className="text-ink-500 text-xs">
-            This context is based on lexical signals only. LinkSentry never visits the link, so it is
-            advisory, not a verdict.
-          </p>
+          <p className="text-ink-500 text-xs">{t('explain.disclaimer')}</p>
         </div>
       ) : null}
     </div>

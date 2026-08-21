@@ -3,12 +3,14 @@ import { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
 import { useLicense } from '@/features/license/context/useLicense';
 import type { DeviceState } from '@/features/license/schemas/deviceResponse';
+import type { TranslationKey } from '@/lib/i18n/translations';
+import { useLocale } from '@/lib/i18n/useLocale';
 
-const STATE_TEXT: Record<DeviceState, string> = {
-  PENDING: 'Trial',
-  LICENSED: 'Licensed',
-  EXPIRED: 'Expired',
-  REVOKED: 'Revoked',
+const STATE_TEXT_KEY: Record<DeviceState, TranslationKey> = {
+  PENDING: 'license.state.pending',
+  LICENSED: 'license.state.licensed',
+  EXPIRED: 'license.state.expired',
+  REVOKED: 'license.state.revoked',
 };
 
 const STATE_TONE: Record<DeviceState, 'muted' | 'low' | 'moderate' | 'critical'> = {
@@ -18,12 +20,11 @@ const STATE_TONE: Record<DeviceState, 'muted' | 'low' | 'moderate' | 'critical'>
   REVOKED: 'critical',
 };
 
-const STATE_DESCRIPTION: Record<DeviceState, string> = {
-  PENDING:
-    'This installation has not been granted a license yet. It can still scan under the free trial allowance.',
-  LICENSED: 'This installation currently has full access.',
-  EXPIRED: "This installation's license has expired. It has fallen back to the free trial allowance.",
-  REVOKED: 'This installation has been revoked. It has fallen back to the free trial allowance.',
+const STATE_DESCRIPTION_KEY: Record<DeviceState, TranslationKey> = {
+  PENDING: 'license.description.pending',
+  LICENSED: 'license.description.licensed',
+  EXPIRED: 'license.description.expired',
+  REVOKED: 'license.description.revoked',
 };
 
 type CopyStatus = 'idle' | 'copied' | 'failed';
@@ -35,6 +36,7 @@ type CopyStatus = 'idle' | 'copied' | 'failed';
  */
 export function LicenseStatusCard() {
   const { state, activationCode, licenseExpiresAt, isLoading, refresh } = useLicense();
+  const { t } = useLocale();
   const [copyStatus, setCopyStatus] = useState<CopyStatus>('idle');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -60,7 +62,7 @@ export function LicenseStatusCard() {
   if (isLoading || state === null) {
     return (
       <p role="status" className="text-ink-300 text-sm">
-        Checking this installation…
+        {t('license.checking')}
       </p>
     );
   }
@@ -68,29 +70,28 @@ export function LicenseStatusCard() {
   return (
     <div className="border-ink-700 bg-ink-900/40 space-y-4 rounded-xl border p-5">
       <div className="flex items-center gap-2">
-        <Badge tone={STATE_TONE[state]}>{STATE_TEXT[state]}</Badge>
+        <Badge tone={STATE_TONE[state]}>{t(STATE_TEXT_KEY[state])}</Badge>
         {state === 'LICENSED' ? (
           <span className="text-ink-300 text-sm">
             {licenseExpiresAt
-              ? `Renews or expires ${new Date(licenseExpiresAt).toLocaleDateString()}`
-              : 'No expiry'}
+              ? t('license.renewsOrExpires', { date: new Date(licenseExpiresAt).toLocaleDateString() })
+              : t('license.noExpiry')}
           </span>
         ) : null}
       </div>
 
-      <p className="text-ink-300 text-sm">{STATE_DESCRIPTION[state]}</p>
+      <p className="text-ink-300 text-sm">{t(STATE_DESCRIPTION_KEY[state])}</p>
 
       {state === 'EXPIRED' && licenseExpiresAt ? (
-        <p className="text-ink-500 text-xs">Expired {new Date(licenseExpiresAt).toLocaleDateString()}.</p>
+        <p className="text-ink-500 text-xs">
+          {t('license.expiredOn', { date: new Date(licenseExpiresAt).toLocaleDateString() })}
+        </p>
       ) : null}
 
       {state !== 'LICENSED' && activationCode ? (
         <div className="border-ink-800 bg-ink-950/50 rounded-lg border p-4">
-          <p className="text-ink-100 text-sm font-semibold">Pending activation</p>
-          <p className="text-ink-300 mt-1 text-sm">
-            Send this code to your administrator to request a license for this installation. Copying it does
-            not by itself grant access — an administrator must attach it to a license.
-          </p>
+          <p className="text-ink-100 text-sm font-semibold">{t('license.pendingActivation.title')}</p>
+          <p className="text-ink-300 mt-1 text-sm">{t('license.pendingActivation.body')}</p>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <code className="border-ink-800 bg-ink-950 text-ink-100 rounded-lg border px-3 py-2 font-mono text-base tracking-wider">
               {activationCode}
@@ -100,14 +101,14 @@ export function LicenseStatusCard() {
               onClick={() => void handleCopy(activationCode)}
               className="border-ink-700 bg-ink-850 text-ink-100 hover:bg-ink-800 rounded-lg border px-4 py-2 text-sm font-medium transition-colors"
             >
-              Copy activation code
+              {t('license.copyButton')}
             </button>
           </div>
           <p role="status" className="text-ink-300 mt-2 text-xs">
             {copyStatus === 'copied'
-              ? 'Copied.'
+              ? t('license.copyStatus.copied')
               : copyStatus === 'failed'
-                ? 'Could not copy — select the code manually.'
+                ? t('license.copyStatus.failed')
                 : ''}
           </p>
         </div>
@@ -119,7 +120,7 @@ export function LicenseStatusCard() {
         disabled={isRefreshing}
         className="text-accent-400 hover:text-accent-300 text-sm font-medium underline underline-offset-4 disabled:opacity-50"
       >
-        {isRefreshing ? 'Checking…' : 'Check status again'}
+        {isRefreshing ? t('license.checkingAgain') : t('license.checkAgain')}
       </button>
     </div>
   );

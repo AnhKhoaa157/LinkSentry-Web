@@ -1,11 +1,13 @@
 import { Badge } from '@/components/ui/Badge';
 import type { RiskLevel } from '@/features/scanner/schemas/scanResponse';
+import type { TranslationKey } from '@/lib/i18n/translations';
+import { useLocale } from '@/lib/i18n/useLocale';
 
-const LABELS: Record<RiskLevel, string> = {
-  LOW: 'Low risk',
-  MODERATE: 'Moderate risk',
-  HIGH: 'High risk',
-  CRITICAL: 'Critical risk',
+const LABEL_KEYS: Record<RiskLevel, TranslationKey> = {
+  LOW: 'riskBadge.low',
+  MODERATE: 'riskBadge.moderate',
+  HIGH: 'riskBadge.high',
+  CRITICAL: 'riskBadge.critical',
 };
 
 const TONES: Record<RiskLevel, 'low' | 'moderate' | 'high' | 'critical'> = {
@@ -17,5 +19,6 @@ const TONES: Record<RiskLevel, 'low' | 'moderate' | 'high' | 'critical'> = {
 
 /** Text-and-colour risk indicator. Never colour alone. */
 export function RiskBadge({ riskLevel }: { readonly riskLevel: RiskLevel }) {
-  return <Badge tone={TONES[riskLevel]}>{LABELS[riskLevel]}</Badge>;
+  const { t } = useLocale();
+  return <Badge tone={TONES[riskLevel]}>{t(LABEL_KEYS[riskLevel])}</Badge>;
 }

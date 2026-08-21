@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router';
 
 import { LicenseProvider } from '@/features/license/context/LicenseProvider';
 import { createQueryClient } from '@/lib/api/queryClient';
+import { LocaleProvider } from '@/lib/i18n/LocaleProvider';
 
 interface Options extends Omit<RenderOptions, 'wrapper'> {
   /** Initial history entry. */
@@ -28,9 +29,11 @@ export function renderWithProviders(
   function Wrapper({ children }: { children: ReactNode }) {
     const routed = <MemoryRouter initialEntries={[route]}>{children}</MemoryRouter>;
     return (
-      <QueryClientProvider client={queryClient}>
-        {withLicenseProvider ? <LicenseProvider clientLabel="web">{routed}</LicenseProvider> : routed}
-      </QueryClientProvider>
+      <LocaleProvider>
+        <QueryClientProvider client={queryClient}>
+          {withLicenseProvider ? <LicenseProvider clientLabel="web">{routed}</LicenseProvider> : routed}
+        </QueryClientProvider>
+      </LocaleProvider>
     );
   }
 
