@@ -1,6 +1,6 @@
 package com.lyanhkhoa.linksentry.explanation.api;
 
-import com.lyanhkhoa.linksentry.explanation.api.ExplanationResponse.ExplanationData;
+import com.lyanhkhoa.linksentry.explanation.domain.ExplanationResult;
 import com.lyanhkhoa.linksentry.license.security.LicensedDeviceContext;
 import com.lyanhkhoa.linksentry.explanation.application.ExplanationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -39,8 +39,8 @@ public class ExplanationController {
     @Operation(summary = "Generate a short, advisory AI explanation of a retained scan result")
     public ExplanationResponse explain(@PathVariable String scanId, Authentication authentication) {
         LicensedDeviceContext device = requireLicensedDevice(authentication);
-        String explanation = explanationService.explain(scanId, device.licenseId());
-        return new ExplanationResponse(new ExplanationData(explanation));
+        ExplanationResult result = explanationService.explain(scanId, device.licenseId());
+        return ExplanationResponse.from(result);
     }
 
     private static LicensedDeviceContext requireLicensedDevice(Authentication authentication) {
