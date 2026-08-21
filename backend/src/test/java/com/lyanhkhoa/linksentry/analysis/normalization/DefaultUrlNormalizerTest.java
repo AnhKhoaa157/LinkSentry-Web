@@ -56,6 +56,16 @@ class DefaultUrlNormalizerTest {
     }
 
     @Test
+    void acceptsInputAtTheMaximumLength() {
+        String prefix = "https://example.com/";
+        String input = prefix + "a".repeat(UrlNormalizer.MAX_URL_LENGTH - prefix.length());
+
+        NormalizedUrl result = normalizer.normalize(input);
+
+        assertThat(result.originalInput()).hasSize(UrlNormalizer.MAX_URL_LENGTH);
+    }
+
+    @Test
     void rejectsUnsupportedScheme() {
         assertInvalidUrl("ftp://example.com");
         assertInvalidUrl("javascript:alert(1)");
@@ -166,6 +176,23 @@ class DefaultUrlNormalizerTest {
         assertInvalidUrl("https://example-.com");
         assertInvalidUrl("https://256.256.256.256");
         assertInvalidUrl("https://[not-an-ip]");
+    }
+
+    @Test
+    void enforcesDnsLabelAndHostLengthBoundaries() {
+        String maximumLabel = "a".repeat(63);
+        String maximumHost = String.join(
+                ".", "a".repeat(63), "b".repeat(63), "c".repeat(63), "d".repeat(61));
+        String oversizedHost = String.join(
+                ".", "a".repeat(63), "b".repeat(63), "c".repeat(63), "d".repeat(62));
+
+        assertThat(normalizer.normalize("https://" + maximumLabel + ".com").asciiHost())
+                .isEqualTo(maximumLabel + ".com");
+        assertThat(normalizer.normalize("https://" + maximumHost).asciiHost())
+                .hasSize(253);
+
+        assertInvalidUrl("https://" + "a".repeat(64) + ".com");
+        assertInvalidUrl("https://" + oversizedHost);
     }
 
     @Test
