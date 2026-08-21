@@ -23,7 +23,9 @@ scans persist only a safe, owner-bound response snapshot for 30 days by default.
 | Working                                                  | Deliberately out of scope                         |
 | -------------------------------------------------------- | ------------------------------------------------- |
 | URL validation, IDNA normalisation, and Public Suffix List | Per-user quotas, abuse monitoring |
-| Ten deterministic, explainable analysis rules, including curated brand-impersonation and bounded typo/Unicode-lookalike detection | AI, models, embeddings, live reputation/threat-intelligence feeds, DNS, and destination fetching |
+| Ten deterministic, explainable analysis rules, including curated brand-impersonation and bounded typo/Unicode-lookalike detection | Live reputation/threat-intelligence feeds, DNS, and destination fetching |
+| Optional DeepSeek-backed AI advisory on a retained scan (web and extension, licensed devices only) — never scoring, findings, or risk level, which stay deterministic |                                                 |
+| Extension popup: license status, trial-vs-licensed AI advisory gating, EN/VI language switcher |                                                 |
 | Transparent `0..100` scoring and risk levels              | Global history/list endpoint                     |
 | `POST /api/v1/scans` with anonymous or owner-bound results |                                                 |
 | Auth register/login/logout/current-session endpoints       |                                                 |
@@ -163,12 +165,32 @@ Spring Data JPA validates its connection at boot, so step 1 is not optional.
 `CORS_ALLOWED_ORIGINS`, or the browser blocks the response even though the server
 returned 200.
 
-## Browser extension (MVP)
+## Browser extension
 
 A Manifest V3 Chrome/Edge extension in `frontend/src/extension/` scans the
-active tab's URL through the same anonymous `POST /api/v1/scans` API the web
-client uses. It remains local-first and does not gain account storage or new
-permissions in this milestone.
+active tab's URL through the same `POST /api/v1/scans` API the web client
+uses. It bootstraps its own device installation and shows that
+installation's license status, exactly like the web app — see
+[ADR 0008](docs/adr/0008-device-license-authentication.md). It stays
+local-first: no end-user account, no content script, no background service
+worker.
+
+**Trial vs. licensed.** An unlicensed (trial) device gets the core scan flow
+only — score, risk badge, findings, and recommended next steps. A licensed
+device's scans are retained, and the popup also offers **Explain this
+result**: the same DeepSeek-backed AI advisory (`explanation.*`, disabled by
+default via `AI_EXPLANATIONS_ENABLED` — see `backend/.env.example`) the web
+app already offers on a saved scan. The gate is the scan response's own
+`scanId` — `null` for a trial scan, which the backend never persists, and a
+real id for a licensed one — the same server-truth check `Scanner.tsx` uses
+on the web, never a client-only license flag.
+
+**Language.** The popup header includes an EN/VI toggle. Translation is a
+small hand-rolled `frontend/src/lib/i18n/` module (English and Vietnamese
+dictionaries, no new dependency); the chosen language persists in
+`chrome.storage.local` and is restored the next time the popup opens. The
+web app renders the same translated components but has no switcher yet, so
+it stays on English.
 
 ### Build
 
@@ -183,8 +205,11 @@ and `manifest.json` copied unmodified from `src/extension/public/`.
 
 ### Load it unpacked
 
-1. Start PostgreSQL and the backend (Quick start, steps 1–2 above) — the
-   extension calls `http://localhost:8080` directly and needs it running.
+1. Start PostgreSQL and the backend (Quick start, steps 1–2 above). By
+   default the built popup calls the deployed API in
+   `src/extension/public/manifest.json`'s `host_permissions`; point
+   `VITE_API_BASE_URL` and that manifest entry at `http://localhost:8080` for
+   a fully local loop.
 2. Open `chrome://extensions` (or `edge://extensions`), enable **Developer
    mode**, click **Load unpacked**, and select `linksentry/`.
 3. Open any `http://` or `https://` tab, click the LinkSentry toolbar icon,
@@ -192,15 +217,17 @@ and `manifest.json` copied unmodified from `src/extension/public/`.
 
 ### Permissions and privacy boundary
 
-- **`activeTab`** only — granted for the current tab exactly when you click
-  the toolbar icon to open the popup. Never `tabs`, `storage`, `scripting`,
-  `webRequest`, `cookies`, `contextMenus`, `notifications`, or a content
-  script.
-- **`host_permissions: ["http://localhost:8080/*"]`** — the local API only,
-  never a wildcard or `<all_urls>`. This also lets the popup call the API
-  without any backend CORS change: an extension page with a matching host
-  permission is exempt from the browser's CORS check, so
-  `linksentry.cors.allowed-origins` (`http://localhost:5173` by default) is
+- **`activeTab`** — granted for the current tab exactly when you click the
+  toolbar icon to open the popup. Never `tabs`, `scripting`, `webRequest`,
+  `cookies`, `contextMenus`, `notifications`, or a content script.
+- **`storage`** — `chrome.storage.local` holds exactly two things: this
+  installation's device credential and the chosen display language. Never
+  the scanned URL, and never a value the backend or a scan response did not
+  already provide.
+- **`host_permissions`** — one exact origin, never a wildcard or
+  `<all_urls>`. This also lets the popup call the API without any backend
+  CORS change: an extension page with a matching host permission is exempt
+  from the browser's CORS check, so `linksentry.cors.allowed-origins` is
   untouched.
 - No background service worker. The popup calls the API directly and closes
   when dismissed, so nothing runs between scans.
@@ -208,9 +235,10 @@ and `manifest.json` copied unmodified from `src/extension/public/`.
   re-reads the raw URL only after the user clicks **Scan this tab**, holds it
   only for that request, and never logs, stores, copies, or renders it. The
   popup shows only the backend's redacted, validated response fields (score,
-  risk level, findings, evidence), exactly like the web client. Internal
-  browser pages, new-tab pages, `file:` URLs, and any other non-`http(s)`
-  scheme show a plain "cannot be scanned" state and never reach the network.
+  risk level, findings, evidence, and — for a licensed device — the AI
+  advisory), exactly like the web client. Internal browser pages, new-tab
+  pages, `file:` URLs, and any other non-`http(s)` scheme show a plain
+  "cannot be scanned" state and never reach the network.
 
 `frontend/vite.extension.config.ts` builds the popup as a second, independent
 Vite target inside the existing frontend package — no new workspace, and no
