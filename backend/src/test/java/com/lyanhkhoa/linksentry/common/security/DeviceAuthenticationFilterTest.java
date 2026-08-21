@@ -4,20 +4,24 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.lyanhkhoa.linksentry.license.application.DeviceService;
 import com.lyanhkhoa.linksentry.license.security.LicensedDeviceContext;
 import jakarta.servlet.FilterChain;
 import java.time.Instant;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.transaction.CannotCreateTransactionException;
 
 /**
  * Exercises {@link DeviceAuthenticationFilter} directly against a mocked {@link DeviceService}, the same
@@ -93,5 +97,67 @@ class DeviceAuthenticationFilterTest {
 
         org.mockito.Mockito.verifyNoInteractions(deviceService);
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+    }
+
+    @Test
+    @DisplayName(
+            "a database failure resolving the credential on POST /api/v1/scans fails closed as 503 TRIAL_QUOTA_UNAVAILABLE, never a 500 or the chain")
+    void databaseFailureOnScanCreateFailsClosed() throws Exception {
+        DeviceService deviceService = mock(DeviceService.class);
+        when(deviceService.authenticate("some-credential"))
+                .thenThrow(new DataAccessResourceFailureException("simulated outage"));
+        DeviceAuthenticationFilter filter = new DeviceAuthenticationFilter(deviceService);
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/scans");
+        request.addHeader("Authorization", "Device some-credential");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        filter.doFilter(request, response, chain);
+
+        verifyNoInteractions(chain);
+        assertThat(response.getStatus()).isEqualTo(503);
+        String body = response.getContentAsString();
+        assertThat(body)
+                .contains("\"code\":\"TRIAL_QUOTA_UNAVAILABLE\"")
+                .contains("The trial scan quota is temporarily unavailable. Please try again shortly.")
+                .doesNotContainIgnoringCase("simulated outage")
+                .doesNotContainIgnoringCase("DataAccessResourceFailureException")
+                .doesNotContain("some-credential", "/api/v1/scans");
+        assertThat(response.getHeader("Retry-After")).isNull();
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+    }
+
+    @Test
+    @DisplayName("a database failure resolving the credential on a route other than scan-create is not swallowed")
+    void databaseFailureOnOtherRoutePropagates() {
+        DeviceService deviceService = mock(DeviceService.class);
+        CannotCreateTransactionException failure = new CannotCreateTransactionException("simulated outage");
+        when(deviceService.authenticate("some-credential")).thenThrow(failure);
+        DeviceAuthenticationFilter filter = new DeviceAuthenticationFilter(deviceService);
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/scans/some-id");
+        request.addHeader("Authorization", "Device some-credential");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> filter.doFilter(request, response, mock(FilterChain.class)))
+                .isSameAs(failure);
+    }
+
+    @Test
+    @DisplayName("the 503 body never leaks any header name hinting at rate limiting or a retry time")
+    void databaseFailureResponseCarriesNoHintingHeaders() throws Exception {
+        DeviceService deviceService = mock(DeviceService.class);
+        when(deviceService.authenticate(eq("some-credential")))
+                .thenThrow(new DataAccessResourceFailureException("simulated outage"));
+        DeviceAuthenticationFilter filter = new DeviceAuthenticationFilter(deviceService);
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/scans");
+        request.addHeader("Authorization", "Device some-credential");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(request, response, mock(FilterChain.class));
+
+        assertThat(response.getHeaderNames())
+                .noneMatch(name -> name.toLowerCase(Locale.ROOT).contains("retry")
+                        || name.toLowerCase(Locale.ROOT).contains("ratelimit"));
     }
 }

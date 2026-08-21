@@ -10,8 +10,9 @@ import com.lyanhkhoa.linksentry.common.ratelimit.RateLimitProperties;
 import com.lyanhkhoa.linksentry.common.ratelimit.RouteClassifier;
 import com.lyanhkhoa.linksentry.common.trial.AnonymousTrialFilter;
 import com.lyanhkhoa.linksentry.common.trial.AnonymousTrialProperties;
-import com.lyanhkhoa.linksentry.common.trial.AnonymousTrialStore;
+import com.lyanhkhoa.linksentry.common.trial.persistence.DeviceTrialQuotaService;
 import com.lyanhkhoa.linksentry.license.application.DeviceService;
+import java.time.Clock;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -93,7 +94,8 @@ class SecurityConfig {
             AdminAuthService adminAuthService,
             DeviceService deviceService,
             AnonymousTrialProperties anonymousTrialProperties,
-            AnonymousTrialStore anonymousTrialStore)
+            DeviceTrialQuotaService deviceTrialQuotaService,
+            Clock clock)
             throws Exception {
         RateLimitFilter rateLimitFilter =
                 new RateLimitFilter(rateLimitProperties, rateLimitRouteClassifier, rateLimitBucketStore);
@@ -102,7 +104,7 @@ class SecurityConfig {
                 new AdminSessionAuthenticationFilter(adminAuthService);
         DeviceAuthenticationFilter deviceAuthenticationFilter = new DeviceAuthenticationFilter(deviceService);
         AnonymousTrialFilter anonymousTrialFilter =
-                new AnonymousTrialFilter(anonymousTrialProperties, anonymousTrialStore);
+                new AnonymousTrialFilter(anonymousTrialProperties, deviceTrialQuotaService, clock);
         return http.cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .csrf(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)

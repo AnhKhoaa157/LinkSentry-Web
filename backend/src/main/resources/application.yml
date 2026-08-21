@@ -138,18 +138,15 @@ linksentry:
       max-entries: ${RATE_LIMIT_STORE_MAX_ENTRIES:10000}
       idle-expiration: ${RATE_LIMIT_STORE_IDLE_EXPIRATION:10m}
   anonymous-trial:
-    # Rolling-window trial quota for POST /api/v1/scans from a device that is not
-    # currently licensed, keyed only by remote address — independent of
+    # Persistent, device-scoped rolling-window trial quota for POST /api/v1/scans
+    # from a device that is not currently licensed (ADR 0010), independent of
     # linksentry.ratelimit's general anti-abuse control, which still applies on
-    # top of this. See common.trial and docs/SECURITY_BOUNDARY.md.
+    # top of this. Quota state is PostgreSQL-persisted by device_id; there is no
+    # in-memory identity store left to bound. See common.trial,
+    # common.trial.persistence, and docs/SECURITY_BOUNDARY.md.
     enabled: ${ANONYMOUS_TRIAL_ENABLED:true}
     max-scans: ${ANONYMOUS_TRIAL_MAX_SCANS:3}
     window: ${ANONYMOUS_TRIAL_WINDOW:24h}
-    store:
-      # Same bounded-store shape as linksentry.ratelimit.store, applied to the
-      # trial guard's own identity map.
-      max-entries: ${ANONYMOUS_TRIAL_STORE_MAX_ENTRIES:10000}
-      idle-expiration: ${ANONYMOUS_TRIAL_STORE_IDLE_EXPIRATION:24h}
   ai-explanation:
     # Optional, disabled-by-default AI explanation for a licensed device's own
     # retained scan (POST /api/v1/scans/{scanId}/explanation). AI is advisory
