@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Configuration;
 /**
  * Binds {@link AiExplanationProperties} through the real Spring Boot
  * relaxed-binding pipeline (no application context beyond the properties bean, no
- * Docker, no real Anthropic credential) so a deployment that turns the feature on
+ * Docker, no real DeepSeek credential) so a deployment that turns the feature on
  * without finishing configuration fails application startup with a clear error
  * instead of failing on the first request.
  */
@@ -37,7 +37,7 @@ class AiExplanationPropertiesTest {
     void disabledWithBlankValuesBindsSuccessfully() {
         contextRunner
                 .withPropertyValues(
-                        PREFIX + "enabled=false", PREFIX + "anthropic.api-key=", PREFIX + "anthropic.model=")
+                        PREFIX + "enabled=false", PREFIX + "deepseek.api-key=", PREFIX + "deepseek.model=")
                 .run(context -> assertThat(context).hasNotFailed());
     }
 
@@ -47,23 +47,23 @@ class AiExplanationPropertiesTest {
         contextRunner
                 .withPropertyValues(
                         PREFIX + "enabled=true",
-                        PREFIX + "anthropic.api-key=sk-ant-test-key",
-                        PREFIX + "anthropic.model=claude-haiku-4-5")
+                        PREFIX + "deepseek.api-key=sk-deepseek-test-key",
+                        PREFIX + "deepseek.model=deepseek-test-model")
                 .run(context -> {
                     assertThat(context).hasNotFailed();
                     AiExplanationProperties properties = context.getBean(AiExplanationProperties.class);
-                    assertThat(properties.anthropic().apiKey()).isEqualTo("sk-ant-test-key");
-                    assertThat(properties.anthropic().model()).isEqualTo("claude-haiku-4-5");
+                    assertThat(properties.deepseek().apiKey()).isEqualTo("sk-deepseek-test-key");
+                    assertThat(properties.deepseek().model()).isEqualTo("deepseek-test-model");
                 });
     }
 
     @Test
-    @DisplayName("enabled with no anthropic block at all fails application startup")
-    void enabledWithNoAnthropicBlockFailsBinding() {
+    @DisplayName("enabled with no deepseek block at all fails application startup")
+    void enabledWithNoDeepSeekBlockFailsBinding() {
         contextRunner.withPropertyValues(PREFIX + "enabled=true").run(context -> {
             assertThat(context).hasFailed();
             assertThat(context.getStartupFailure())
-                    .hasStackTraceContaining("linksentry.ai-explanation.anthropic.api-key is required");
+                    .hasStackTraceContaining("linksentry.ai-explanation.deepseek.api-key is required");
         });
     }
 
@@ -72,11 +72,13 @@ class AiExplanationPropertiesTest {
     void enabledWithBlankApiKeyFailsBinding() {
         contextRunner
                 .withPropertyValues(
-                        PREFIX + "enabled=true", PREFIX + "anthropic.api-key=", PREFIX + "anthropic.model=claude-haiku-4-5")
+                        PREFIX + "enabled=true",
+                        PREFIX + "deepseek.api-key=",
+                        PREFIX + "deepseek.model=deepseek-test-model")
                 .run(context -> {
                     assertThat(context).hasFailed();
                     assertThat(context.getStartupFailure())
-                            .hasStackTraceContaining("linksentry.ai-explanation.anthropic.api-key is required");
+                            .hasStackTraceContaining("linksentry.ai-explanation.deepseek.api-key is required");
                 });
     }
 
@@ -85,11 +87,13 @@ class AiExplanationPropertiesTest {
     void enabledWithBlankModelFailsBinding() {
         contextRunner
                 .withPropertyValues(
-                        PREFIX + "enabled=true", PREFIX + "anthropic.api-key=sk-ant-test-key", PREFIX + "anthropic.model=")
+                        PREFIX + "enabled=true",
+                        PREFIX + "deepseek.api-key=sk-deepseek-test-key",
+                        PREFIX + "deepseek.model=")
                 .run(context -> {
                     assertThat(context).hasFailed();
                     assertThat(context.getStartupFailure())
-                            .hasStackTraceContaining("linksentry.ai-explanation.anthropic.model is required");
+                            .hasStackTraceContaining("linksentry.ai-explanation.deepseek.model is required");
                 });
     }
 

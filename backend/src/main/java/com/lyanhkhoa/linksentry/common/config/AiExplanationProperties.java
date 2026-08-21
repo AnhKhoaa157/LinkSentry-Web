@@ -6,32 +6,34 @@ import org.springframework.validation.annotation.Validated;
 /**
  * Optional AI-explanation feature, bound from {@code linksentry.ai-explanation.*}.
  *
- * <p>Disabled by default. {@code anthropic.apiKey} and {@code anthropic.model} may
+ * <p>Disabled by default. {@code deepseek.apiKey} and {@code deepseek.model} may
  * be blank while {@code enabled} is {@code false} — nothing reads them in that
  * state — but the moment {@code enabled} is {@code true} both become mandatory, so
  * a deployment that turns the feature on without finishing configuration fails
- * fast at startup instead of returning a vague failure on the first request. See
- * {@code explanation.provider.AnthropicExplanationProvider} and
- * {@code docs/adr/0005-anthropic-scan-explanation-integration.md}.
+ * fast at startup instead of returning a vague failure on the first request.
+ * {@code model} has no hard-coded default: a deployment must name a real DeepSeek
+ * model id explicitly. See
+ * {@code explanation.provider.DeepSeekExplanationProvider} and
+ * {@code docs/adr/0005-deepseek-scan-explanation-integration.md}.
  *
- * @param enabled   turns the feature on or off entirely; endpoint and UI both
- *                  respect this
- * @param anthropic provider credentials and model selection; never client-supplied
+ * @param enabled  turns the feature on or off entirely; endpoint and UI both
+ *                 respect this
+ * @param deepseek provider credentials and model selection; never client-supplied
  */
 @Validated
 @ConfigurationProperties(prefix = "linksentry.ai-explanation")
-public record AiExplanationProperties(boolean enabled, Anthropic anthropic) {
+public record AiExplanationProperties(boolean enabled, DeepSeek deepseek) {
 
     public AiExplanationProperties {
         if (enabled) {
-            if (anthropic == null || isBlank(anthropic.apiKey())) {
+            if (deepseek == null || isBlank(deepseek.apiKey())) {
                 throw new IllegalArgumentException(
-                        "linksentry.ai-explanation.anthropic.api-key is required when "
+                        "linksentry.ai-explanation.deepseek.api-key is required when "
                                 + "linksentry.ai-explanation.enabled is true");
             }
-            if (isBlank(anthropic.model())) {
+            if (isBlank(deepseek.model())) {
                 throw new IllegalArgumentException(
-                        "linksentry.ai-explanation.anthropic.model is required when "
+                        "linksentry.ai-explanation.deepseek.model is required when "
                                 + "linksentry.ai-explanation.enabled is true");
             }
         }
@@ -43,7 +45,8 @@ public record AiExplanationProperties(boolean enabled, Anthropic anthropic) {
 
     /**
      * @param apiKey secret credential; never logged, returned, or persisted
-     * @param model  server-selected model id; never client-controlled
+     * @param model  server-selected model id; never client-controlled, no
+     *               hard-coded default
      */
-    public record Anthropic(String apiKey, String model) {}
+    public record DeepSeek(String apiKey, String model) {}
 }

@@ -116,7 +116,7 @@ linksentry:
       capacity: ${RATE_LIMIT_DEVICE_CAPACITY:5}
       refill-per-minute: ${RATE_LIMIT_DEVICE_REFILL_PER_MINUTE:5}
     explanation:
-      # The costliest route: each request pays for an outbound Anthropic call.
+      # The costliest route: each request pays for an outbound DeepSeek call.
       # Deliberately the strictest bucket.
       capacity: ${RATE_LIMIT_EXPLANATION_CAPACITY:5}
       refill-per-minute: ${RATE_LIMIT_EXPLANATION_REFILL_PER_MINUTE:2}
@@ -152,13 +152,14 @@ linksentry:
     # retained scan (POST /api/v1/scans/{scanId}/explanation). AI is advisory
     # only — it never decides score, risk level, findings, persistence, or
     # access control. See explanation.* and
-    # docs/adr/0005-anthropic-scan-explanation-integration.md.
+    # docs/adr/0005-deepseek-scan-explanation-integration.md.
     enabled: ${AI_EXPLANATIONS_ENABLED:false}
-    anthropic:
+    deepseek:
       # Secret. Never set a real value here — only through the environment.
-      api-key: ${ANTHROPIC_API_KEY:}
-      # Never client-controlled; selected only by this configuration.
-      model: ${ANTHROPIC_MODEL:}
+      api-key: ${DEEPSEEK_API_KEY:}
+      # Never client-controlled; selected only by this configuration. No
+      # hard-coded default — a deployment must name a real DeepSeek model id.
+      model: ${DEEPSEEK_MODEL:}
   rules:
     # Tunable thresholds and word lists for analysis.rules. Changing these is a
     # scoring-policy decision, not a code change.
