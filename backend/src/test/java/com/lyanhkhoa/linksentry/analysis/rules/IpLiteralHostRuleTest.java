@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.lyanhkhoa.linksentry.analysis.domain.DomainFeatures;
 import com.lyanhkhoa.linksentry.analysis.domain.NormalizedUrl;
+import com.lyanhkhoa.linksentry.analysis.normalization.IpAddressScope;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -13,20 +14,29 @@ class IpLiteralHostRuleTest {
     private final IpLiteralHostRule rule = new IpLiteralHostRule();
 
     @Test
-    @DisplayName("an IPv4 literal host produces a finding")
+    @DisplayName("a public IPv4 literal host produces a finding")
     void ipv4LiteralProducesFinding() {
-        NormalizedUrl url = urlWithHost("203.0.113.5", null, true);
+        NormalizedUrl url = urlWithHost("8.8.8.8", null, true);
 
         assertThat(rule.analyze(url)).isPresent();
         assertThat(rule.analyze(url).get().ruleId()).isEqualTo(IpLiteralHostRule.RULE_ID);
+        assertThat(rule.analyze(url).get().evidence()).isEqualTo(IpAddressScope.PUBLIC.evidence());
     }
 
     @Test
-    @DisplayName("an IPv6 literal host produces a finding")
+    @DisplayName("a public IPv6 literal host produces a finding")
     void ipv6LiteralProducesFinding() {
-        NormalizedUrl url = urlWithHost("[2001:db8::1]", null, true);
+        NormalizedUrl url = urlWithHost("[2606:4700:4700::1111]", null, true);
 
         assertThat(rule.analyze(url)).isPresent();
+    }
+
+    @Test
+    @DisplayName("a special-use literal is left for SPECIAL_USE_OR_PRIVATE_HOST")
+    void specialUseLiteralProducesNoFinding() {
+        NormalizedUrl url = urlWithHost("203.0.113.5", null, true);
+
+        assertThat(rule.analyze(url)).isEmpty();
     }
 
     @Test

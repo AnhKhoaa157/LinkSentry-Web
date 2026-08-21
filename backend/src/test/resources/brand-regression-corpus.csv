@@ -66,7 +66,7 @@ multibrand-two-lookalikes-picks-first|multi-brand|https://vietcomban.techcomban.
 distant-spelling|false-positive-guard|https://vcombk.lookalike-check.xyz/|false||0|LOW||
 generic-word|false-positive-guard|https://creditunion.lookalike-check.xyz/|false||0|LOW||
 unrelated-host|false-positive-guard|https://example.com/|false||0|LOW||
-ip-literal|false-positive-guard|https://203.0.113.9/vietcombank|false|IP_LITERAL_HOST|15|MODERATE||
+ip-literal|false-positive-guard|https://203.0.113.9/vietcombank|false|SPECIAL_USE_OR_PRIVATE_HOST|15|MODERATE||Host scope: documentation address
 null-registrable-domain|false-positive-guard|https://vietcombank.example/|false||0|LOW||
 brand-like-substring|false-positive-guard|https://myvietcombankreviews.xyz/|false||0|LOW||
 credential-rejected|redaction|https://user:SECRET_CRED_1@vietcombank.evil-cred-check.xyz/|true||||SECRET_CRED_1|
