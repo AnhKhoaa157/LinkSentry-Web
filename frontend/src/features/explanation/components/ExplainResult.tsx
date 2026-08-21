@@ -1,6 +1,9 @@
 import { useState } from 'react';
 
+import { Badge } from '@/components/ui/Badge';
 import { postExplanation } from '@/features/explanation/api/postExplanation';
+import type { ExplanationData } from '@/features/explanation/schemas/explanationResponse';
+import type { RiskLevel, Severity } from '@/features/scanner/schemas/scanResponse';
 import { normalizeApiError, type NormalizedApiError } from '@/lib/api/errors';
 
 interface Props {
@@ -14,21 +17,41 @@ interface Props {
 
 type Status = 'idle' | 'loading' | 'success' | 'error';
 
+const RISK_TONE: Record<RiskLevel, 'low' | 'moderate' | 'high' | 'critical'> = {
+  LOW: 'low',
+  MODERATE: 'moderate',
+  HIGH: 'high',
+  CRITICAL: 'critical',
+};
+
+const SEVERITY_TONE: Record<Severity, 'low' | 'moderate' | 'high' | 'critical'> = {
+  INFO: 'low',
+  LOW: 'low',
+  MEDIUM: 'moderate',
+  HIGH: 'high',
+};
+
+function riskBadgeLabel(riskLevel: RiskLevel): string {
+  return `${riskLevel} LEXICAL RISK`;
+}
+
 /**
  * "Explain this result" — an optional, advisory AI explanation of one owned,
  * retained scan result.
  *
- * <p>AI is advisory only: the backend already computed the score, risk level,
- * and findings before this control ever renders, and this request cannot
- * change any of them. The explanation is rendered as inert plain text via a
- * `<p>` text node only — never `dangerouslySetInnerHTML`, never parsed as
- * Markdown or HTML, and never turned into a link — because model output is not
- * trusted content, the same rule the redacted scan URL already follows. See
- * `docs/SECURITY_BOUNDARY.md` and `docs/adr/0005-deepseek-scan-explanation-integration.md`.
+ * <p>The backend, not the AI, owns `riskLevel` and `keyFindings`: both are
+ * assembled deterministically from the already-computed scan result before
+ * this control ever renders, and this request cannot change either. Only
+ * `summary` and `recommendedActions` are AI-produced, and every AI-produced
+ * value is rendered as inert plain text through ordinary React text nodes —
+ * never `dangerouslySetInnerHTML`, never parsed as Markdown or HTML, and never
+ * turned into a link — because model output is not trusted content, the same
+ * rule the redacted scan URL already follows. See `docs/SECURITY_BOUNDARY.md`
+ * and `docs/adr/0005-deepseek-scan-explanation-integration.md`.
  */
 export function ExplainResult({ scanId }: Props) {
   const [status, setStatus] = useState<Status>('idle');
-  const [explanation, setExplanation] = useState<string | null>(null);
+  const [data, setData] = useState<ExplanationData | null>(null);
   const [error, setError] = useState<NormalizedApiError | null>(null);
 
   if (scanId === null) {
@@ -45,7 +68,7 @@ export function ExplainResult({ scanId }: Props) {
     setError(null);
     void postExplanation(ownedScanId)
       .then((response) => {
-        setExplanation(response.data.explanation);
+        setData(response.data);
         setStatus('success');
       })
       .catch((caught: unknown) => {
@@ -87,12 +110,55 @@ export function ExplainResult({ scanId }: Props) {
         </div>
       ) : null}
 
-      {status === 'success' && explanation !== null ? (
-        <div aria-live="polite">
-          <p className="text-ink-500 text-xs font-medium tracking-wide uppercase">
-            AI explanation (advisory)
+      {status === 'success' && data ? (
+        <div aria-live="polite" className="space-y-4">
+          <Badge tone={RISK_TONE[data.riskLevel]}>{riskBadgeLabel(data.riskLevel)}</Badge>
+
+          <section>
+            <h3 className="text-ink-100 text-sm font-semibold">What LinkSentry detected</h3>
+            {data.keyFindings.length === 0 ? (
+              <p className="text-ink-300 mt-2 text-sm">
+                No lexical signals were detected by the current rules. This does not mean the link is safe.
+              </p>
+            ) : (
+              <ul className="mt-2 space-y-2">
+                {data.keyFindings.map((finding, index) => (
+                  <li
+                    key={`${finding.title}-${index}`}
+                    className="border-ink-800 bg-ink-950/40 rounded-lg border p-3"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <h4 className="text-ink-100 text-sm font-medium">{finding.title}</h4>
+                      <div className="flex items-center gap-2">
+                        <Badge tone={SEVERITY_TONE[finding.severity]}>{finding.severity}</Badge>
+                        <span className="text-ink-500 font-mono text-xs">+{finding.points}</span>
+                      </div>
+                    </div>
+                    <p className="text-ink-300 mt-1 text-sm">{finding.explanation}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section>
+            <p className="text-ink-500 text-xs font-medium tracking-wide uppercase">AI context (advisory)</p>
+            <p className="text-ink-100 mt-1 text-sm">{data.summary}</p>
+          </section>
+
+          <section>
+            <h3 className="text-ink-100 text-sm font-semibold">What to do</h3>
+            <ul className="text-ink-300 mt-2 list-disc space-y-1 pl-5 text-sm">
+              {data.recommendedActions.map((action, index) => (
+                <li key={index}>{action}</li>
+              ))}
+            </ul>
+          </section>
+
+          <p className="text-ink-500 text-xs">
+            This context is based on lexical signals only. LinkSentry never visits the link, so it is
+            advisory, not a verdict.
           </p>
-          <p className="text-ink-100 mt-1 text-sm">{explanation}</p>
         </div>
       ) : null}
     </div>

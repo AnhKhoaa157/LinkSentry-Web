@@ -1,6 +1,7 @@
 package com.lyanhkhoa.linksentry.explanation.api;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -12,12 +13,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.lyanhkhoa.linksentry.admin.domain.AdminIdentity;
+import com.lyanhkhoa.linksentry.analysis.domain.RiskLevel;
+import com.lyanhkhoa.linksentry.analysis.domain.Severity;
 import com.lyanhkhoa.linksentry.common.exception.GlobalExceptionHandler;
 import com.lyanhkhoa.linksentry.explanation.application.ExplanationService;
 import com.lyanhkhoa.linksentry.explanation.application.ExplanationUnavailableException;
+import com.lyanhkhoa.linksentry.explanation.domain.ExplanationResult;
+import com.lyanhkhoa.linksentry.explanation.domain.KeyFinding;
 import com.lyanhkhoa.linksentry.history.application.ScanNotFoundException;
 import com.lyanhkhoa.linksentry.license.security.LicensedDeviceContext;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -58,13 +64,29 @@ class ExplanationControllerTest {
     private ExplanationService explanationService;
 
     @Test
-    @DisplayName("a licensed device receives the generated explanation, addressed by its own license ID")
+    @DisplayName("a licensed device receives the structured explanation, addressed by its own license ID")
     void licensedDeviceReceivesExplanation() throws Exception {
-        given(explanationService.explain(anyString(), any(UUID.class)))
-                .willReturn("This link shows several risk signals worth a second look.");
+        ExplanationResult result = new ExplanationResult(
+                RiskLevel.HIGH,
+                List.of(new KeyFinding("Hostname names a brand it is not registered to", "Generic explanation.", Severity.HIGH, 30)),
+                "This link shows several risk signals worth a second look.",
+                List.of("Verify the sender.", "Avoid entering credentials."));
+        given(explanationService.explain(anyString(), any(UUID.class))).willReturn(result);
 
         mockMvc.perform(post("/api/v1/scans/{scanId}/explanation", SCAN_ID).principal(authenticationOf(LICENSE_ID)))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.riskLevel").value("HIGH"))
+                .andExpect(jsonPath("$.data.keyFindings", hasSize(1)))
+                .andExpect(jsonPath("$.data.keyFindings[0].title")
+                        .value("Hostname names a brand it is not registered to"))
+                .andExpect(jsonPath("$.data.keyFindings[0].severity").value("HIGH"))
+                .andExpect(jsonPath("$.data.keyFindings[0].points").value(30))
+                .andExpect(jsonPath("$.data.summary")
+                        .value("This link shows several risk signals worth a second look."))
+                .andExpect(jsonPath("$.data.recommendedActions", hasSize(2)))
+                .andExpect(jsonPath("$.data.recommendedActions[0]").value("Verify the sender."))
+                // Deprecated legacy field, kept additively for pre-M8 v1 consumers: always
+                // exactly equal to `summary`, never a second independent value.
                 .andExpect(jsonPath("$.data.explanation")
                         .value("This link shows several risk signals worth a second look."));
     }

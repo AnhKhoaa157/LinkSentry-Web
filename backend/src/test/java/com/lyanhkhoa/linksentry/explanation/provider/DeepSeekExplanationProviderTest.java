@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lyanhkhoa.linksentry.analysis.domain.RiskLevel;
 import com.lyanhkhoa.linksentry.analysis.domain.Severity;
 import com.lyanhkhoa.linksentry.common.config.AiExplanationProperties;
+import com.lyanhkhoa.linksentry.explanation.domain.AiAdvisory;
 import com.lyanhkhoa.linksentry.explanation.domain.ExplanationProviderException;
 import com.lyanhkhoa.linksentry.explanation.domain.ScanSummary;
 import com.sun.net.httpserver.HttpExchange;
@@ -34,10 +35,11 @@ import org.junit.jupiter.api.Test;
  * Authorization} header, and the exact request payload can be asserted against
  * the real {@link DeepSeekExplanationProvider#explain(ScanSummary)}, and so every
  * documented failure mode (timeout, non-2xx, malformed body, empty body,
- * oversized body) can be produced deterministically. The package-private test
- * constructor injects an {@link HttpClient}, the mock server's own {@link URI},
- * and (for the timeout test only) a short request timeout, instead of DeepSeek's
- * real fixed endpoint and 20-second production timeout.
+ * oversized body, invalid structured output) can be produced deterministically.
+ * The package-private test constructor injects an {@link HttpClient}, the mock
+ * server's own {@link URI}, and (for the timeout test only) a short request
+ * timeout, instead of DeepSeek's real fixed endpoint and 20-second production
+ * timeout.
  */
 class DeepSeekExplanationProviderTest {
 
@@ -58,24 +60,36 @@ class DeepSeekExplanationProviderTest {
         server.stop(0);
     }
 
+    private static String choiceResponse(String content) {
+        return "{\"choices\":[{\"message\":{\"content\":" + jsonString(content) + "}}]}";
+    }
+
+    private static String jsonString(String raw) {
+        return "\"" + raw.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
+    }
+
     @Test
-    @DisplayName("a successful call sends the documented endpoint, Bearer header, and payload, and returns the text")
-    void successfulCallSendsExpectedRequestAndReturnsText() throws IOException {
+    @DisplayName("a successful call sends the documented endpoint, Bearer header, and payload, and returns the parsed advisory")
+    void successfulCallSendsExpectedRequestAndReturnsAdvisory() throws IOException {
         AtomicReference<String> capturedPath = new AtomicReference<>();
         AtomicReference<String> capturedAuth = new AtomicReference<>();
         AtomicReference<String> capturedBody = new AtomicReference<>();
+        String structuredContent = "{\"summary\":\"This link shows several risk signals.\","
+                + "\"recommendedActions\":[\"Verify the sender.\",\"Avoid entering credentials.\"]}";
         server.createContext("/chat/completions", exchange -> {
             capturedPath.set(exchange.getRequestURI().getPath());
             capturedAuth.set(exchange.getRequestHeaders().getFirst("Authorization"));
             capturedBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
-            respond(exchange, 200, "{\"choices\":[{\"message\":{\"content\":\"This link shows several risk signals.\"}}]}");
+            respond(exchange, 200, choiceResponse(structuredContent));
         });
         server.start();
         DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
 
-        String result = provider.explain(sampleSummary());
+        AiAdvisory result = provider.explain(sampleSummary());
 
-        assertThat(result).isEqualTo("This link shows several risk signals.");
+        assertThat(result.summary()).isEqualTo("This link shows several risk signals.");
+        assertThat(result.recommendedActions())
+                .containsExactly("Verify the sender.", "Avoid entering credentials.");
         assertThat(capturedPath.get()).isEqualTo("/chat/completions");
         assertThat(capturedAuth.get()).isEqualTo("Bearer test-key");
 
@@ -85,6 +99,8 @@ class DeepSeekExplanationProviderTest {
         assertThat(body.has("max_tokens")).isTrue();
         assertThat(body.has("thinking")).isTrue();
         assertThat(body.get("thinking").get("type").asText()).isEqualTo("disabled");
+        assertThat(body.has("response_format")).isTrue();
+        assertThat(body.get("response_format").get("type").asText()).isEqualTo("json_object");
         assertThat(body.get("messages")).hasSize(2);
         assertThat(body.get("messages").get(0).get("role").asText()).isEqualTo("system");
         assertThat(body.get("messages").get(1).get("role").asText()).isEqualTo("user");
@@ -100,7 +116,23 @@ class DeepSeekExplanationProviderTest {
         // Only the allowed keys are present in the request payload — no forbidden field slipped in.
         List<String> fieldNames = new ArrayList<>();
         body.fieldNames().forEachRemaining(fieldNames::add);
-        assertThat(fieldNames).containsExactlyInAnyOrder("model", "messages", "stream", "max_tokens", "thinking");
+        assertThat(fieldNames)
+                .containsExactlyInAnyOrder("model", "messages", "stream", "max_tokens", "thinking", "response_format");
+    }
+
+    @Test
+    @DisplayName("a single recommended action is accepted (the lower bound of 1-2)")
+    void singleRecommendedActionIsAccepted() throws IOException {
+        String structuredContent = "{\"summary\":\"Some risk signals were detected.\","
+                + "\"recommendedActions\":[\"Verify before trusting this link.\"]}";
+        server.createContext(
+                "/chat/completions", exchange -> respond(exchange, 200, choiceResponse(structuredContent)));
+        server.start();
+        DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
+
+        AiAdvisory result = provider.explain(sampleSummary());
+
+        assertThat(result.recommendedActions()).containsExactly("Verify before trusting this link.");
     }
 
     @Test
@@ -150,12 +182,220 @@ class DeepSeekExplanationProviderTest {
     }
 
     @Test
-    @DisplayName("a response exceeding the 1,000-character cap is a safe unavailable error, not a silent truncation")
-    void oversizedResponseIsSafeProviderError() throws IOException {
-        String longText = "a".repeat(1_001);
+    @DisplayName("raw message content exceeding the length cap is a safe unavailable error, not a silent truncation")
+    void oversizedRawContentIsSafeProviderError() throws IOException {
+        String longText = "a".repeat(2_001);
         server.createContext(
                 "/chat/completions",
                 exchange -> respond(exchange, 200, "{\"choices\":[{\"message\":{\"content\":\"" + longText + "\"}}]}"));
+        server.start();
+        DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
+
+        assertThatThrownBy(() -> provider.explain(sampleSummary())).isInstanceOf(ExplanationProviderException.class);
+    }
+
+    @Test
+    @DisplayName("message content that is not JSON at all is a safe unavailable error")
+    void nonJsonStructuredContentIsSafeProviderError() throws IOException {
+        server.createContext(
+                "/chat/completions", exchange -> respond(exchange, 200, choiceResponse("not a json object")));
+        server.start();
+        DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
+
+        assertThatThrownBy(() -> provider.explain(sampleSummary())).isInstanceOf(ExplanationProviderException.class);
+    }
+
+    @Test
+    @DisplayName("structured output missing the summary key is a safe unavailable error")
+    void missingSummaryIsSafeProviderError() throws IOException {
+        server.createContext(
+                "/chat/completions",
+                exchange -> respond(exchange, 200, choiceResponse("{\"recommendedActions\":[\"Verify the link.\"]}")));
+        server.start();
+        DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
+
+        assertThatThrownBy(() -> provider.explain(sampleSummary())).isInstanceOf(ExplanationProviderException.class);
+    }
+
+    @Test
+    @DisplayName("structured output missing the recommendedActions key entirely is a safe unavailable error")
+    void missingRecommendedActionsKeyIsSafeProviderError() throws IOException {
+        server.createContext(
+                "/chat/completions",
+                exchange -> respond(exchange, 200, choiceResponse("{\"summary\":\"Some risk signals.\"}")));
+        server.start();
+        DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
+
+        assertThatThrownBy(() -> provider.explain(sampleSummary())).isInstanceOf(ExplanationProviderException.class);
+    }
+
+    @Test
+    @DisplayName("structured output with an extra, unrecognized top-level key is a safe unavailable error")
+    void extraTopLevelKeyIsSafeProviderError() throws IOException {
+        String content = "{\"summary\":\"Some risk signals.\",\"recommendedActions\":[\"Verify the link.\"],"
+                + "\"riskLevel\":\"CRITICAL\"}";
+        server.createContext("/chat/completions", exchange -> respond(exchange, 200, choiceResponse(content)));
+        server.start();
+        DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
+
+        assertThatThrownBy(() -> provider.explain(sampleSummary())).isInstanceOf(ExplanationProviderException.class);
+    }
+
+    @Test
+    @DisplayName("structured output with an unrecognized key instead of a required one is a safe unavailable error")
+    void unrecognizedKeyInPlaceOfRequiredKeyIsSafeProviderError() throws IOException {
+        String content = "{\"summary\":\"Some risk signals.\",\"actions\":[\"Verify the link.\"]}";
+        server.createContext("/chat/completions", exchange -> respond(exchange, 200, choiceResponse(content)));
+        server.start();
+        DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
+
+        assertThatThrownBy(() -> provider.explain(sampleSummary())).isInstanceOf(ExplanationProviderException.class);
+    }
+
+    @Test
+    @DisplayName("structured output with a repeated top-level key is a safe unavailable error, not last-value-wins")
+    void duplicateTopLevelKeyIsSafeProviderError() throws IOException {
+        // A tree-based JSON reader (Jackson's ObjectNode) silently collapses a
+        // repeated key to its last value; this is exactly the ambiguity
+        // validateExactTopLevelKeys exists to reject rather than resolve.
+        String content = "{\"summary\":\"First summary.\",\"summary\":\"Second summary.\","
+                + "\"recommendedActions\":[\"Verify the link.\"]}";
+        server.createContext("/chat/completions", exchange -> respond(exchange, 200, choiceResponse(content)));
+        server.start();
+        DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
+
+        assertThatThrownBy(() -> provider.explain(sampleSummary())).isInstanceOf(ExplanationProviderException.class);
+    }
+
+    @Test
+    @DisplayName("structured output with a duplicated recommendedActions key is a safe unavailable error")
+    void duplicateRecommendedActionsKeyIsSafeProviderError() throws IOException {
+        String content = "{\"summary\":\"Some risk signals.\",\"recommendedActions\":[\"One.\"],"
+                + "\"recommendedActions\":[\"Two.\"]}";
+        server.createContext("/chat/completions", exchange -> respond(exchange, 200, choiceResponse(content)));
+        server.start();
+        DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
+
+        assertThatThrownBy(() -> provider.explain(sampleSummary())).isInstanceOf(ExplanationProviderException.class);
+    }
+
+    @Test
+    @DisplayName("structured output that is a JSON array, not an object, is a safe unavailable error")
+    void topLevelArrayIsSafeProviderError() throws IOException {
+        String content = "[\"summary\",\"recommendedActions\"]";
+        server.createContext("/chat/completions", exchange -> respond(exchange, 200, choiceResponse(content)));
+        server.start();
+        DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
+
+        assertThatThrownBy(() -> provider.explain(sampleSummary())).isInstanceOf(ExplanationProviderException.class);
+    }
+
+    @Test
+    @DisplayName("structured output with trailing content after the closing brace is a safe unavailable error")
+    void trailingContentAfterObjectIsSafeProviderError() throws IOException {
+        String content =
+                "{\"summary\":\"Some risk signals.\",\"recommendedActions\":[\"Verify the link.\"]} extra";
+        server.createContext("/chat/completions", exchange -> respond(exchange, 200, choiceResponse(content)));
+        server.start();
+        DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
+
+        assertThatThrownBy(() -> provider.explain(sampleSummary())).isInstanceOf(ExplanationProviderException.class);
+    }
+
+    @Test
+    @DisplayName("structured output with exactly the two allowed keys, in either order, is accepted")
+    void exactlyAllowedKeysInEitherOrderIsAccepted() throws IOException {
+        String content = "{\"recommendedActions\":[\"Verify the link.\"],\"summary\":\"Some risk signals.\"}";
+        server.createContext("/chat/completions", exchange -> respond(exchange, 200, choiceResponse(content)));
+        server.start();
+        DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
+
+        AiAdvisory result = provider.explain(sampleSummary());
+
+        assertThat(result.summary()).isEqualTo("Some risk signals.");
+        assertThat(result.recommendedActions()).containsExactly("Verify the link.");
+    }
+
+    @Test
+    @DisplayName("structured output with a blank summary is a safe unavailable error")
+    void blankSummaryIsSafeProviderError() throws IOException {
+        server.createContext(
+                "/chat/completions",
+                exchange -> respond(
+                        exchange,
+                        200,
+                        choiceResponse("{\"summary\":\"   \",\"recommendedActions\":[\"Verify the link.\"]}")));
+        server.start();
+        DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
+
+        assertThatThrownBy(() -> provider.explain(sampleSummary())).isInstanceOf(ExplanationProviderException.class);
+    }
+
+    @Test
+    @DisplayName("structured output with an oversized summary is a safe unavailable error")
+    void oversizedSummaryIsSafeProviderError() throws IOException {
+        String longSummary = "a".repeat(301);
+        String content = "{\"summary\":\"" + longSummary + "\",\"recommendedActions\":[\"Verify the link.\"]}";
+        server.createContext("/chat/completions", exchange -> respond(exchange, 200, choiceResponse(content)));
+        server.start();
+        DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
+
+        assertThatThrownBy(() -> provider.explain(sampleSummary())).isInstanceOf(ExplanationProviderException.class);
+    }
+
+    @Test
+    @DisplayName("structured output with zero recommended actions is a safe unavailable error")
+    void zeroRecommendedActionsIsSafeProviderError() throws IOException {
+        server.createContext(
+                "/chat/completions",
+                exchange -> respond(
+                        exchange, 200, choiceResponse("{\"summary\":\"Some risk signals.\",\"recommendedActions\":[]}")));
+        server.start();
+        DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
+
+        assertThatThrownBy(() -> provider.explain(sampleSummary())).isInstanceOf(ExplanationProviderException.class);
+    }
+
+    @Test
+    @DisplayName("structured output with more than two recommended actions is a safe unavailable error")
+    void tooManyRecommendedActionsIsSafeProviderError() throws IOException {
+        String content = "{\"summary\":\"Some risk signals.\","
+                + "\"recommendedActions\":[\"One.\",\"Two.\",\"Three.\"]}";
+        server.createContext("/chat/completions", exchange -> respond(exchange, 200, choiceResponse(content)));
+        server.start();
+        DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
+
+        assertThatThrownBy(() -> provider.explain(sampleSummary())).isInstanceOf(ExplanationProviderException.class);
+    }
+
+    @Test
+    @DisplayName("structured output with a blank recommended action is a safe unavailable error")
+    void blankRecommendedActionIsSafeProviderError() throws IOException {
+        String content = "{\"summary\":\"Some risk signals.\",\"recommendedActions\":[\"   \"]}";
+        server.createContext("/chat/completions", exchange -> respond(exchange, 200, choiceResponse(content)));
+        server.start();
+        DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
+
+        assertThatThrownBy(() -> provider.explain(sampleSummary())).isInstanceOf(ExplanationProviderException.class);
+    }
+
+    @Test
+    @DisplayName("structured output with an oversized recommended action is a safe unavailable error")
+    void oversizedRecommendedActionIsSafeProviderError() throws IOException {
+        String longAction = "a".repeat(201);
+        String content = "{\"summary\":\"Some risk signals.\",\"recommendedActions\":[\"" + longAction + "\"]}";
+        server.createContext("/chat/completions", exchange -> respond(exchange, 200, choiceResponse(content)));
+        server.start();
+        DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
+
+        assertThatThrownBy(() -> provider.explain(sampleSummary())).isInstanceOf(ExplanationProviderException.class);
+    }
+
+    @Test
+    @DisplayName("structured output with a non-array recommendedActions is a safe unavailable error")
+    void nonArrayRecommendedActionsIsSafeProviderError() throws IOException {
+        String content = "{\"summary\":\"Some risk signals.\",\"recommendedActions\":\"Verify the link.\"}";
+        server.createContext("/chat/completions", exchange -> respond(exchange, 200, choiceResponse(content)));
         server.start();
         DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
 
@@ -172,7 +412,7 @@ class DeepSeekExplanationProviderTest {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
-            respond(exchange, 200, "{\"choices\":[{\"message\":{\"content\":\"too late\"}}]}");
+            respond(exchange, 200, choiceResponse("{\"summary\":\"too late\",\"recommendedActions\":[\"n/a\"]}"));
         });
         server.start();
         DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", Duration.ofMillis(200));
@@ -220,7 +460,7 @@ class DeepSeekExplanationProviderTest {
     }
 
     @Test
-    @DisplayName("the system prompt forbids claiming safety and forbids markup or links in the reply")
+    @DisplayName("the system prompt forbids claiming safety/certainty, forbids inventing detail, and forbids markup or links")
     void systemPromptForbidsSafetyClaimsAndMarkup() {
         String lower =
                 DeepSeekExplanationProvider.SYSTEM_PROMPT.toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
@@ -229,7 +469,9 @@ class DeepSeekExplanationProviderTest {
                 .contains("never state or imply that the link is safe")
                 .contains("no signal was detected, not that nothing is wrong")
                 .contains("never invent a")
-                .contains("plain sentences only");
+                .contains("plain sentences only")
+                .contains("strict json object")
+                .contains("you do not set, restate as a decision, or override");
     }
 
     private DeepSeekExplanationProvider providerWith(String apiKey, String model, Duration requestTimeout) {

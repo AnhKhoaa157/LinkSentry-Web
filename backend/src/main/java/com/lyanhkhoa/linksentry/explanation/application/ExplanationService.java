@@ -1,8 +1,11 @@
 package com.lyanhkhoa.linksentry.explanation.application;
 
 import com.lyanhkhoa.linksentry.common.config.AiExplanationProperties;
+import com.lyanhkhoa.linksentry.explanation.domain.AiAdvisory;
 import com.lyanhkhoa.linksentry.explanation.domain.ExplanationProvider;
 import com.lyanhkhoa.linksentry.explanation.domain.ExplanationProviderException;
+import com.lyanhkhoa.linksentry.explanation.domain.ExplanationResult;
+import com.lyanhkhoa.linksentry.explanation.domain.KeyFinding;
 import com.lyanhkhoa.linksentry.explanation.domain.ScanSummary;
 import com.lyanhkhoa.linksentry.history.application.ScanHistoryService;
 import com.lyanhkhoa.linksentry.history.application.ScanIdParser;
@@ -29,6 +32,11 @@ public class ExplanationService {
 
     private static final Logger log = LoggerFactory.getLogger(ExplanationService.class);
 
+    // "Limit deterministic key findings to the most useful 3, preserving existing
+    // finding order" — the scan's existing order is already the deterministic,
+    // most-significant-first order the rule engine produces.
+    private static final int MAX_KEY_FINDINGS = 3;
+
     private final AiExplanationProperties properties;
     private final ExplanationProvider provider;
     private final ScanHistoryService historyService;
@@ -41,7 +49,14 @@ public class ExplanationService {
     }
 
     /**
-     * Produces a short, advisory explanation of one retained scan owned by the caller's license.
+     * Produces a structured, advisory explanation of one retained scan owned by the caller's license.
+     *
+     * <p>{@code riskLevel} and {@code keyFindings} come straight from the retained
+     * {@link ScanHistory}, deterministically and without AI involvement; only
+     * {@code summary} and {@code recommendedActions} come from the provider. A
+     * provider failure — disabled feature, timeout, malformed or invalid
+     * structured output — fails the whole call; there is no partial, AI-less
+     * response.
      *
      * @param rawScanId      opaque scan ID path value, as submitted
      * @param ownerLicenseId authenticated caller's license; the endpoint requires a
@@ -53,7 +68,7 @@ public class ExplanationService {
      * @throws ExplanationUnavailableException when the feature is disabled or the
      *                                          provider could not produce a result
      */
-    public String explain(String rawScanId, UUID ownerLicenseId) {
+    public ExplanationResult explain(String rawScanId, UUID ownerLicenseId) {
         if (!properties.enabled()) {
             throw new ExplanationUnavailableException();
         }
@@ -66,7 +81,9 @@ public class ExplanationService {
 
         ScanSummary summary = toSummary(history);
         try {
-            return provider.explain(summary);
+            AiAdvisory advisory = provider.explain(summary);
+            return new ExplanationResult(
+                    history.riskLevel(), toKeyFindings(history), advisory.summary(), advisory.recommendedActions());
         } catch (ExplanationProviderException exception) {
             // Never the provider's own message: it may quote request or response detail.
             log.warn("AI explanation provider could not produce a result");
@@ -84,5 +101,17 @@ public class ExplanationService {
     private static ScanSummary.FindingSummary toFindingSummary(StoredFinding finding) {
         return new ScanSummary.FindingSummary(
                 finding.ruleId(), finding.severity(), finding.points(), finding.title(), finding.explanation());
+    }
+
+    /**
+     * Deterministically assembled from the retained scan's own finding order —
+     * never from the AI provider. Caps at {@link #MAX_KEY_FINDINGS}, preserving
+     * the scan's existing order, and drops {@code ruleId} and {@code evidence}.
+     */
+    static List<KeyFinding> toKeyFindings(ScanHistory history) {
+        return history.findings().stream()
+                .limit(MAX_KEY_FINDINGS)
+                .map(finding -> new KeyFinding(finding.title(), finding.explanation(), finding.severity(), finding.points()))
+                .toList();
     }
 }

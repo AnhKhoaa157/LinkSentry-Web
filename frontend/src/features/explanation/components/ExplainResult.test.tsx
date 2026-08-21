@@ -20,6 +20,34 @@ function axiosErrorWithResponse(status: number, data: unknown) {
   });
 }
 
+function structuredResponse(overrides?: {
+  riskLevel?: string;
+  keyFindings?: unknown[];
+  summary?: string;
+  recommendedActions?: string[];
+}) {
+  return {
+    data: {
+      data: {
+        riskLevel: overrides?.riskLevel ?? 'HIGH',
+        keyFindings: overrides?.keyFindings ?? [
+          {
+            title: 'Hostname names a brand it is not registered to',
+            explanation: 'Generic rule explanation text.',
+            severity: 'HIGH',
+            points: 30,
+          },
+        ],
+        summary: overrides?.summary ?? 'This link shows several risk signals worth a second look.',
+        recommendedActions: overrides?.recommendedActions ?? [
+          'Verify the sender through an official channel.',
+          'Avoid entering credentials on this page.',
+        ],
+      },
+    },
+  };
+}
+
 describe('ExplainResult', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -49,18 +77,23 @@ describe('ExplainResult', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Generating explanation…');
   });
 
-  it('posts to the owner-scoped explanation endpoint and renders the returned text', async () => {
-    const postSpy = vi.spyOn(apiClient, 'post').mockResolvedValue({
-      data: { data: { explanation: 'This link shows several risk signals worth a second look.' } },
-    });
+  it('posts to the owner-scoped explanation endpoint and renders every section', async () => {
+    const postSpy = vi.spyOn(apiClient, 'post').mockResolvedValue(structuredResponse());
     const user = userEvent.setup();
     renderWithProviders(<ExplainResult scanId={SCAN_ID} />);
 
     await user.click(screen.getByRole('button', { name: 'Explain this result' }));
 
-    expect(
-      await screen.findByText('This link shows several risk signals worth a second look.'),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('HIGH LEXICAL RISK')).toBeInTheDocument();
+    expect(screen.getByText('What LinkSentry detected')).toBeInTheDocument();
+    expect(screen.getByText('Hostname names a brand it is not registered to')).toBeInTheDocument();
+    expect(screen.getByText('Generic rule explanation text.')).toBeInTheDocument();
+    expect(screen.getByText('AI context (advisory)')).toBeInTheDocument();
+    expect(screen.getByText('This link shows several risk signals worth a second look.')).toBeInTheDocument();
+    expect(screen.getByText('What to do')).toBeInTheDocument();
+    expect(screen.getByText('Verify the sender through an official channel.')).toBeInTheDocument();
+    expect(screen.getByText('Avoid entering credentials on this page.')).toBeInTheDocument();
+
     expect(postSpy).toHaveBeenCalledWith(
       `/api/v1/scans/${SCAN_ID}/explanation`,
       undefined,
@@ -70,22 +103,59 @@ describe('ExplainResult', () => {
     expect(screen.queryByRole('button', { name: 'Explain this result' })).not.toBeInTheDocument();
   });
 
-  it('renders the AI text as inert plain text — never as HTML, a link, or executable markup', async () => {
-    const hostile =
-      '<img src=x onerror="window.__pwned = true">Click <a href="https://evil.example">here</a>';
-    vi.spyOn(apiClient, 'post').mockResolvedValue({ data: { data: { explanation: hostile } } });
+  it('safely handles an empty keyFindings array', async () => {
+    vi.spyOn(apiClient, 'post').mockResolvedValue(structuredResponse({ keyFindings: [] }));
     const user = userEvent.setup();
     renderWithProviders(<ExplainResult scanId={SCAN_ID} />);
 
     await user.click(screen.getByRole('button', { name: 'Explain this result' }));
 
-    const rendered = await screen.findByText(hostile);
-    expect(rendered.tagName).toBe('P');
-    // Rendered as one plain-text node, not parsed into a link or an image tag.
+    expect(
+      await screen.findByText(
+        'No lexical signals were detected by the current rules. This does not mean the link is safe.',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('renders recommended actions and the summary as inert plain text — never as HTML, a link, or executable markup', async () => {
+    const hostile =
+      '<img src=x onerror="window.__pwned = true">Click <a href="https://evil.example">here</a>';
+    vi.spyOn(apiClient, 'post').mockResolvedValue(
+      structuredResponse({ summary: hostile, recommendedActions: [hostile] }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<ExplainResult scanId={SCAN_ID} />);
+
+    await user.click(screen.getByRole('button', { name: 'Explain this result' }));
+
+    const renderedNodes = await screen.findAllByText(hostile);
+    expect(renderedNodes).toHaveLength(2); // once for the summary, once for the action
+    for (const node of renderedNodes) {
+      expect(['P', 'LI']).toContain(node.tagName);
+      expect(node.querySelector('img')).toBeNull();
+      expect(node.querySelector('a')).toBeNull();
+    }
     expect(screen.queryByRole('link', { name: /here/i })).not.toBeInTheDocument();
-    expect(rendered.querySelector('img')).toBeNull();
-    expect(rendered.querySelector('a')).toBeNull();
     expect((window as unknown as { __pwned?: boolean }).__pwned).toBeUndefined();
+  });
+
+  it('renders each key finding title and explanation as inert plain text', async () => {
+    const hostileTitle = '<script>window.__pwned2 = true</script>';
+    vi.spyOn(apiClient, 'post').mockResolvedValue(
+      structuredResponse({
+        keyFindings: [
+          { title: hostileTitle, explanation: 'Generic explanation.', severity: 'MEDIUM', points: 10 },
+        ],
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<ExplainResult scanId={SCAN_ID} />);
+
+    await user.click(screen.getByRole('button', { name: 'Explain this result' }));
+
+    const rendered = await screen.findByText(hostileTitle);
+    expect(rendered.querySelector('script')).toBeNull();
+    expect((window as unknown as { __pwned2?: boolean }).__pwned2).toBeUndefined();
   });
 
   it('shows a safe error message and lets the user retry when the feature is unavailable', async () => {
@@ -132,7 +202,7 @@ describe('ExplainResult', () => {
           message: 'AI explanation is not available right now.',
         }),
       )
-      .mockResolvedValueOnce({ data: { data: { explanation: 'A short advisory explanation.' } } });
+      .mockResolvedValueOnce(structuredResponse({ summary: 'A short advisory sentence.' }));
     const user = userEvent.setup();
     renderWithProviders(<ExplainResult scanId={SCAN_ID} />);
 
@@ -140,7 +210,7 @@ describe('ExplainResult', () => {
     await screen.findByRole('alert');
     await user.click(screen.getByRole('button', { name: 'Try again' }));
 
-    expect(await screen.findByText('A short advisory explanation.')).toBeInTheDocument();
+    expect(await screen.findByText('A short advisory sentence.')).toBeInTheDocument();
     await waitFor(() => expect(postSpy).toHaveBeenCalledTimes(2));
   });
 });
