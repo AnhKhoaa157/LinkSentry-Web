@@ -1,10 +1,14 @@
 package com.lyanhkhoa.linksentry.common.trial;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
+import com.lyanhkhoa.linksentry.common.trial.persistence.DeviceTrialQuotaService;
 import com.lyanhkhoa.linksentry.license.security.LicensedDeviceContext;
 import jakarta.servlet.FilterChain;
 import java.time.Clock;
@@ -13,24 +17,28 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.transaction.CannotCreateTransactionException;
 
 /**
- * Exercises {@link AnonymousTrialFilter} end to end against a real
- * {@link AnonymousTrialStore}, using Spring's servlet mocks for the request and
- * response so assertions read exactly what a real client would receive — the same
- * approach as {@code RateLimitFilterTest}.
+ * Exercises {@link AnonymousTrialFilter} against a mocked {@link DeviceTrialQuotaService}, the same
+ * style {@code DeviceAuthenticationFilterTest} uses for the filter immediately before it in the
+ * chain. Real device-resolution and quota-persistence behavior is proven end-to-end against
+ * PostgreSQL by {@code AnonymousTrialPostgresIntegrationTest}.
  */
 class AnonymousTrialFilterTest {
 
-    private static final Instant NOW = Instant.parse("2026-08-18T12:00:00Z");
+    private static final Instant NOW = Instant.parse("2026-08-21T12:00:00Z");
+    private static final UUID DEVICE_ID = UUID.randomUUID();
 
     @AfterEach
     void clearSecurityContext() {
@@ -38,36 +46,35 @@ class AnonymousTrialFilterTest {
     }
 
     @Test
-    @DisplayName("the first maxScans anonymous requests pass through untouched")
-    void withinQuotaPassesThrough() throws Exception {
-        AnonymousTrialFilter filter = newFilter(properties(3, true));
+    @DisplayName("a resolved device still under quota passes through untouched")
+    void admittedRequestPassesThrough() throws Exception {
+        DeviceTrialQuotaService quotaService = mock(DeviceTrialQuotaService.class);
+        when(quotaService.resolveDeviceId("valid-credential")).thenReturn(Optional.of(DEVICE_ID));
+        when(quotaService.tryAdmit(eq(DEVICE_ID), any())).thenReturn(true);
+        AnonymousTrialFilter filter = newFilter(properties(3, true), quotaService);
+        MockHttpServletRequest request = trialRequest("valid-credential");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
 
-        for (int i = 0; i < 3; i++) {
-            FilterChain chain = mock(FilterChain.class);
-            MockHttpServletRequest request = anonymousPostRequest("203.0.113.5");
-            MockHttpServletResponse response = new MockHttpServletResponse();
+        filter.doFilter(request, response, chain);
 
-            filter.doFilter(request, response, chain);
-
-            verify(chain).doFilter(request, response);
-            assertThat(response.getStatus()).isEqualTo(200);
-        }
+        verify(chain).doFilter(request, response);
     }
 
     @Test
-    @DisplayName("the fourth anonymous request is rejected with a safe 429 and never reaches the chain")
-    void fourthAnonymousRequestIsRejected() throws Exception {
-        AnonymousTrialFilter filter = newFilter(properties(3, true));
-        exhaust(filter, "203.0.113.5", 3);
-
-        FilterChain fourthChain = mock(FilterChain.class);
+    @DisplayName("a resolved device beyond quota is rejected with a safe 429 and never reaches the chain")
+    void exhaustedDeviceIsRejected() throws Exception {
+        DeviceTrialQuotaService quotaService = mock(DeviceTrialQuotaService.class);
+        when(quotaService.resolveDeviceId("exhausted-credential")).thenReturn(Optional.of(DEVICE_ID));
+        when(quotaService.tryAdmit(eq(DEVICE_ID), any())).thenReturn(false);
+        AnonymousTrialFilter filter = newFilter(properties(3, true), quotaService);
         MockHttpServletResponse response = new MockHttpServletResponse();
-        filter.doFilter(anonymousPostRequest("203.0.113.5"), response, fourthChain);
+        FilterChain chain = mock(FilterChain.class);
 
-        // No chain interaction: the controller, analyzer, and persistence are never reached.
-        verifyNoInteractions(fourthChain);
+        filter.doFilter(trialRequest("exhausted-credential"), response, chain);
+
+        verifyNoInteractions(chain);
         assertThat(response.getStatus()).isEqualTo(429);
-        assertThat(response.getContentType()).startsWith("application/json");
         assertThat(response.getContentAsString())
                 .contains("\"code\":\"ANONYMOUS_TRIAL_EXHAUSTED\"")
                 .contains("Request a license to continue scanning.")
@@ -75,161 +82,178 @@ class AnonymousTrialFilterTest {
     }
 
     @Test
-    @DisplayName("IPv4 and IPv6 hold independent trial quotas")
-    void ipv4AndIpv6AreIndependent() throws Exception {
-        AnonymousTrialFilter filter = newFilter(properties(1, true));
-        exhaust(filter, "203.0.113.5", 1);
+    @DisplayName("no Authorization header at all gets the fixed 401 TRIAL_DEVICE_REQUIRED and never calls the quota service")
+    void missingCredentialIsRejected() throws Exception {
+        DeviceTrialQuotaService quotaService = mock(DeviceTrialQuotaService.class);
+        AnonymousTrialFilter filter = newFilter(properties(3, true), quotaService);
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/scans");
+        MockHttpServletResponse response = new MockHttpServletResponse();
 
-        FilterChain ipv6Chain = mock(FilterChain.class);
-        MockHttpServletRequest ipv6Request = anonymousPostRequest("2001:db8::1");
-        MockHttpServletResponse ipv6Response = new MockHttpServletResponse();
-        filter.doFilter(ipv6Request, ipv6Response, ipv6Chain);
+        filter.doFilter(request, response, mock(FilterChain.class));
 
-        verify(ipv6Chain).doFilter(ipv6Request, ipv6Response);
-        assertThat(ipv6Response.getStatus()).isEqualTo(200);
+        verifyNoInteractions(quotaService);
+        assertThat(response.getStatus()).isEqualTo(401);
+        assertThat(response.getContentAsString())
+                .contains("\"code\":\"TRIAL_DEVICE_REQUIRED\"")
+                .contains("A valid device credential is required to use the trial.");
     }
 
     @Test
-    @DisplayName("a licensed device bypasses the guard even from an already-exhausted address")
-    void licensedDeviceBypassesGuard() throws Exception {
-        AnonymousTrialFilter filter = newFilter(properties(1, true));
-        exhaust(filter, "203.0.113.5", 1);
-
-        installLicensedDevice();
-        FilterChain chain = mock(FilterChain.class);
-        MockHttpServletRequest request = anonymousPostRequest("203.0.113.5");
+    @DisplayName("a malformed Authorization scheme gets the identical 401 TRIAL_DEVICE_REQUIRED")
+    void malformedCredentialIsRejected() throws Exception {
+        DeviceTrialQuotaService quotaService = mock(DeviceTrialQuotaService.class);
+        AnonymousTrialFilter filter = newFilter(properties(3, true), quotaService);
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/scans");
+        request.addHeader("Authorization", "Bearer leftover-token");
         MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(request, response, mock(FilterChain.class));
+
+        verifyNoInteractions(quotaService);
+        assertThat(response.getStatus()).isEqualTo(401);
+        assertThat(response.getContentAsString()).contains("\"code\":\"TRIAL_DEVICE_REQUIRED\"");
+    }
+
+    @Test
+    @DisplayName("a credential matching no known device gets the identical 401 TRIAL_DEVICE_REQUIRED")
+    void unknownCredentialIsRejected() throws Exception {
+        DeviceTrialQuotaService quotaService = mock(DeviceTrialQuotaService.class);
+        when(quotaService.resolveDeviceId("unknown-credential")).thenReturn(Optional.empty());
+        AnonymousTrialFilter filter = newFilter(properties(3, true), quotaService);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(trialRequest("unknown-credential"), response, mock(FilterChain.class));
+
+        assertThat(response.getStatus()).isEqualTo(401);
+        assertThat(response.getContentAsString()).contains("\"code\":\"TRIAL_DEVICE_REQUIRED\"");
+    }
+
+    @Test
+    @DisplayName("a licensed device bypasses the guard without ever calling the quota service")
+    void licensedDeviceBypassesGuard() throws Exception {
+        DeviceTrialQuotaService quotaService = mock(DeviceTrialQuotaService.class);
+        installLicensedDevice();
+        AnonymousTrialFilter filter = newFilter(properties(1, true), quotaService);
+        FilterChain chain = mock(FilterChain.class);
+        MockHttpServletRequest request = trialRequest("some-credential");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
         filter.doFilter(request, response, chain);
 
         verify(chain).doFilter(request, response);
-        assertThat(response.getStatus()).isEqualTo(200);
+        verifyNoInteractions(quotaService);
     }
 
     @Test
-    @DisplayName("disabled mode never rejects, even once an address would otherwise be exhausted")
+    @DisplayName("disabled mode never gates, even without a credential")
     void disabledModeAlwaysPassesThrough() throws Exception {
-        AnonymousTrialFilter filter = newFilter(properties(1, false));
-
-        filter.doFilter(anonymousPostRequest("203.0.113.5"), new MockHttpServletResponse(), mock(FilterChain.class));
-
-        FilterChain secondChain = mock(FilterChain.class);
-        MockHttpServletRequest secondRequest = anonymousPostRequest("203.0.113.5");
-        MockHttpServletResponse secondResponse = new MockHttpServletResponse();
-        filter.doFilter(secondRequest, secondResponse, secondChain);
-
-        verify(secondChain).doFilter(secondRequest, secondResponse);
-        assertThat(secondResponse.getStatus()).isEqualTo(200);
-    }
-
-    @Test
-    @DisplayName("CORS preflight OPTIONS on the scan route is never gated, even against an exhausted quota")
-    void optionsPreflightAlwaysPassesThrough() throws Exception {
-        AnonymousTrialFilter filter = newFilter(properties(1, true));
-        exhaust(filter, "203.0.113.5", 1);
-
-        MockHttpServletRequest options = new MockHttpServletRequest("OPTIONS", "/api/v1/scans");
-        options.setRemoteAddr("203.0.113.5");
-        FilterChain optionsChain = mock(FilterChain.class);
+        DeviceTrialQuotaService quotaService = mock(DeviceTrialQuotaService.class);
+        AnonymousTrialFilter filter = newFilter(properties(1, false), quotaService);
+        FilterChain chain = mock(FilterChain.class);
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/scans");
         MockHttpServletResponse response = new MockHttpServletResponse();
-        filter.doFilter(options, response, optionsChain);
 
-        verify(optionsChain).doFilter(options, response);
-        assertThat(response.getStatus()).isEqualTo(200);
+        filter.doFilter(request, response, chain);
+
+        verify(chain).doFilter(request, response);
+        verifyNoInteractions(quotaService);
     }
 
     @Test
-    @DisplayName("a route other than POST /api/v1/scans is never gated, even against an exhausted quota")
+    @DisplayName("a route other than POST /api/v1/scans is never gated")
     void unrelatedRouteIsNeverGated() throws Exception {
-        AnonymousTrialFilter filter = newFilter(properties(1, true));
-        exhaust(filter, "203.0.113.5", 1);
-
+        DeviceTrialQuotaService quotaService = mock(DeviceTrialQuotaService.class);
+        AnonymousTrialFilter filter = newFilter(properties(1, true), quotaService);
         MockHttpServletRequest lookup = new MockHttpServletRequest("GET", "/api/v1/scans/some-id");
-        lookup.setRemoteAddr("203.0.113.5");
         FilterChain chain = mock(FilterChain.class);
         MockHttpServletResponse response = new MockHttpServletResponse();
+
         filter.doFilter(lookup, response, chain);
 
         verify(chain).doFilter(lookup, response);
-        assertThat(response.getStatus()).isEqualTo(200);
+        verifyNoInteractions(quotaService);
     }
 
     @Test
-    @DisplayName("identity comes only from getRemoteAddr; spoofed forwarding headers change nothing")
-    void identityIgnoresForwardingHeaders() throws Exception {
-        AnonymousTrialFilter filter = newFilter(properties(1, true));
-
-        MockHttpServletRequest first = anonymousPostRequest("203.0.113.5");
-        first.addHeader("X-Forwarded-For", "1.1.1.1");
-        filter.doFilter(first, new MockHttpServletResponse(), mock(FilterChain.class)); // exhausts 203.0.113.5
-
-        MockHttpServletRequest second = anonymousPostRequest("203.0.113.5");
-        second.addHeader("X-Forwarded-For", "9.9.9.9");
-        second.addHeader("Forwarded", "for=8.8.8.8");
-        MockHttpServletResponse secondResponse = new MockHttpServletResponse();
-        filter.doFilter(second, secondResponse, mock(FilterChain.class));
-        assertThat(secondResponse.getStatus()).isEqualTo(429);
-
-        // A genuinely different real address — even replaying the first request's
-        // spoofed header — gets its own, untouched quota.
-        MockHttpServletRequest third = anonymousPostRequest("198.51.100.9");
-        third.addHeader("X-Forwarded-For", "1.1.1.1");
-        FilterChain thirdChain = mock(FilterChain.class);
-        MockHttpServletResponse thirdResponse = new MockHttpServletResponse();
-        filter.doFilter(third, thirdResponse, thirdChain);
-        verify(thirdChain).doFilter(third, thirdResponse);
-        assertThat(thirdResponse.getStatus()).isEqualTo(200);
-    }
-
-    @Test
-    @DisplayName("the 429 body never leaks the remote address, a count, a reset time, or forwarding-header values")
-    void rejectionNeverLeaksIdentityOrQuotaState() throws Exception {
-        AnonymousTrialFilter filter = newFilter(properties(1, true));
-        String secretAddress = "203.0.113.77";
-        MockHttpServletRequest first = anonymousPostRequest(secretAddress);
-        first.addHeader("X-Forwarded-For", "leak-me-not");
-        filter.doFilter(first, new MockHttpServletResponse(), mock(FilterChain.class));
-
-        MockHttpServletRequest second = anonymousPostRequest(secretAddress);
+    @DisplayName("a persistence failure resolving the device credential fails closed as 503 TRIAL_QUOTA_UNAVAILABLE, never a 500 or admission")
+    void persistenceFailureDuringResolutionFailsClosed() throws Exception {
+        DeviceTrialQuotaService quotaService = mock(DeviceTrialQuotaService.class);
+        when(quotaService.resolveDeviceId("some-credential"))
+                .thenThrow(new DataAccessResourceFailureException("simulated outage"));
+        AnonymousTrialFilter filter = newFilter(properties(3, true), quotaService);
         MockHttpServletResponse response = new MockHttpServletResponse();
-        filter.doFilter(second, response, mock(FilterChain.class));
+        FilterChain chain = mock(FilterChain.class);
+
+        filter.doFilter(trialRequest("some-credential"), response, chain);
+
+        verifyNoInteractions(chain);
+        assertThat(response.getStatus()).isEqualTo(503);
+        String body = response.getContentAsString();
+        assertThat(body)
+                .contains("\"code\":\"TRIAL_QUOTA_UNAVAILABLE\"")
+                .contains("The trial scan quota is temporarily unavailable. Please try again shortly.")
+                .doesNotContainIgnoringCase("simulated outage")
+                .doesNotContainIgnoringCase("DataAccessResourceFailureException")
+                .doesNotContain("some-credential");
+        assertThat(response.getHeader("Retry-After")).isNull();
+    }
+
+    @Test
+    @DisplayName("a persistence failure during the admit transaction also fails closed as 503 TRIAL_QUOTA_UNAVAILABLE")
+    void persistenceFailureDuringAdmitFailsClosed() throws Exception {
+        DeviceTrialQuotaService quotaService = mock(DeviceTrialQuotaService.class);
+        when(quotaService.resolveDeviceId("some-credential")).thenReturn(Optional.of(DEVICE_ID));
+        when(quotaService.tryAdmit(eq(DEVICE_ID), any()))
+                .thenThrow(new CannotCreateTransactionException("simulated outage"));
+        AnonymousTrialFilter filter = newFilter(properties(3, true), quotaService);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        filter.doFilter(trialRequest("some-credential"), response, chain);
+
+        verifyNoInteractions(chain);
+        assertThat(response.getStatus()).isEqualTo(503);
+        assertThat(response.getContentAsString()).contains("\"code\":\"TRIAL_QUOTA_UNAVAILABLE\"");
+    }
+
+    @Test
+    @DisplayName("no rejection body ever leaks a device id, credential, remote address, or Retry-After")
+    void rejectionsNeverLeakSensitiveData() throws Exception {
+        DeviceTrialQuotaService quotaService = mock(DeviceTrialQuotaService.class);
+        when(quotaService.resolveDeviceId("secret-credential-value")).thenReturn(Optional.of(DEVICE_ID));
+        when(quotaService.tryAdmit(eq(DEVICE_ID), any())).thenReturn(false);
+        AnonymousTrialFilter filter = newFilter(properties(3, true), quotaService);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(trialRequest("secret-credential-value"), response, mock(FilterChain.class));
 
         String body = response.getContentAsString();
         assertThat(body)
-                .doesNotContain(secretAddress, "leak-me-not", "X-Forwarded-For", "Forwarded")
+                .doesNotContain(DEVICE_ID.toString(), "secret-credential-value")
                 .doesNotContainIgnoringCase("remaining")
-                .doesNotContainIgnoringCase("reset")
-                .doesNotContainIgnoringCase("quota");
+                .doesNotContainIgnoringCase("reset");
         assertThat(response.getHeaderNames())
-                .noneMatch(name -> name.toLowerCase(Locale.ROOT).contains("trial")
-                        || name.toLowerCase(Locale.ROOT).contains("ratelimit"));
-    }
-
-    private static void exhaust(AnonymousTrialFilter filter, String remoteAddr, int maxScans) throws Exception {
-        for (int i = 0; i < maxScans; i++) {
-            filter.doFilter(anonymousPostRequest(remoteAddr), new MockHttpServletResponse(), mock(FilterChain.class));
-        }
+                .noneMatch(name -> name.toLowerCase(Locale.ROOT).contains("retry")
+                        || name.toLowerCase(Locale.ROOT).contains("trial"));
     }
 
     private static void installLicensedDevice() {
-        LicensedDeviceContext device =
-                new LicensedDeviceContext(UUID.randomUUID(), UUID.randomUUID(), NOW.plusSeconds(3600));
+        LicensedDeviceContext device = new LicensedDeviceContext(UUID.randomUUID(), UUID.randomUUID(), NOW.plusSeconds(3600));
         SecurityContextHolder.getContext()
                 .setAuthentication(UsernamePasswordAuthenticationToken.authenticated(device, null, List.of()));
     }
 
-    private static AnonymousTrialFilter newFilter(AnonymousTrialProperties properties) {
-        AnonymousTrialStore store = new AnonymousTrialStore(properties, Clock.fixed(NOW, ZoneOffset.UTC));
-        return new AnonymousTrialFilter(properties, store);
+    private static AnonymousTrialFilter newFilter(AnonymousTrialProperties properties, DeviceTrialQuotaService quotaService) {
+        return new AnonymousTrialFilter(properties, quotaService, Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
     private static AnonymousTrialProperties properties(int maxScans, boolean enabled) {
-        return new AnonymousTrialProperties(
-                enabled, maxScans, Duration.ofHours(24), new AnonymousTrialProperties.Store(100, Duration.ofHours(24)));
+        return new AnonymousTrialProperties(enabled, maxScans, Duration.ofHours(24));
     }
 
-    private static MockHttpServletRequest anonymousPostRequest(String remoteAddr) {
+    private static MockHttpServletRequest trialRequest(String credential) {
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/scans");
-        request.setRemoteAddr(remoteAddr);
+        request.addHeader("Authorization", "Device " + credential);
         return request;
     }
 }

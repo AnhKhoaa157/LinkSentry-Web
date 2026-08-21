@@ -38,6 +38,11 @@ public class JpaDeviceRepositoryAdapter implements DeviceRepository {
     }
 
     @Override
+    public Optional<Device> findByIdForUpdate(UUID deviceId) {
+        return repository.findByIdForUpdate(deviceId).map(DeviceEntity::toDomain);
+    }
+
+    @Override
     public long deleteNeverAssignedOlderThan(Instant cutoff) {
         return repository.deleteNeverAssignedOlderThan(cutoff);
     }

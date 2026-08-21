@@ -39,7 +39,14 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  * The {@code test} profile's H2 instance has no schema (Flyway is disabled; see
  * {@code application-test.yml} and {@link com.lyanhkhoa.linksentry.common.security.CorsConfigurationTest}'s
  * class Javadoc for the same constraint). This class proves the limiter, not the
- * scan feature, so it must not depend on a successful save.
+ * scan feature, so it must not depend on a successful save. {@code
+ * linksentry.anonymous-trial.enabled=false} disables ADR 0010's device-scoped trial
+ * guard specifically for this class: {@code RateLimitFilter} must still run first
+ * and consume a token regardless, but the trial guard sits after it and would
+ * otherwise reject every credential-less POST below with {@code 401
+ * TRIAL_DEVICE_REQUIRED} before the validation this class actually exercises ever
+ * runs — and bootstrapping a real device to satisfy it is not an option against a
+ * schema-less H2 instance.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -53,7 +60,8 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
             "linksentry.ratelimit.device.capacity=2",
             "linksentry.ratelimit.device.refill-per-minute=1",
             "linksentry.ratelimit.admin-auth-login.capacity=2",
-            "linksentry.ratelimit.admin-auth-login.refill-per-minute=1"
+            "linksentry.ratelimit.admin-auth-login.refill-per-minute=1",
+            "linksentry.anonymous-trial.enabled=false"
         })
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class RateLimitIntegrationTest {

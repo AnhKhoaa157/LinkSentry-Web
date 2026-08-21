@@ -1,9 +1,11 @@
 package com.lyanhkhoa.linksentry.license.persistence;
 
+import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,6 +16,12 @@ public interface SpringDataDeviceRepository extends JpaRepository<DeviceEntity, 
     Optional<DeviceEntity> findByCredentialHash(String credentialHash);
 
     Optional<DeviceEntity> findByActivationCode(String activationCode);
+
+    // PESSIMISTIC_WRITE renders as `SELECT ... FOR UPDATE` on PostgreSQL, mirroring
+    // SpringDataLicenseRepository.findByIdForUpdate against the license row.
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select d from DeviceEntity d where d.deviceId = :deviceId")
+    Optional<DeviceEntity> findByIdForUpdate(@Param("deviceId") UUID deviceId);
 
     // NOT EXISTS, not a revoked-only filter: a device with even one revoked
     // assignment must survive, so the correlated subquery excludes any device
