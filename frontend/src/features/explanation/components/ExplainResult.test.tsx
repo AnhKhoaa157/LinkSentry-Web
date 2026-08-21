@@ -120,7 +120,7 @@ describe('ExplainResult', () => {
 
     const alert = await screen.findByRole('alert');
     expect(alert).not.toHaveTextContent('trace-2');
-    expect(alert).not.toHaveTextContent(/anthropic/i);
+    expect(alert).not.toHaveTextContent(/anthropic|deepseek/i);
   });
 
   it('lets the user retry after a failure', async () => {

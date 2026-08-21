@@ -15,7 +15,7 @@ import java.util.Objects;
  * a compile error, not a review item. Finding evidence is excluded too — only
  * {@code ruleId}, {@code severity}, {@code points}, {@code title}, and the
  * existing generic {@code explanation} cross this boundary. See
- * {@code docs/adr/0005-anthropic-scan-explanation-integration.md}.
+ * {@code docs/adr/0005-deepseek-scan-explanation-integration.md}.
  *
  * @param score         total risk score, {@code 0..100}
  * @param riskLevel     band {@code score} falls into

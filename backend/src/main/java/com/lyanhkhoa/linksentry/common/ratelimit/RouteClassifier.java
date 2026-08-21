@@ -33,7 +33,7 @@ public class RouteClassifier {
     private final RequestMatcher deviceStatus =
             PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.GET, "/api/v1/devices/me");
 
-    // The costliest route: each request pays for an outbound Anthropic call, so it
+    // The costliest route: each request pays for an outbound DeepSeek call, so it
     // gets its own independent, deliberately strict bucket rather than sharing
     // scanLookup's. A single "*" segment matches only the {scanId} path variable,
     // the same as scanLookup — never the bare collection path or a deeper path.

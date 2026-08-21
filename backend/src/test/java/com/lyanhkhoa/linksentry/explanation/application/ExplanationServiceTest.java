@@ -197,14 +197,14 @@ class ExplanationServiceTest {
 
         assertThatThrownBy(() -> service.explain(SCAN_ID.toString(), OWNER_ID))
                 .isInstanceOf(ExplanationUnavailableException.class)
-                .hasMessageNotContaining("Anthropic")
+                .hasMessageNotContaining("DeepSeek")
                 .hasMessageNotContaining("timed out");
     }
 
     private ExplanationService newService(
             boolean enabled, ScanHistoryRepository repository, ExplanationProvider provider) {
         AiExplanationProperties properties = enabled
-                ? new AiExplanationProperties(true, new AiExplanationProperties.Anthropic("test-key", "test-model"))
+                ? new AiExplanationProperties(true, new AiExplanationProperties.DeepSeek("test-key", "test-model"))
                 : new AiExplanationProperties(false, null);
         ScanHistoryService historyService = new ScanHistoryService(repository, new HistoryProperties(30), clock);
         return new ExplanationService(properties, provider, historyService);
@@ -274,8 +274,8 @@ class ExplanationServiceTest {
             calls.add(summary);
             if (shouldThrow) {
                 // Represents timeout, provider failure, and malformed response alike:
-                // AnthropicExplanationProvider unifies all three into this one type.
-                throw new ExplanationProviderException("Anthropic call timed out");
+                // DeepSeekExplanationProvider unifies all three into this one type.
+                throw new ExplanationProviderException("provider call timed out");
             }
             return result;
         }

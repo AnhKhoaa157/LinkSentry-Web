@@ -24,7 +24,7 @@ type Status = 'idle' | 'loading' | 'success' | 'error';
  * `<p>` text node only — never `dangerouslySetInnerHTML`, never parsed as
  * Markdown or HTML, and never turned into a link — because model output is not
  * trusted content, the same rule the redacted scan URL already follows. See
- * `docs/SECURITY_BOUNDARY.md` and `docs/adr/0005-anthropic-scan-explanation-integration.md`.
+ * `docs/SECURITY_BOUNDARY.md` and `docs/adr/0005-deepseek-scan-explanation-integration.md`.
  */
 export function ExplainResult({ scanId }: Props) {
   const [status, setStatus] = useState<Status>('idle');
