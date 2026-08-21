@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react';
 
 import type { Finding, RiskLevel } from '@/features/scanner/schemas/scanResponse';
+import type { Translate } from '@/lib/i18n/LocaleContext';
+import type { TranslationKey } from '@/lib/i18n/translations';
+import { useLocale } from '@/lib/i18n/useLocale';
 
 /**
  * What a non-expert should actually do, chosen only by the server's risk level.
@@ -9,27 +12,19 @@ import type { Finding, RiskLevel } from '@/features/scanner/schemas/scanResponse
  * lookup and nothing more: no score thresholds, no finding inspection, no
  * second opinion about the link.
  */
-const RECOMMENDED_ACTION: Record<RiskLevel, string> = {
-  LOW: 'No strong lexical risk signals were detected. Still verify the sender and use official channels before entering information.',
-  MODERATE:
-    'Review the registered domain carefully. If the link arrived unexpectedly, open the official website yourself instead of using the link.',
-  HIGH: 'Avoid opening the link or entering credentials. Verify the request through the organization’s official app, website, or support channel.',
-  CRITICAL:
-    'Do not open, sign in to, download from, or forward the link. Report it to your organization’s security or IT team.',
+const RECOMMENDED_ACTION_KEY: Record<RiskLevel, TranslationKey> = {
+  LOW: 'nextSteps.action.low',
+  MODERATE: 'nextSteps.action.moderate',
+  HIGH: 'nextSteps.action.high',
+  CRITICAL: 'nextSteps.action.critical',
 };
 
-const RISK_LEVEL_TEXT: Record<RiskLevel, string> = {
-  LOW: 'Low',
-  MODERATE: 'Moderate',
-  HIGH: 'High',
-  CRITICAL: 'Critical',
+const RISK_LEVEL_WORD_KEY: Record<RiskLevel, TranslationKey> = {
+  LOW: 'nextSteps.summary.riskLevelWord.low',
+  MODERATE: 'nextSteps.summary.riskLevelWord.moderate',
+  HIGH: 'nextSteps.summary.riskLevelWord.high',
+  CRITICAL: 'nextSteps.summary.riskLevelWord.critical',
 };
-
-const SAFETY_NOTE =
-  'Note: Lexical analysis inspects only the text of a link. It cannot prove that a destination is safe.';
-
-const COPY_SUCCESS = 'Summary copied.';
-const COPY_FAILURE = 'Could not copy the summary. Your browser blocked clipboard access.';
 
 const HEADING_ID = 'next-steps-heading';
 
@@ -53,23 +48,31 @@ interface SummaryInput {
  * When no registrable domain was resolved (an IP literal, for example) the host
  * is *not* substituted: the host is not on the allow-list.
  */
-function buildSafeSummary({ riskLevel, score, registrableDomain, findings }: SummaryInput): string {
+function buildSafeSummary(
+  t: Translate,
+  { riskLevel, score, registrableDomain, findings }: SummaryInput,
+): string {
   const lines = [
-    'LinkSentry link analysis',
-    `Risk level: ${RISK_LEVEL_TEXT[riskLevel]} (score ${score}/100)`,
-    `Registered domain: ${registrableDomain ?? 'not determined'}`,
+    t('nextSteps.summary.title'),
+    t('nextSteps.summary.riskLevel', { level: t(RISK_LEVEL_WORD_KEY[riskLevel]), score }),
+    t('nextSteps.summary.registeredDomain', {
+      domain: registrableDomain ?? t('nextSteps.summary.domainUnknown'),
+    }),
   ];
 
   if (findings.length === 0) {
-    lines.push('Findings: none detected');
+    lines.push(t('nextSteps.summary.findingsNone'));
   } else {
-    lines.push('Findings:');
+    lines.push(t('nextSteps.summary.findingsHeading'));
     for (const finding of findings) {
       lines.push(`- ${finding.title}`);
     }
   }
 
-  lines.push(`Recommended action: ${RECOMMENDED_ACTION[riskLevel]}`, SAFETY_NOTE);
+  lines.push(
+    t('nextSteps.summary.recommendedAction', { action: t(RECOMMENDED_ACTION_KEY[riskLevel]) }),
+    t('nextSteps.summary.safetyNote'),
+  );
 
   return lines.join('\n');
 }
@@ -91,11 +94,12 @@ interface Props {
  * disclose are values it is never handed.
  */
 export function NextSteps({ riskLevel, score, registrableDomain, findings }: Props) {
+  const { t } = useLocale();
   const [status, setStatus] = useState<CopyStatus>('idle');
 
   const summary = useMemo(
-    () => buildSafeSummary({ riskLevel, score, registrableDomain, findings }),
-    [riskLevel, score, registrableDomain, findings],
+    () => buildSafeSummary(t, { riskLevel, score, registrableDomain, findings }),
+    [t, riskLevel, score, registrableDomain, findings],
   );
 
   // A new scan can reuse this component instance, so a stale "Summary copied."
@@ -122,9 +126,9 @@ export function NextSteps({ riskLevel, score, registrableDomain, findings }: Pro
   return (
     <section aria-labelledby={HEADING_ID} className="border-ink-800 bg-ink-950/40 rounded-lg border p-4">
       <h3 id={HEADING_ID} className="text-ink-100 text-sm font-semibold">
-        Recommended next steps
+        {t('nextSteps.heading')}
       </h3>
-      <p className="text-ink-300 mt-2 text-sm">{RECOMMENDED_ACTION[riskLevel]}</p>
+      <p className="text-ink-300 mt-2 text-sm">{t(RECOMMENDED_ACTION_KEY[riskLevel])}</p>
 
       <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
         <button
@@ -132,20 +136,21 @@ export function NextSteps({ riskLevel, score, registrableDomain, findings }: Pro
           onClick={handleCopy}
           className="border-ink-700 bg-ink-850 text-ink-100 hover:bg-ink-800 rounded-lg border px-4 py-2 text-sm font-medium transition-colors"
         >
-          Copy safe summary
+          {t('nextSteps.copyButton')}
         </button>
 
         {/* Always mounted so the message is announced when its text changes, and
             polite because a failed copy is an inconvenience, not an emergency. */}
         <p role="status" className={status === 'failed' ? 'text-sm text-rose-400' : 'text-ink-300 text-sm'}>
-          {status === 'copied' ? COPY_SUCCESS : status === 'failed' ? COPY_FAILURE : ''}
+          {status === 'copied'
+            ? t('nextSteps.copySuccess')
+            : status === 'failed'
+              ? t('nextSteps.copyFailure')
+              : ''}
         </p>
       </div>
 
-      <p className="text-ink-500 mt-3 text-xs">
-        The summary contains the risk level, score, registered domain, and finding titles. It never includes
-        the submitted link.
-      </p>
+      <p className="text-ink-500 mt-3 text-xs">{t('nextSteps.disclaimer')}</p>
     </section>
   );
 }

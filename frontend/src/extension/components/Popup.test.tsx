@@ -8,6 +8,7 @@ import { Popup } from '@/extension/components/Popup';
 import { LicenseProvider } from '@/features/license/context/LicenseProvider';
 import { apiClient } from '@/lib/api/client';
 import { createQueryClient } from '@/lib/api/queryClient';
+import { LocaleProvider } from '@/lib/i18n/LocaleProvider';
 import { renderWithProviders } from '@/test/renderWithProviders';
 
 function axiosErrorWithResponse(status: number, data: unknown, requestBody?: unknown) {
@@ -74,11 +75,13 @@ const scanButton = () => screen.getByRole('button', { name: /scan this tab|scan 
 function renderPopupWithQueryClient() {
   const queryClient = createQueryClient();
   const rendered = render(
-    <QueryClientProvider client={queryClient}>
-      <LicenseProvider clientLabel="extension">
-        <Popup />
-      </LicenseProvider>
-    </QueryClientProvider>,
+    <LocaleProvider>
+      <QueryClientProvider client={queryClient}>
+        <LicenseProvider clientLabel="extension">
+          <Popup />
+        </LicenseProvider>
+      </QueryClientProvider>
+    </LocaleProvider>,
   );
 
   return { ...rendered, queryClient };
@@ -87,6 +90,7 @@ function renderPopupWithQueryClient() {
 describe('Popup', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    localStorage.clear();
   });
 
   it('shows a ready state and enables scanning for a normal https tab, without revealing the URL', async () => {
