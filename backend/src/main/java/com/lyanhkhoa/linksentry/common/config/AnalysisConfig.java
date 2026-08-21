@@ -16,6 +16,7 @@ import com.lyanhkhoa.linksentry.analysis.rules.IpLiteralHostRule;
 import com.lyanhkhoa.linksentry.analysis.rules.KnownUrlShortenerRule;
 import com.lyanhkhoa.linksentry.analysis.rules.MissingHttpsRule;
 import com.lyanhkhoa.linksentry.analysis.rules.PunycodeHostRule;
+import com.lyanhkhoa.linksentry.analysis.rules.SpecialUseOrPrivateHostRule;
 import com.lyanhkhoa.linksentry.analysis.rules.SuspiciousKeywordsRule;
 import com.lyanhkhoa.linksentry.analysis.scoring.DefaultRiskScorer;
 import com.lyanhkhoa.linksentry.analysis.scoring.RiskScorer;
@@ -71,6 +72,7 @@ class AnalysisConfig {
         return List.of(
                 new MissingHttpsRule(),
                 new IpLiteralHostRule(),
+                new SpecialUseOrPrivateHostRule(),
                 new ExcessiveUrlLengthRule(rulesProperties.excessiveUrlLength().maxLength()),
                 new ExcessiveSubdomainsRule(rulesProperties.excessiveSubdomains().maxDepth()),
                 new SuspiciousKeywordsRule(rulesProperties.suspiciousKeywords().keywords()),

@@ -55,9 +55,9 @@ class RegressionCorpusTest {
     }
 
     @Test
-    @DisplayName("an IPv4 literal host fires IP_LITERAL_HOST ahead of MISSING_HTTPS and scores MODERATE")
-    void ipv4Literal() {
-        AnalysisResult result = analyzer.analyze("http://203.0.113.5/");
+    @DisplayName("a public IPv4 literal host fires IP_LITERAL_HOST ahead of MISSING_HTTPS and scores MODERATE")
+    void publicIpv4Literal() {
+        AnalysisResult result = analyzer.analyze("http://8.8.8.8/");
 
         assertRuleIds(result, "IP_LITERAL_HOST", "MISSING_HTTPS");
         assertThat(result.score()).isEqualTo(20);
@@ -65,12 +65,50 @@ class RegressionCorpusTest {
     }
 
     @Test
-    @DisplayName("an IPv6 literal host fires IP_LITERAL_HOST ahead of MISSING_HTTPS and scores MODERATE")
-    void ipv6Literal() {
-        AnalysisResult result = analyzer.analyze("http://[2001:db8::1]/");
+    @DisplayName("a public IPv6 literal host fires IP_LITERAL_HOST ahead of MISSING_HTTPS and scores MODERATE")
+    void publicIpv6Literal() {
+        AnalysisResult result = analyzer.analyze("http://[2606:4700:4700::1111]/");
 
         assertRuleIds(result, "IP_LITERAL_HOST", "MISSING_HTTPS");
         assertThat(result.score()).isEqualTo(20);
+        assertThat(result.riskLevel()).isEqualTo(RiskLevel.MODERATE);
+    }
+
+    @Test
+    @DisplayName("a private literal produces only SPECIAL_USE_OR_PRIVATE_HOST and keeps query and fragment redacted")
+    void privateLiteralIsMutuallyExclusiveAndRedacted() {
+        AnalysisResult result = analyzer.analyze("http://10.0.0.1/path?token=IP_SCOPE_SECRET#fragment");
+
+        assertRuleIds(result, "SPECIAL_USE_OR_PRIVATE_HOST", "MISSING_HTTPS");
+        assertThat(result.score()).isEqualTo(20);
+        assertThat(result.riskLevel()).isEqualTo(RiskLevel.MODERATE);
+        assertThat(result.normalizedUrl().redactedDisplayValue()).isEqualTo("http://10.0.0.1/path");
+        assertThat(result.findings())
+                .filteredOn(finding -> finding.evidence() != null)
+                .allSatisfy(finding -> assertThat(finding.evidence()).doesNotContain("IP_SCOPE_SECRET", "fragment"));
+    }
+
+    @Test
+    @DisplayName("an IPv6 special-use literal is mutually exclusive and keeps query and fragment redacted")
+    void ipv6SpecialUseLiteralIsMutuallyExclusiveAndRedacted() {
+        AnalysisResult result = analyzer.analyze("https://[fd00::1]/path?token=IPV6_SCOPE_SECRET#fragment");
+
+        assertRuleIds(result, "SPECIAL_USE_OR_PRIVATE_HOST");
+        assertThat(result.score()).isEqualTo(15);
+        assertThat(result.riskLevel()).isEqualTo(RiskLevel.MODERATE);
+        assertThat(result.normalizedUrl().redactedDisplayValue()).isEqualTo("https://[fd00::1]/path");
+        assertThat(result.findings())
+                .filteredOn(finding -> finding.evidence() != null)
+                .allSatisfy(finding -> assertThat(finding.evidence()).doesNotContain("IPV6_SCOPE_SECRET", "fragment"));
+    }
+
+    @Test
+    @DisplayName("a documentation literal produces only SPECIAL_USE_OR_PRIVATE_HOST")
+    void documentationLiteralIsMutuallyExclusive() {
+        AnalysisResult result = analyzer.analyze("https://203.0.113.5/");
+
+        assertRuleIds(result, "SPECIAL_USE_OR_PRIVATE_HOST");
+        assertThat(result.score()).isEqualTo(15);
         assertThat(result.riskLevel()).isEqualTo(RiskLevel.MODERATE);
     }
 

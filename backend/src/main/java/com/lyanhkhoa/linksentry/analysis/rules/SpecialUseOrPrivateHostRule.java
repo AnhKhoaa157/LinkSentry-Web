@@ -9,30 +9,18 @@ import com.lyanhkhoa.linksentry.analysis.normalization.IpAddressScopeClassifier;
 import java.util.Objects;
 import java.util.Optional;
 
-/**
- * Flags links whose host is an ordinary public IP address rather than a domain name.
- *
- * <p>Legitimate sites are almost always reached by name; a bare IP address denies
- * a visitor the usual cues (a recognisable brand, a registrar, a certificate
- * subject) that a domain name provides, and is common in phishing and malware
- * delivery links.
- */
-public final class IpLiteralHostRule implements AnalysisRule {
+/** Flags IP literals that are private, local, documentation, or otherwise special-use. */
+public final class SpecialUseOrPrivateHostRule implements AnalysisRule {
 
-    /** Stable machine-readable identifier for this rule. */
-    public static final String RULE_ID = "IP_LITERAL_HOST";
+    public static final String RULE_ID = "SPECIAL_USE_OR_PRIVATE_HOST";
 
-    /** Notable signal: no domain identity to evaluate at all. */
     private static final Severity SEVERITY = Severity.MEDIUM;
-
     private static final int POINTS = 15;
-
-    private static final String TITLE = "Address uses a raw IP instead of a domain name";
-
+    private static final String TITLE = "Address uses a private or special-use IP range";
     private static final String EXPLANATION =
-            "This link points directly at a numeric network address instead of a "
-                    + "named website. Legitimate services are almost always reached by name; "
-                    + "a bare address is a common way to hide who actually operates the site.";
+            "This link points directly at an address reserved for private, local, "
+                    + "documentation, or another special purpose. It is not an ordinary "
+                    + "public website address and deserves extra verification.";
 
     private static final IpAddressScopeClassifier SCOPE_CLASSIFIER = new IpAddressScopeClassifier();
 
@@ -44,8 +32,9 @@ public final class IpLiteralHostRule implements AnalysisRule {
     @Override
     public Optional<RuleFinding> analyze(NormalizedUrl url) {
         Objects.requireNonNull(url, "url");
+
         IpAddressScope scope = SCOPE_CLASSIFIER.classify(url.host());
-        if (!url.ipLiteral() || !scope.isPublicIpLiteral()) {
+        if (!url.ipLiteral() || !scope.isSpecialUseOrPrivateIpLiteral()) {
             return Optional.empty();
         }
         return Optional.of(RuleFinding.of(RULE_ID, SEVERITY, POINTS, TITLE, EXPLANATION, scope.evidence()));

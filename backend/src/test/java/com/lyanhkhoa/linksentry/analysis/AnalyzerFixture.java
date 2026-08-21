@@ -15,6 +15,7 @@ import com.lyanhkhoa.linksentry.analysis.rules.IpLiteralHostRule;
 import com.lyanhkhoa.linksentry.analysis.rules.KnownUrlShortenerRule;
 import com.lyanhkhoa.linksentry.analysis.rules.MissingHttpsRule;
 import com.lyanhkhoa.linksentry.analysis.rules.PunycodeHostRule;
+import com.lyanhkhoa.linksentry.analysis.rules.SpecialUseOrPrivateHostRule;
 import com.lyanhkhoa.linksentry.analysis.rules.SuspiciousKeywordsRule;
 import com.lyanhkhoa.linksentry.analysis.scoring.DefaultRiskScorer;
 import java.util.List;
@@ -72,6 +73,7 @@ final class AnalyzerFixture {
         return List.of(
                 new MissingHttpsRule(),
                 new IpLiteralHostRule(),
+                new SpecialUseOrPrivateHostRule(),
                 new ExcessiveUrlLengthRule(100),
                 new ExcessiveSubdomainsRule(3),
                 new SuspiciousKeywordsRule(SUSPICIOUS_KEYWORDS),

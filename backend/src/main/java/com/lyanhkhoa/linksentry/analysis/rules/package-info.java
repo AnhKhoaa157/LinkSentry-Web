@@ -7,6 +7,7 @@
  * <ol>
  *   <li>{@code MISSING_HTTPS}
  *   <li>{@code IP_LITERAL_HOST}
+ *   <li>{@code SPECIAL_USE_OR_PRIVATE_HOST}
  *   <li>{@code EXCESSIVE_URL_LENGTH}
  *   <li>{@code EXCESSIVE_SUBDOMAINS}
  *   <li>{@code SUSPICIOUS_KEYWORDS}

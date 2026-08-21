@@ -73,6 +73,28 @@ class DefaultUrlNormalizerTest {
     }
 
     @Test
+    void rejectsCredentialsOnAnIpv4SpecialUseLiteralWithoutLeakingThem() {
+        assertSpecialUseLiteralCredentialsAreRejected(
+                "https://scope-user:scope-password@10.0.0.1/path?token=IP_SCOPE_SECRET#fragment");
+    }
+
+    @Test
+    void rejectsCredentialsOnAnIpv6SpecialUseLiteralWithoutLeakingThem() {
+        assertSpecialUseLiteralCredentialsAreRejected(
+                "https://scope-user:scope-password@[fd00::1]/path?token=IP_SCOPE_SECRET#fragment");
+    }
+
+    private void assertSpecialUseLiteralCredentialsAreRejected(String input) {
+        assertThatThrownBy(() -> normalizer.normalize(input))
+                .isExactlyInstanceOf(InvalidUrlException.class)
+                .hasMessage("URL must have a valid host")
+                .hasMessageNotContaining("scope-user")
+                .hasMessageNotContaining("scope-password")
+                .hasMessageNotContaining("IP_SCOPE_SECRET")
+                .hasNoCause();
+    }
+
+    @Test
     void rejectsUrlWithoutAHost() {
         assertInvalidUrl("https:///account");
     }
