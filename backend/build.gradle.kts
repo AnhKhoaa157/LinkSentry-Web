@@ -37,13 +37,11 @@ dependencies {
     implementation("com.bucket4j:bucket4j_jdk17-core:8.19.0")
 
     // --- AI explanation (optional, disabled by default) ---
-    // Official Anthropic Java SDK. Pinned to the latest stable release as of this
-    // integration (2026-08-19). Used only by explanation.provider.
-    // AnthropicOkHttpClient.builder() is called with an explicit apiKey, timeout,
-    // and maxRetries(0) — never AnthropicOkHttpClient.fromEnv(), so the process's
-    // own environment cannot silently widen what this one adapter is allowed to do.
-    // See docs/adr/0005-anthropic-scan-explanation-integration.md.
-    implementation("com.anthropic:anthropic-java:2.54.0")
+    // No dedicated dependency: explanation.provider.DeepSeekExplanationProvider
+    // calls DeepSeek's OpenAI-compatible chat-completions endpoint with the JDK's
+    // own java.net.http.HttpClient and the Jackson ObjectMapper already provided by
+    // spring-boot-starter-webmvc. See
+    // docs/adr/0005-deepseek-scan-explanation-integration.md.
 
     // --- Persistence ---
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
