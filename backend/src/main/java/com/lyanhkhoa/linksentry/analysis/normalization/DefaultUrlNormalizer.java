@@ -3,7 +3,6 @@ package com.lyanhkhoa.linksentry.analysis.normalization;
 import com.lyanhkhoa.linksentry.analysis.domain.DomainFeatures;
 import com.lyanhkhoa.linksentry.analysis.domain.InvalidUrlException;
 import com.lyanhkhoa.linksentry.analysis.domain.NormalizedUrl;
-import java.net.IDN;
 import java.net.URI;
 import java.util.Locale;
 
@@ -14,6 +13,7 @@ public final class DefaultUrlNormalizer implements UrlNormalizer {
 
     private final PublicSuffixDomainResolver domainResolver =
             new PublicSuffixDomainResolver();
+    private final IdnaProcessor idnaProcessor = new IdnaProcessor();
 
     @Override
     public NormalizedUrl normalize(String rawInput) {
@@ -50,16 +50,19 @@ public final class DefaultUrlNormalizer implements UrlNormalizer {
 
         ParsedAuthority authority = parseAuthority(uri);
         String host = normalizeHost(authority.host());
-        if (!isIpLiteral(host)) {
-            try {
-                String asciiHost = IDN.toASCII(host, IDN.USE_STD3_ASCII_RULES);
-                validateAsciiHost(asciiHost);
-            } catch (IllegalArgumentException exception) {
-                throw new InvalidUrlException("URL must have a valid host", exception);
-            }
+        if (isIpLiteral(host)) {
+            return new ParsedAuthority(host, authority.port(), host);
         }
 
-        return new ParsedAuthority(host, authority.port());
+        try {
+            String asciiHost = idnaProcessor.toAscii(host);
+            validateAsciiHost(asciiHost);
+            return new ParsedAuthority(host, authority.port(), asciiHost);
+        } catch (InvalidUrlException exception) {
+            throw exception;
+        } catch (IllegalArgumentException exception) {
+            throw new InvalidUrlException("URL must have a valid host");
+        }
     }
 
     private ParsedAuthority parseAuthority(URI uri) {
@@ -119,9 +122,7 @@ public final class DefaultUrlNormalizer implements UrlNormalizer {
         String scheme = uri.getScheme().toLowerCase(Locale.ROOT);
         String host = authority.host();
         boolean ipLiteral = isIpLiteral(host);
-        String asciiHost = ipLiteral
-            ? host
-            : toAsciiHost(host);
+        String asciiHost = authority.asciiHost();
         DomainParts domainParts = ipLiteral
             ? DomainParts.withoutRegistrableDomain()
             : resolveDomain(asciiHost);
@@ -146,14 +147,6 @@ public final class DefaultUrlNormalizer implements UrlNormalizer {
                 uri.getRawFragment() != null,
                 ipLiteral
             );
-    }
-
-    private String toAsciiHost(String host) {
-        try {
-            return IDN.toASCII(host, IDN.USE_STD3_ASCII_RULES).toLowerCase(Locale.ROOT);
-        } catch (IllegalArgumentException exception) {
-            throw new InvalidUrlException("URL must have a valid host", exception);
-        }
     }
 
     private DomainParts resolveDomain(String asciiHost) {
@@ -320,7 +313,11 @@ public final class DefaultUrlNormalizer implements UrlNormalizer {
         return Character.isLetterOrDigit(value) || value == '.' || value == '_' || value == '-';
     }
 
-    private record ParsedAuthority(String host, Integer port) {
+    private record ParsedAuthority(String host, Integer port, String asciiHost) {
+
+        private ParsedAuthority(String host, Integer port) {
+            this(host, port, null);
+        }
     }
 
 }

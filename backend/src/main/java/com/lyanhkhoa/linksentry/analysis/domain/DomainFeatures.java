@@ -1,6 +1,6 @@
 package com.lyanhkhoa.linksentry.analysis.domain;
 
-import java.net.IDN;
+import com.lyanhkhoa.linksentry.analysis.normalization.IdnaProcessor;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -22,8 +22,8 @@ import java.util.Set;
  * <p>Derived from {@code asciiHost} only. Never holds {@code rawInput}, query
  * values, fragment data, credentials, or path data — see
  * {@code docs/SECURITY_BOUNDARY.md}. Building it performs no I/O: {@link
- * IDN#toUnicode} is a pure local table lookup, the same guarantee {@code
- * BrandLookalikeRule} already relied on before this type existed.
+ * {@link IdnaProcessor#toUnicode(String)} is a pure local conversion, the same
+ * offline guarantee the brand rules rely on.
  *
  * @param labels     the ASCII host split on {@code .}, in source order, each paired
  *                   with its precomputed obfuscation-detection features
@@ -32,6 +32,8 @@ import java.util.Set;
  *                   {@code BrandLookalikeRule} compare a brand's tokens against
  */
 public record DomainFeatures(List<Label> labels, Set<String> hostTokens) {
+
+    private static final IdnaProcessor IDNA_PROCESSOR = new IdnaProcessor();
 
     public DomainFeatures {
         Objects.requireNonNull(labels, "labels");
@@ -46,11 +48,10 @@ public record DomainFeatures(List<Label> labels, Set<String> hostTokens) {
      * @param value           the label exactly as it appears in {@code asciiHost}
      * @param hyphenCollapsed {@code value} with every {@code -} removed; equal to
      *                        {@code value} itself when it contains no hyphen
-     * @param punycodeDecoded {@link IDN#toUnicode} applied to {@code value} when it
-     *                        is a Punycode label ({@code xn--} prefixed, matched
-     *                        case-insensitively), falling back to {@code value}
-     *                        itself if decoding fails; {@code null} when {@code
-     *                        value} is not a Punycode label
+     * @param punycodeDecoded {@link IdnaProcessor#toUnicode(String)} applied to
+     *                        {@code value} when it is a Punycode label ({@code
+     *                        xn--} prefixed, matched case-insensitively); {@code
+     *                        null} when {@code value} is not a Punycode label
      */
     public record Label(String value, String hyphenCollapsed, String punycodeDecoded) {
 
@@ -93,10 +94,6 @@ public record DomainFeatures(List<Label> labels, Set<String> hostTokens) {
         if (!label.toLowerCase(Locale.ROOT).startsWith("xn--")) {
             return null;
         }
-        try {
-            return IDN.toUnicode(label, IDN.USE_STD3_ASCII_RULES);
-        } catch (IllegalArgumentException exception) {
-            return label;
-        }
+        return IDNA_PROCESSOR.toUnicode(label);
     }
 }
