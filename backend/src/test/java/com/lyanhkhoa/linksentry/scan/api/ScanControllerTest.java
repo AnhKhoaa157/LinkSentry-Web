@@ -1,5 +1,6 @@
 package com.lyanhkhoa.linksentry.scan.api;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -9,6 +10,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lyanhkhoa.linksentry.admin.domain.AdminIdentity;
 import com.lyanhkhoa.linksentry.analysis.domain.InvalidUrlException;
 import com.lyanhkhoa.linksentry.analysis.domain.RiskLevel;
@@ -18,7 +21,9 @@ import com.lyanhkhoa.linksentry.common.exception.GlobalExceptionHandler;
 import com.lyanhkhoa.linksentry.history.application.ScanNotFoundException;
 import com.lyanhkhoa.linksentry.scan.application.ScanService;
 import java.time.Instant;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -47,6 +52,8 @@ class ScanControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
     @MockitoBean
     private ScanService scanService;
 
@@ -63,6 +70,44 @@ class ScanControllerTest {
                 .andExpect(jsonPath("$.data.riskLevel").value("MODERATE"))
                 .andExpect(jsonPath("$.data.findings[0].ruleId").value("MISSING_HTTPS"))
                 .andExpect(jsonPath("$.meta.engineVersion").value("0.1.0"));
+    }
+
+    @Test
+    @DisplayName("a successful scan keeps the exact public wire field set")
+    void successfulScanKeepsExactPublicWireFieldSet() throws Exception {
+        given(scanService.scan(anyString())).willReturn(sampleResponse());
+
+        String body = mockMvc.perform(post("/api/v1/scans")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"url\":\"https://example.com/account\"}"))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        JsonNode root = objectMapper.readTree(body);
+        JsonNode data = root.get("data");
+        JsonNode normalized = data.get("normalized");
+        JsonNode finding = data.get("findings").get(0);
+
+        assertThat(fieldNames(root)).containsExactlyInAnyOrder("data", "meta");
+        assertThat(fieldNames(data))
+                .containsExactlyInAnyOrder(
+                        "scanId", "input", "normalized", "score", "riskLevel", "findings", "analyzedAt");
+        assertThat(fieldNames(normalized))
+                .containsExactlyInAnyOrder(
+                        "scheme",
+                        "host",
+                        "asciiHost",
+                        "registrableDomain",
+                        "port",
+                        "path",
+                        "queryPresent",
+                        "fragmentPresent");
+        assertThat(fieldNames(finding))
+                .containsExactlyInAnyOrder("ruleId", "severity", "points", "title", "explanation");
+        assertThat(finding.has("evidence")).as("null optional evidence remains omitted").isFalse();
+        assertThat(fieldNames(root.get("meta"))).containsExactly("engineVersion");
     }
 
     @Test
@@ -181,6 +226,12 @@ class ScanControllerTest {
                 .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("ops"))));
 
         verifyNoInteractions(scanService);
+    }
+
+    private static Set<String> fieldNames(JsonNode node) {
+        Set<String> names = new LinkedHashSet<>();
+        node.fieldNames().forEachRemaining(names::add);
+        return names;
     }
 
     private static ScanResponse sampleResponse() {
