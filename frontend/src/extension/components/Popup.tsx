@@ -10,6 +10,7 @@ import { FindingsList } from '@/features/scanner/components/FindingsList';
 import { NextSteps } from '@/features/scanner/components/NextSteps';
 import { RiskBadge } from '@/features/scanner/components/RiskBadge';
 import { normalizeApiError, type NormalizedApiError } from '@/lib/api/errors';
+import { env } from '@/lib/config/env';
 import type { Translate } from '@/lib/i18n/LocaleContext';
 import { useLocale } from '@/lib/i18n/useLocale';
 
@@ -102,6 +103,10 @@ export function Popup() {
     }
   }
 
+  function openWebApp() {
+    void chrome.tabs.create({ url: env.webAppUrl });
+  }
+
   const canScan = tabPhase === 'ready' && !isPending;
 
   return (
@@ -137,6 +142,13 @@ export function Popup() {
           : scanResponse
             ? t('popup.scan.button.scanAgain')
             : t('popup.scan.button.scan')}
+      </button>
+
+      <button type="button" onClick={openWebApp} className="popup-web-action">
+        <span>{t('popup.web.open')}</span>
+        <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+          <path d="M14 5h5v5M19 5l-8 8M19 13v5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5" />
+        </svg>
       </button>
 
       {apiError ? (

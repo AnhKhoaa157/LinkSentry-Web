@@ -368,6 +368,7 @@ export const en = {
   'popup.scan.button.scan': 'Scan this tab',
   'popup.scan.button.scanning': 'Scanning…',
   'popup.scan.button.scanAgain': 'Scan again',
+  'popup.web.open': 'Open LinkSentry Web',
   'popup.result.label': 'Analysis result',
   'popup.result.findingsHeading': 'Signals detected',
   'popup.result.empty': 'No signals detected. This does not mean the link is safe.',

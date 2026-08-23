@@ -363,6 +363,7 @@ export const vi: Record<TranslationKey, string> = {
   'popup.scan.button.scan': 'Phân tích tab này',
   'popup.scan.button.scanning': 'Đang phân tích…',
   'popup.scan.button.scanAgain': 'Phân tích lại',
+  'popup.web.open': 'Mở LinkSentry Web',
   'popup.result.label': 'Kết quả phân tích',
   'popup.result.findingsHeading': 'Tín hiệu đã phát hiện',
   'popup.result.empty': 'Không phát hiện tín hiệu. Điều này không có nghĩa là liên kết an toàn.',

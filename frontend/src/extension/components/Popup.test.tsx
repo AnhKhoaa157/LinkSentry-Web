@@ -25,7 +25,8 @@ function axiosErrorWithResponse(status: number, data: unknown, requestBody?: unk
 function stubActiveTab(url: string | undefined) {
   const tabs = url === undefined ? [{}] : [{ url }];
   const query = vi.fn().mockResolvedValue(tabs);
-  vi.stubGlobal('chrome', { tabs: { query } });
+  const create = vi.fn().mockResolvedValue({});
+  vi.stubGlobal('chrome', { tabs: { query, create } });
   return query;
 }
 
@@ -135,6 +136,17 @@ describe('Popup', () => {
       expect(document.body.innerHTML).not.toContain(sentinel);
     }
     expect(queryClient.getMutationCache().getAll()).toHaveLength(0);
+  });
+
+  it('opens only the configured LinkSentry homepage in a new tab', async () => {
+    stubActiveTab(SCAN_URL);
+    const user = userEvent.setup();
+
+    renderWithProviders(<Popup />);
+    await user.click(screen.getByRole('button', { name: 'Open LinkSentry Web' }));
+
+    expect(chrome.tabs.create).toHaveBeenCalledOnce();
+    expect(chrome.tabs.create).toHaveBeenCalledWith({ url: 'https://link-sentry-web.vercel.app' });
   });
 
   it.each([

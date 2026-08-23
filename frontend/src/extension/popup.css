@@ -166,6 +166,45 @@ body {
   opacity: 0.48;
 }
 
+.popup-web-action {
+  display: inline-flex;
+  width: 100%;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 0 14px;
+  border: 1px solid color-mix(in srgb, var(--border-strong) 84%, transparent);
+  border-radius: 12px;
+  color: var(--content-secondary);
+  background: rgb(11 18 32 / 68%);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease,
+    background var(--motion-fast) ease;
+}
+
+.popup-web-action svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.popup-web-action:hover {
+  border-color: color-mix(in srgb, var(--accent) 48%, var(--border-strong));
+  color: var(--content-primary);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface-raised));
+}
+
 .popup-error {
   margin-top: 14px;
   padding: 12px 13px;
