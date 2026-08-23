@@ -10,10 +10,12 @@ import { FindingsList } from '@/features/scanner/components/FindingsList';
 import { NextSteps } from '@/features/scanner/components/NextSteps';
 import { RiskBadge } from '@/features/scanner/components/RiskBadge';
 import { normalizeApiError, type NormalizedApiError } from '@/lib/api/errors';
+import { env } from '@/lib/config/env';
 import type { Translate } from '@/lib/i18n/LocaleContext';
 import { useLocale } from '@/lib/i18n/useLocale';
 
 const STATUS_ID = 'popup-tab-status';
+const TITLE_ID = 'popup-title';
 
 type TabPhase = 'checking' | 'ready' | 'unsupported';
 
@@ -102,26 +104,34 @@ export function Popup() {
     }
   }
 
+  function openWebApp() {
+    void chrome.tabs.create({ url: env.webAppUrl });
+  }
+
   const canScan = tabPhase === 'ready' && !isPending;
 
   return (
     <main className="popup-shell">
-      <header className="popup-brand">
-        <img src="./icons/icon-32.png" alt="" className="popup-brand-mark" />
-        <div>
-          <p className="popup-eyebrow">{t('popup.eyebrow')}</p>
-          <h1>{t('popup.title')}</h1>
-        </div>
-        <LanguageSwitcher />
-      </header>
+      <section className="popup-command-deck" aria-labelledby={TITLE_ID}>
+        <header className="popup-brand">
+          <span className="popup-brand-mark-wrap" aria-hidden="true">
+            <img src="./icons/icon-32.png" alt="" className="popup-brand-mark" />
+          </span>
+          <div className="popup-brand-copy">
+            <p className="popup-eyebrow">{t('popup.eyebrow')}</p>
+            <h1 id={TITLE_ID}>{t('popup.title')}</h1>
+          </div>
+          <LanguageSwitcher />
+        </header>
 
-      <p id={STATUS_ID} role="status" aria-live="polite" className="popup-tab-status">
-        <span aria-hidden="true" className="popup-status-dot" />
-        {statusText(t, tabPhase)}
-      </p>
+        <p id={STATUS_ID} role="status" aria-live="polite" className="popup-tab-status" data-phase={tabPhase}>
+          <span aria-hidden="true" className="popup-status-dot" />
+          {statusText(t, tabPhase)}
+        </p>
+      </section>
 
       <section className="popup-license-panel" aria-label={t('popup.license.panelLabel')}>
-        <LicenseStatusCard />
+        <LicenseStatusCard variant="compact" />
       </section>
 
       <button
@@ -132,11 +142,24 @@ export function Popup() {
         aria-describedby={STATUS_ID}
         className="popup-primary-action"
       >
-        {isPending
-          ? t('popup.scan.button.scanning')
-          : scanResponse
-            ? t('popup.scan.button.scanAgain')
-            : t('popup.scan.button.scan')}
+        <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+          <path d="M12 3v3m0 12v3M3 12h3m12 0h3m-3.64-6.36-2.12 2.12M8.76 15.24l-2.12 2.12m0-11.72 2.12 2.12m6.48 7.48 2.12 2.12" />
+          <circle cx="12" cy="12" r="3.5" />
+        </svg>
+        <span>
+          {isPending
+            ? t('popup.scan.button.scanning')
+            : scanResponse
+              ? t('popup.scan.button.scanAgain')
+              : t('popup.scan.button.scan')}
+        </span>
+      </button>
+
+      <button type="button" onClick={openWebApp} className="popup-web-action">
+        <span>{t('popup.web.open')}</span>
+        <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+          <path d="M14 5h5v5M19 5l-8 8M19 13v5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5" />
+        </svg>
       </button>
 
       {apiError ? (
@@ -148,14 +171,19 @@ export function Popup() {
       {scanResponse ? (
         <section className="popup-result" aria-live="polite">
           <div className="popup-score-card">
-            <div>
+            <div className="popup-score-card__topline">
               <p className="popup-section-label">{t('popup.result.label')}</p>
+              <RiskBadge riskLevel={scanResponse.data.riskLevel} />
+            </div>
+            <div className="popup-score-card__body">
               <p className="popup-score">
                 <span>{scanResponse.data.score}</span>
                 <small>/100</small>
               </p>
+              <div className="popup-score-track" aria-hidden="true">
+                <span style={{ width: `${scanResponse.data.score}%` }} />
+              </div>
             </div>
-            <RiskBadge riskLevel={scanResponse.data.riskLevel} />
           </div>
 
           <div className="popup-findings">

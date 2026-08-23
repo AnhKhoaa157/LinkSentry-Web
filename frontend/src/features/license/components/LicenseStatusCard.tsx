@@ -5,6 +5,7 @@ import { useLicense } from '@/features/license/context/useLicense';
 import type { DeviceState } from '@/features/license/schemas/deviceResponse';
 import type { TranslationKey } from '@/lib/i18n/translations';
 import { useLocale } from '@/lib/i18n/useLocale';
+import { cn } from '@/lib/utils/cn';
 
 const STATE_TEXT_KEY: Record<DeviceState, TranslationKey> = {
   PENDING: 'license.state.pending',
@@ -29,12 +30,16 @@ const STATE_DESCRIPTION_KEY: Record<DeviceState, TranslationKey> = {
 
 type CopyStatus = 'idle' | 'copied' | 'failed';
 
+interface LicenseStatusCardProps {
+  readonly variant?: 'default' | 'compact';
+}
+
 /**
  * Full status card: state, a safe Copy activation code action while unlicensed, and license
  * expiry while licensed. Used on the dedicated License page and in the extension popup. Never
  * renders the device credential — only the public activation code.
  */
-export function LicenseStatusCard() {
+export function LicenseStatusCard({ variant = 'default' }: LicenseStatusCardProps) {
   const { state, activationCode, licenseExpiresAt, isLoading, refresh } = useLicense();
   const { locale, t } = useLocale();
   const [copyStatus, setCopyStatus] = useState<CopyStatus>('idle');
@@ -61,18 +66,29 @@ export function LicenseStatusCard() {
 
   if (isLoading || state === null) {
     return (
-      <p role="status" className="text-content-secondary text-sm">
+      <p
+        role="status"
+        className={cn(
+          'license-status-card license-status-card--loading surface-inset text-content-secondary text-sm',
+          variant === 'compact' && 'license-status-card--compact',
+        )}
+      >
         {t('license.checking')}
       </p>
     );
   }
 
   return (
-    <div className="surface-inset space-y-5 p-5">
-      <div className="flex items-center gap-2">
+    <div
+      className={cn(
+        'license-status-card surface-inset',
+        variant === 'default' ? 'space-y-5 p-5' : 'license-status-card--compact',
+      )}
+    >
+      <div className="license-status-card__summary flex items-center gap-2">
         <Badge tone={STATE_TONE[state]}>{t(STATE_TEXT_KEY[state])}</Badge>
         {state === 'LICENSED' ? (
-          <span className="text-content-secondary text-sm">
+          <span className="license-status-card__expiry text-content-secondary text-sm">
             {licenseExpiresAt
               ? t('license.renewsOrExpires', { date: formatDate(licenseExpiresAt, locale) })
               : t('license.noExpiry')}
@@ -80,16 +96,18 @@ export function LicenseStatusCard() {
         ) : null}
       </div>
 
-      <p className="text-content-secondary text-sm">{t(STATE_DESCRIPTION_KEY[state])}</p>
+      <p className="license-status-card__description text-content-secondary text-sm">
+        {t(STATE_DESCRIPTION_KEY[state])}
+      </p>
 
       {state === 'EXPIRED' && licenseExpiresAt ? (
-        <p className="text-content-muted text-xs">
+        <p className="license-status-card__expired-on text-content-muted text-xs">
           {t('license.expiredOn', { date: formatDate(licenseExpiresAt, locale) })}
         </p>
       ) : null}
 
       {state !== 'LICENSED' && activationCode ? (
-        <div className="surface-panel p-4">
+        <div className="license-status-card__activation surface-panel p-4">
           <p className="text-content-primary text-sm font-bold">{t('license.pendingActivation.title')}</p>
           <p className="text-content-secondary mt-1 text-sm">{t('license.pendingActivation.body')}</p>
           <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -118,7 +136,7 @@ export function LicenseStatusCard() {
         type="button"
         onClick={() => void handleRefresh()}
         disabled={isRefreshing}
-        className="ui-button ui-button-quiet px-0 underline underline-offset-4 disabled:opacity-50"
+        className="license-status-card__refresh ui-button ui-button-quiet px-0 underline underline-offset-4 disabled:opacity-50"
       >
         {isRefreshing ? t('license.checkingAgain') : t('license.checkAgain')}
       </button>

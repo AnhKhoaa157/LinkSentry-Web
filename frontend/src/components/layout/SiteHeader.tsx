@@ -18,9 +18,7 @@ export function SiteHeader() {
       <div className="page-container flex flex-wrap items-center justify-between gap-x-6 gap-y-3 py-3.5">
         <NavLink to="/" className="group flex items-center gap-3" aria-label={t('nav.homeAria')}>
           <ShieldMark />
-          <span className="text-content-primary text-base font-bold tracking-tight">
-            Link<span className="text-accent-strong">Sentry</span>
-          </span>
+          <span className="text-content-primary text-base font-bold tracking-tight">LinkSentry</span>
         </NavLink>
 
         <nav aria-label={t('nav.main')} className="order-3 w-full sm:order-2 sm:w-auto">
@@ -66,24 +64,25 @@ export function SiteHeader() {
 /**
  * Shield-and-link mark, drawn in inline SVG.
  *
- * Deliberately a simple placeholder: a shield outline enclosing a chain link. No
- * external asset, no request, no build step.
+ * Uses one semantic foreground colour, so the same mark remains legible on the
+ * application's light and dark surfaces without an alternate asset.
  */
 function ShieldMark() {
   return (
     <svg
-      viewBox="0 0 24 24"
-      className="text-accent-strong size-7"
+      viewBox="0 0 32 32"
+      className="text-content-primary size-7"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.8"
+      strokeWidth="2.7"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      <path d="M12 2.5l7.5 2.6v5.6c0 4.4-3 7.9-7.5 9.3-4.5-1.4-7.5-4.9-7.5-9.3V5.1L12 2.5z" />
-      <path d="M10.4 13.6a1.9 1.9 0 010-2.7l1-1a1.9 1.9 0 012.7 0" />
-      <path d="M13.6 10.4a1.9 1.9 0 010 2.7l-1 1a1.9 1.9 0 01-2.7 0" />
+      <path d="M16 3.5 25 7v6.8c0 6-3.8 11.1-9 13.2-5.2-2.1-9-7.2-9-13.2V7l9-3.5Z" />
+      <path d="m13.2 18.8 5.6-5.6" />
+      <path d="m12 13.2 1.2-1.2a3.4 3.4 0 0 1 4.8 0" />
+      <path d="m20 18.8-1.2 1.2a3.4 3.4 0 0 1-4.8 0" />
     </svg>
   );
 }
