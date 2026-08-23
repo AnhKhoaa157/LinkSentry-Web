@@ -19,15 +19,15 @@ describe('SiteHeader license status', () => {
     expect(screen.getByText(/checking/i)).toBeInTheDocument();
   });
 
-  it('uses a single-colour logo that adapts to the active surface theme', () => {
+  it('uses the single-colour PNG brand mark', () => {
     renderWithProviders(<SiteHeader />);
 
     const homeLink = screen.getByRole('link', { name: /linksentry home/i });
-    const mark = homeLink.querySelector('svg');
+    const mark = homeLink.querySelector('img');
 
     expect(homeLink).toHaveTextContent('LinkSentry');
-    expect(mark).toHaveClass('text-content-primary');
-    expect(mark).toHaveAttribute('stroke', 'currentColor');
+    expect(mark).toHaveAttribute('src', '/brand/linksentry-mark.png');
+    expect(mark).toHaveClass('brand-mark');
   });
 
   it('links an unlicensed (trial) device to the License page', async () => {

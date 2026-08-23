@@ -408,6 +408,53 @@ html.dark {
     cursor: default;
   }
 
+  .theme-switcher {
+    display: inline-flex;
+    width: 2.4rem;
+    height: 2.4rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-default);
+    border-radius: 999px;
+    color: var(--content-secondary);
+    background: color-mix(in srgb, var(--surface-panel) 86%, transparent);
+    transition:
+      color var(--motion-fast) ease,
+      border-color var(--motion-fast) ease,
+      background-color var(--motion-fast) ease,
+      transform var(--motion-fast) ease;
+  }
+
+  .theme-switcher:hover {
+    border-color: var(--border-strong);
+    color: var(--content-primary);
+    background: var(--surface-inset);
+    transform: translateY(-1px);
+  }
+
+  .theme-switcher:active {
+    transform: translateY(0);
+  }
+
+  .theme-switcher svg {
+    width: 1.15rem;
+    height: 1.15rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .brand-mark {
+    filter: none;
+    transition: filter var(--motion-fast) ease;
+  }
+
+  html.dark .brand-mark {
+    filter: invert(1);
+  }
+
   .sr-only-focusable:not(:focus):not(:focus-within) {
     position: absolute;
     width: 1px;
