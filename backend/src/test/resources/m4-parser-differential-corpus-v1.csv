@@ -1,0 +1,17 @@
+id|category|inputEncoding|expectedOutcome|expectedDisplay|expectedHost|expectedPort|expectedPath|expectedRuleIds|expectedScore|expectedRiskLevel|redactionSentinels
+parser-leading-space|leading-whitespace|<SP>https://example.com/|REJECT|-|-|-|-|-|-|-|-
+parser-trailing-space|trailing-whitespace|https://example.com/<SP>|REJECT|-|-|-|-|-|-|-|-
+parser-leading-tab|leading-tab|<TAB>https://example.com/|REJECT|-|-|-|-|-|-|-|-
+parser-trailing-tab|trailing-tab|https://example.com/<TAB>|REJECT|-|-|-|-|-|-|-|-
+parser-leading-cr|leading-carriage-return|<CR>https://example.com/|REJECT|-|-|-|-|-|-|-|-
+parser-trailing-lf|trailing-line-feed|https://example.com/<LF>|REJECT|-|-|-|-|-|-|-|-
+parser-control-nul|control-character|https://example.com/a<NUL>b|REJECT|-|-|-|-|-|-|-|-
+parser-control-unit-separator|control-character|https://example.com/a<US>b|REJECT|-|-|-|-|-|-|-|-
+parser-trailing-dot|trailing-dot|https://EXAMPLE.COM./path|ACCEPT|https://example.com/path|example.com|-|/path|-|0|LOW|-
+parser-default-https-port|explicit-default-port|https://example.com:443/|ACCEPT|https://example.com:443/|example.com|443|/|-|0|LOW|-
+parser-nondefault-https-port|explicit-nondefault-port|https://example.com:8443/|ACCEPT|https://example.com:8443/|example.com|8443|/|-|0|LOW|-
+parser-default-http-port|explicit-default-port|http://example.com:80/|ACCEPT|http://example.com:80/|example.com|80|/|MISSING_HTTPS|5|LOW|-
+parser-repeated-path-separator|repeated-separator-accepted|https://example.com//path|ACCEPT|https://example.com//path|example.com|-|//path|-|0|LOW|-
+parser-repeated-host-separator|repeated-separator-rejected|https://example..com/|REJECT|-|-|-|-|-|-|-|-
+parser-repeated-trailing-dot|repeated-trailing-dot|https://example.com../|REJECT|-|-|-|-|-|-|-|-
+parser-query-fragment-redaction|query-fragment-redaction|https://example.com/path?query=PARSER_QUERY_SENTINEL#PARSER_FRAGMENT_SENTINEL|ACCEPT|https://example.com/path|example.com|-|/path|-|0|LOW|PARSER_QUERY_SENTINEL;PARSER_FRAGMENT_SENTINEL
