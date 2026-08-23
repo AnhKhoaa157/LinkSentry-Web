@@ -36,9 +36,7 @@ export function ScanPage() {
     }
     if (apiError.code === 'SCAN_NOT_FOUND') {
       return (
-        <StateMessage title={t('scanPage.unavailableTitle')}>
-          {t('scanPage.unavailableBody')}
-        </StateMessage>
+        <StateMessage title={t('scanPage.unavailableTitle')}>{t('scanPage.unavailableBody')}</StateMessage>
       );
     }
     if (apiError.code === 'RATE_LIMITED') {
@@ -48,7 +46,9 @@ export function ScanPage() {
   }
 
   if (!query.data) {
-    return <StateMessage title={t('scanPage.unavailableTitle')}>{t('scanPage.unavailableBody')}</StateMessage>;
+    return (
+      <StateMessage title={t('scanPage.unavailableTitle')}>{t('scanPage.unavailableBody')}</StateMessage>
+    );
   }
 
   return (

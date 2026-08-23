@@ -132,11 +132,7 @@ export function NextSteps({ riskLevel, score, registrableDomain, findings }: Pro
       <p className="body-secondary mt-2 text-sm leading-6">{t(RECOMMENDED_ACTION_KEY[riskLevel])}</p>
 
       <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
-        <button
-          type="button"
-          onClick={handleCopy}
-          className="ui-button ui-button-secondary"
-        >
+        <button type="button" onClick={handleCopy} className="ui-button ui-button-secondary">
           {t('nextSteps.copyButton')}
         </button>
 

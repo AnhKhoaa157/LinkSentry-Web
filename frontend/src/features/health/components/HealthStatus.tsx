@@ -9,7 +9,11 @@ export function HealthStatus() {
   const { data, isPending, isError, error, refetch, isFetching } = useHealth();
   const { t } = useLocale();
 
-  const label = isPending ? t('health.checking') : isError ? t('health.offline') : (data?.status ?? t('health.unknown'));
+  const label = isPending
+    ? t('health.checking')
+    : isError
+      ? t('health.offline')
+      : (data?.status ?? t('health.unknown'));
   const state = isPending ? 'pending' : isError ? 'offline' : 'online';
 
   return (

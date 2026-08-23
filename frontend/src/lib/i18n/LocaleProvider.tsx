@@ -28,7 +28,7 @@ export function LocaleProvider({ children }: LocaleProviderProps) {
     });
     return () => {
       cancelled = true;
-      };
+    };
   }, []);
 
   useEffect(() => {

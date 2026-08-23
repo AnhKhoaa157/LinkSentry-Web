@@ -12,10 +12,7 @@ interface CardProps {
 
 /** Bordered surface used to group related content. */
 export function Card({ children, className, title, description }: CardProps) {
-  const surface = cn(
-    'surface-panel p-5 sm:p-6',
-    className,
-  );
+  const surface = cn('surface-panel p-5 sm:p-6', className);
 
   if (!title) {
     return <div className={surface}>{children}</div>;

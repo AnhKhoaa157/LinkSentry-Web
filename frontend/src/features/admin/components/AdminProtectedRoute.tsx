@@ -13,7 +13,9 @@ export function AdminProtectedRoute({ children }: { readonly children: ReactNode
   if (auth.isLoading) {
     return (
       <div className="flex min-h-dvh items-center justify-center">
-        <p role="status" className="body-secondary text-sm">{t('common.loading')}</p>
+        <p role="status" className="body-secondary text-sm">
+          {t('common.loading')}
+        </p>
       </div>
     );
   }

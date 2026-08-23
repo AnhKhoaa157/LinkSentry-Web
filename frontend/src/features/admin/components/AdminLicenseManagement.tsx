@@ -238,7 +238,9 @@ export function AdminLicenseManagement() {
                 onChange={(event) => setCreateExpiryDate(event.target.value)}
                 className="ui-input mt-2 px-3 py-2.5 font-normal"
               />
-              <span className="body-muted mt-1 block text-xs font-normal">{t('admin.management.expiryHint')}</span>
+              <span className="body-muted mt-1 block text-xs font-normal">
+                {t('admin.management.expiryHint')}
+              </span>
             </label>
             <label className="ui-label" htmlFor="create-license-max-devices">
               {t('admin.management.maxDevices')} ({t('admin.management.maxDevicesOptional')})
@@ -313,10 +315,7 @@ export function AdminLicenseManagement() {
         </div>
       </Card>
 
-      <Card
-        title={t('admin.management.detailsTitle')}
-        description={t('admin.management.detailsDescription')}
-      >
+      <Card title={t('admin.management.detailsTitle')} description={t('admin.management.detailsDescription')}>
         {selectedLicenseId === null ? (
           <p className="body-secondary text-sm">{t('admin.management.selectPrompt')}</p>
         ) : null}
@@ -353,7 +352,11 @@ export function AdminLicenseManagement() {
         title={t('admin.management.activationsTitle')}
         description={t('admin.management.activationsDescription')}
       >
-        <form onSubmit={handleDeviceLookup} noValidate className="flex flex-col gap-3 sm:flex-row sm:items-end">
+        <form
+          onSubmit={handleDeviceLookup}
+          noValidate
+          className="flex flex-col gap-3 sm:flex-row sm:items-end"
+        >
           <label className="ui-label flex-1" htmlFor="device-activation-code">
             {t('admin.management.activationCode')}
             <input
@@ -458,7 +461,9 @@ function LicenseDetail({
             {license.devices.map((device) => (
               <li key={device.deviceId} className="surface-inset p-3 text-sm">
                 <span className="text-content-primary font-mono font-bold">{device.activationCode}</span>
-                <span className="body-secondary ml-2">{device.clientLabel ?? t('admin.management.unlabelledDevice')}</span>
+                <span className="body-secondary ml-2">
+                  {device.clientLabel ?? t('admin.management.unlabelledDevice')}
+                </span>
                 <span className="body-muted mt-1 block text-xs">
                   {t('admin.management.granted', { date: formatDate(device.grantedAt, locale) })}
                 </span>
@@ -486,7 +491,11 @@ function LicenseDetail({
             {grantFormError}
           </p>
         ) : null}
-        <button type="submit" disabled={isGrantPending || license.revoked} className="ui-button ui-button-primary">
+        <button
+          type="submit"
+          disabled={isGrantPending || license.revoked}
+          className="ui-button ui-button-primary"
+        >
           {isGrantPending ? t('admin.management.granting') : t('admin.management.grant')}
         </button>
       </form>
@@ -570,11 +579,15 @@ function DeviceDetail({
       </div>
       <dl className="body-secondary mt-4 grid gap-3 text-sm sm:grid-cols-2">
         <div>
-          <dt className="body-muted text-xs font-bold tracking-wide uppercase">{t('admin.management.created')}</dt>
+          <dt className="body-muted text-xs font-bold tracking-wide uppercase">
+            {t('admin.management.created')}
+          </dt>
           <dd className="text-content-primary mt-1">{formatDate(device.createdAt, locale)}</dd>
         </div>
         <div>
-          <dt className="body-muted text-xs font-bold tracking-wide uppercase">{t('admin.management.license')}</dt>
+          <dt className="body-muted text-xs font-bold tracking-wide uppercase">
+            {t('admin.management.license')}
+          </dt>
           <dd className="text-content-primary mt-1">
             {device.licenseId ?? t('admin.management.notAssigned')}
           </dd>

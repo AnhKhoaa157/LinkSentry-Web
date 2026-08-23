@@ -26,7 +26,10 @@ export function ScanResult({ data }: Props) {
         <div>
           <p className="eyebrow">{t('scanner.scoreLabel')}</p>
           <div className="mt-2 flex flex-wrap items-end gap-3">
-            <h2 id="scan-result-heading" className="text-content-primary text-5xl font-bold tracking-[-0.06em]">
+            <h2
+              id="scan-result-heading"
+              className="text-content-primary text-5xl font-bold tracking-[-0.06em]"
+            >
               {data.score}
               <span className="text-content-muted ml-1 text-base font-semibold tracking-normal">
                 {t('scanner.scoreOutOf')}
@@ -44,7 +47,7 @@ export function ScanResult({ data }: Props) {
 
       <div className="surface-inset p-4 sm:p-5">
         <p className="eyebrow">{t('scanner.analyzedLink')}</p>
-        <p className="text-content-primary mt-2 break-all font-mono text-sm leading-6">{data.input}</p>
+        <p className="text-content-primary mt-2 font-mono text-sm leading-6 break-all">{data.input}</p>
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
@@ -58,7 +61,9 @@ export function ScanResult({ data }: Props) {
                 {t('scanner.findingsHeading')}
               </h3>
             </div>
-            <span className="body-muted text-xs">{t('scanner.findingsCount', { count: data.findings.length })}</span>
+            <span className="body-muted text-xs">
+              {t('scanner.findingsCount', { count: data.findings.length })}
+            </span>
           </div>
           <div className="mt-3">
             <FindingsList findings={data.findings} />

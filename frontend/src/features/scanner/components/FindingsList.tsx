@@ -34,11 +34,9 @@ export function FindingsList({ findings }: Props) {
       {findings.map((finding) => (
         <li key={finding.ruleId} className="surface-inset p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <h4 className="text-content-primary max-w-xl text-sm font-bold leading-5">{finding.title}</h4>
+            <h4 className="text-content-primary max-w-xl text-sm leading-5 font-bold">{finding.title}</h4>
             <div className="flex shrink-0 items-center gap-2">
-              <Badge tone={SEVERITY_TONE[finding.severity]}>
-                {t(SEVERITY_KEY[finding.severity])}
-              </Badge>
+              <Badge tone={SEVERITY_TONE[finding.severity]}>{t(SEVERITY_KEY[finding.severity])}</Badge>
               <span className="body-muted font-mono text-xs">
                 {t('findings.points', { points: finding.points })}
               </span>
@@ -48,7 +46,7 @@ export function FindingsList({ findings }: Props) {
           {finding.evidence ? (
             <p
               aria-label={t('findings.evidence') + ': ' + finding.evidence}
-              className="body-muted mt-3 break-all border-l-2 border-accent/50 pl-3 font-mono text-xs leading-5"
+              className="body-muted border-accent/50 mt-3 border-l-2 pl-3 font-mono text-xs leading-5 break-all"
             >
               {finding.evidence}
             </p>

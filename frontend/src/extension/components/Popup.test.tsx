@@ -150,7 +150,7 @@ describe('Popup', () => {
 
     renderWithProviders(<Popup />);
 
-    await waitFor(() => expect(screen.getByText(/cannot be scanned/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/cannot be analyzed/i)).toBeInTheDocument());
     expect(scanButton()).toBeDisabled();
 
     // Even an explicit click on the disabled control must never reach the API.
@@ -242,7 +242,7 @@ describe('Popup', () => {
 
     await user.click(scanButton());
 
-    await waitFor(() => expect(screen.getByText(/cannot be scanned/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/cannot be analyzed/i)).toBeInTheDocument());
     expect(query).toHaveBeenCalledTimes(2);
     expect(postSpy).not.toHaveBeenCalled();
   });
@@ -464,15 +464,15 @@ describe('Popup', () => {
 
     await user.click(screen.getByRole('button', { name: 'VI' }));
 
-    expect(screen.getByText('Sẵn sàng quét tab hiện tại.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Quét tab này' })).toBeInTheDocument();
+    expect(screen.getByText('Sẵn sàng phân tích tab hiện tại.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Phân tích tab này' })).toBeInTheDocument();
     expect(localStorage.getItem('linksentry.locale')).toBe('vi');
 
     unmount();
     stubActiveTab(SCAN_URL);
     renderWithProviders(<Popup />);
 
-    expect(await screen.findByText('Sẵn sàng quét tab hiện tại.')).toBeInTheDocument();
+    expect(await screen.findByText('Sẵn sàng phân tích tab hiện tại.')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'EN' }));
     expect(screen.getByText('Ready to scan the current tab.')).toBeInTheDocument();

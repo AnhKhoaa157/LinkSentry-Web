@@ -44,9 +44,15 @@ export function DomainBreakdown({ normalized }: Props) {
       {!registrable ? <p className="body-muted mt-2 text-xs">{t('domain.unknown')}</p> : null}
 
       <dl className="border-border-default mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t pt-4">
-        <DataPoint label={t('domain.registered')} value={registrable ?? t('domain.unknown')} wide={!registrable} />
+        <DataPoint
+          label={t('domain.registered')}
+          value={registrable ?? t('domain.unknown')}
+          wide={!registrable}
+        />
         <DataPoint label={t('domain.scheme')} value={normalized.scheme.toUpperCase()} />
-        {normalized.port !== null ? <DataPoint label={t('domain.port')} value={String(normalized.port)} /> : null}
+        {normalized.port !== null ? (
+          <DataPoint label={t('domain.port')} value={String(normalized.port)} />
+        ) : null}
         <DataPoint label={t('domain.path')} value={normalized.path || '/'} wide />
         <DataPoint
           label={t('domain.query')}
@@ -73,7 +79,7 @@ function DataPoint({
   return (
     <div className={wide ? 'col-span-2 min-w-0' : 'min-w-0'}>
       <dt className="body-muted text-[0.68rem] font-bold tracking-wide uppercase">{label}</dt>
-      <dd className="text-content-primary mt-1 break-words font-mono text-xs">{value}</dd>
+      <dd className="text-content-primary mt-1 font-mono text-xs break-words">{value}</dd>
     </div>
   );
 }

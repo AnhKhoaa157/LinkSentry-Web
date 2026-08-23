@@ -20,9 +20,7 @@ describe('application shell', () => {
   it('renders the home page inside the shell', () => {
     renderWithProviders(<AppRoutes />, { route: '/' });
 
-    expect(
-      screen.getByRole('heading', { name: /analyze suspicious links before you trust them/i, level: 1 }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /pause before the click/i, level: 1 })).toBeInTheDocument();
   });
 
   it('exposes accessible landmarks and a skip link', () => {
@@ -43,7 +41,7 @@ describe('application shell', () => {
     const nav = screen.getByRole('navigation', { name: /main/i });
 
     expect(nav).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', { name: 'Scanner' })).toHaveAttribute('href', '/');
     expect(screen.getByRole('link', { name: 'Methodology' })).toHaveAttribute('href', '/methodology');
   });
 

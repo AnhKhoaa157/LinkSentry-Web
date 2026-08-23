@@ -162,7 +162,8 @@ export const en = {
   'errors.unexpected': 'Something went wrong. Please try again.',
   'errors.invalidUrl': 'The submitted value is not a supported HTTP or HTTPS URL.',
   'errors.rateLimited': 'Too many scan requests. Wait a moment before trying again.',
-  'errors.trialExhausted': 'Your free trial scan allowance is used up for now. Get a license to keep scanning.',
+  'errors.trialExhausted':
+    'Your free trial scan allowance is used up for now. Get a license to keep scanning.',
   'errors.scanNotFound': 'This saved scan is invalid, expired, or unavailable to this license.',
   'errors.unauthorized': 'A license is required to view this private scan.',
   'errors.forbidden': 'This installation does not have permission to view that resource.',
@@ -191,7 +192,8 @@ export const en = {
   'scanPage.licenseRequiredBody': 'Saved scan history is private to the license that created it.',
   'scanPage.licenseLink': "View this installation's license status",
   'scanPage.unavailableTitle': 'Saved scan unavailable',
-  'scanPage.unavailableBody': 'This scan ID is invalid, expired, ownerless, or not available to this license.',
+  'scanPage.unavailableBody':
+    'This scan ID is invalid, expired, ownerless, or not available to this license.',
   'scanPage.rateTitle': 'Too many requests',
   'scanPage.rateBody': 'This saved result is being requested too quickly. Wait a moment and try again.',
   'scanPage.errorTitle': 'Could not load saved scan',
@@ -202,7 +204,8 @@ export const en = {
   'methodology.intro':
     'The backend scores URL text with deterministic rules. Each finding carries an explicit contribution and explanation.',
   'methodology.exampleHeading': 'Find the registered domain',
-  'methodology.exampleIntro': 'A familiar brand can be hidden in subdomains. The registered boundary is what matters:',
+  'methodology.exampleIntro':
+    'A familiar brand can be hidden in subdomains. The registered boundary is what matters:',
   'methodology.exampleBody':
     'The registered domain here is evil-domain.xyz. Everything to its left is a subdomain controlled by whoever owns that registered domain.',
   'methodology.exampleSuffix':
@@ -226,7 +229,8 @@ export const en = {
   'methodology.limitTitle': 'What this cannot tell you',
   'methodology.limit.1': 'A low score is not evidence that a link is safe.',
   'methodology.limit.2': 'A high score is not proof of malice.',
-  'methodology.limit.3': 'Nothing about the destination is checked — not its content, reputation, or redirects.',
+  'methodology.limit.3':
+    'Nothing about the destination is checked — not its content, reputation, or redirects.',
 
   'license.pageEyebrow': 'This installation',
   'license.pageTitle': 'License and activation',
@@ -272,7 +276,8 @@ export const en = {
 
   'admin.login.eyebrow': 'Restricted console',
   'admin.login.title': 'Admin sign-in',
-  'admin.login.description': 'For administrators managing licenses and device access. This is not the public scanner.',
+  'admin.login.description':
+    'For administrators managing licenses and device access. This is not the public scanner.',
   'admin.login.username': 'Username',
   'admin.login.password': 'Password',
   'admin.login.submit': 'Sign in',
@@ -317,7 +322,8 @@ export const en = {
   'admin.management.selectPrompt': 'Select a license above to inspect it.',
   'admin.management.loadingDetails': 'Loading license details…',
   'admin.management.activationsTitle': 'Device activations',
-  'admin.management.activationsDescription': 'Inspect a public activation code before granting or revoking it.',
+  'admin.management.activationsDescription':
+    'Inspect a public activation code before granting or revoking it.',
   'admin.management.activationCode': 'Activation code',
   'admin.management.activationPlaceholder': 'K7H9-QX3P',
   'admin.management.inspectDevice': 'Inspect device',
@@ -365,7 +371,8 @@ export const en = {
   'popup.result.label': 'Analysis result',
   'popup.result.findingsHeading': 'Signals detected',
   'popup.result.empty': 'No signals detected. This does not mean the link is safe.',
-  'popup.result.disclaimer': 'The tab address was submitted as text only. It was not opened or rendered here.',
+  'popup.result.disclaimer':
+    'The tab address was submitted as text only. It was not opened or rendered here.',
 } as const;
 
 export type TranslationKey = keyof typeof en;

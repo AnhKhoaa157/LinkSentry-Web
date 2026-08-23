@@ -19,7 +19,10 @@ export function HomePage() {
 
   return (
     <div className="space-y-[var(--space-section)]">
-      <section className="grid items-end gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]" aria-labelledby="home-title">
+      <section
+        className="grid items-end gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]"
+        aria-labelledby="home-title"
+      >
         <div className="max-w-3xl space-y-5">
           <Badge tone="accent">{t('home.eyebrow')}</Badge>
           <h1 id="home-title" className="display-title text-content-primary">
@@ -30,9 +33,7 @@ export function HomePage() {
 
         <aside className="surface-inset hidden p-5 lg:block" aria-label={t('common.staticAnalysisOnly')}>
           <p className="eyebrow">{t('common.staticAnalysisOnly')}</p>
-          <p className="text-content-primary mt-3 text-sm font-bold">
-            {t('home.boundary.1.title')}
-          </p>
+          <p className="text-content-primary mt-3 text-sm font-bold">{t('home.boundary.1.title')}</p>
           <p className="body-secondary mt-2 text-sm leading-6">{t('home.boundary.1.body')}</p>
         </aside>
       </section>

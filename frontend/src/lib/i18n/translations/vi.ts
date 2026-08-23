@@ -190,7 +190,8 @@ export const vi: Record<TranslationKey, string> = {
   'scanPage.licenseRequiredBody': 'Lịch sử bản quét chỉ thuộc về giấy phép đã tạo nó.',
   'scanPage.licenseLink': 'Xem trạng thái giấy phép của cài đặt này',
   'scanPage.unavailableTitle': 'Bản quét đã lưu không khả dụng',
-  'scanPage.unavailableBody': 'ID bản quét không hợp lệ, hết hạn, không có chủ sở hữu hoặc không thuộc giấy phép này.',
+  'scanPage.unavailableBody':
+    'ID bản quét không hợp lệ, hết hạn, không có chủ sở hữu hoặc không thuộc giấy phép này.',
   'scanPage.rateTitle': 'Có quá nhiều yêu cầu',
   'scanPage.rateBody': 'Bản quét đang được yêu cầu quá nhanh. Vui lòng đợi một chút rồi thử lại.',
   'scanPage.errorTitle': 'Không thể tải bản quét đã lưu',
@@ -201,7 +202,8 @@ export const vi: Record<TranslationKey, string> = {
   'methodology.intro':
     'Backend chấm điểm văn bản URL bằng các quy tắc xác định. Mỗi phát hiện có điểm đóng góp và giải thích rõ ràng.',
   'methodology.exampleHeading': 'Tìm tên miền đã đăng ký',
-  'methodology.exampleIntro': 'Tên thương hiệu quen thuộc có thể bị giấu trong tên miền phụ. Ranh giới đăng ký là phần quan trọng:',
+  'methodology.exampleIntro':
+    'Tên thương hiệu quen thuộc có thể bị giấu trong tên miền phụ. Ranh giới đăng ký là phần quan trọng:',
   'methodology.exampleBody':
     'Tên miền đã đăng ký ở đây là evil-domain.xyz. Mọi phần bên trái là tên miền phụ do người sở hữu tên miền đó kiểm soát.',
   'methodology.exampleSuffix':
@@ -244,8 +246,7 @@ export const vi: Record<TranslationKey, string> = {
   'license.description.licensed': 'Cài đặt này hiện có toàn quyền truy cập.',
   'license.description.expired':
     'Giấy phép của cài đặt này đã hết hạn. Đã chuyển về hạn mức dùng thử miễn phí.',
-  'license.description.revoked':
-    'Cài đặt này đã bị thu hồi. Đã chuyển về hạn mức dùng thử miễn phí.',
+  'license.description.revoked': 'Cài đặt này đã bị thu hồi. Đã chuyển về hạn mức dùng thử miễn phí.',
   'license.renewsOrExpires': 'Gia hạn hoặc hết hạn vào {date}',
   'license.noExpiry': 'Không có ngày hết hạn',
   'license.expiredOn': 'Đã hết hạn vào {date}.',
@@ -271,7 +272,8 @@ export const vi: Record<TranslationKey, string> = {
 
   'admin.login.eyebrow': 'Bảng điều khiển hạn chế',
   'admin.login.title': 'Đăng nhập quản trị',
-  'admin.login.description': 'Dành cho quản trị viên quản lý giấy phép và quyền thiết bị. Đây không phải trình quét công khai.',
+  'admin.login.description':
+    'Dành cho quản trị viên quản lý giấy phép và quyền thiết bị. Đây không phải trình quét công khai.',
   'admin.login.username': 'Tên người dùng',
   'admin.login.password': 'Mật khẩu',
   'admin.login.submit': 'Đăng nhập',
@@ -364,5 +366,6 @@ export const vi: Record<TranslationKey, string> = {
   'popup.result.label': 'Kết quả phân tích',
   'popup.result.findingsHeading': 'Tín hiệu đã phát hiện',
   'popup.result.empty': 'Không phát hiện tín hiệu. Điều này không có nghĩa là liên kết an toàn.',
-  'popup.result.disclaimer': 'Địa chỉ tab chỉ được gửi dưới dạng văn bản. Không mở hoặc hiển thị đích đến tại đây.',
+  'popup.result.disclaimer':
+    'Địa chỉ tab chỉ được gửi dưới dạng văn bản. Không mở hoặc hiển thị đích đến tại đây.',
 };

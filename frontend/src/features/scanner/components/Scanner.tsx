@@ -14,10 +14,7 @@ const HINT_ID = 'scanner-url-hint';
 const CLIENT_ERROR_ID = 'scanner-url-error';
 const SERVER_FIELD_ERROR_ID = 'scanner-url-field-error';
 
-function displayMessage(
-  t: ReturnType<typeof useLocale>['t'],
-  error: NormalizedApiError,
-): string {
+function displayMessage(t: ReturnType<typeof useLocale>['t'], error: NormalizedApiError): string {
   return localizeApiError(t, error);
 }
 
@@ -120,7 +117,7 @@ export function Scanner() {
           </div>
 
           {clientError ? (
-            <p id={CLIENT_ERROR_ID} role="alert" className="mt-2 text-sm text-danger">
+            <p id={CLIENT_ERROR_ID} role="alert" className="text-danger mt-2 text-sm">
               {clientError}
             </p>
           ) : null}
@@ -143,7 +140,7 @@ export function Scanner() {
         ) : null}
 
         {scanResponse ? (
-          <div className="mt-8 border-border-default border-t pt-7">
+          <div className="border-border-default mt-8 border-t pt-7">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
                 <p className="eyebrow">{t('scanner.resultHeading')}</p>
@@ -156,7 +153,7 @@ export function Scanner() {
 
             <ScanResult data={scanResponse.data} />
 
-            <div className="mt-6 border-border-default border-t pt-4">
+            <div className="border-border-default mt-6 border-t pt-4">
               {isLicensed && scanResponse.data.scanId ? (
                 <>
                   <Link

@@ -24,7 +24,11 @@ export function StatusDot({ state, className }: StatusDotProps) {
   return (
     <span
       aria-hidden="true"
-      className={cn('inline-block size-2.5 shrink-0 rounded-full ring-4 ring-current/10', stateClasses[state], className)}
+      className={cn(
+        'inline-block size-2.5 shrink-0 rounded-full ring-4 ring-current/10',
+        stateClasses[state],
+        className,
+      )}
     />
   );
 }

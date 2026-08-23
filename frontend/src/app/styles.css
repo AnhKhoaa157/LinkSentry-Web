@@ -150,7 +150,11 @@ html.dark {
     min-width: 320px;
     background-color: var(--surface-canvas);
     background-image:
-      radial-gradient(circle at 86% -8%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 34rem),
+      radial-gradient(
+        circle at 86% -8%,
+        color-mix(in srgb, var(--accent) 14%, transparent),
+        transparent 34rem
+      ),
       linear-gradient(135deg, color-mix(in srgb, var(--surface-panel) 48%, transparent), transparent 38rem);
     color: var(--content-primary);
     font-family: var(--font-sans);
