@@ -6,6 +6,7 @@ import com.lyanhkhoa.linksentry.analysis.domain.UrlAnalyzer;
 import com.lyanhkhoa.linksentry.common.api.ResponseLocale;
 import com.lyanhkhoa.linksentry.common.config.EngineProperties;
 import com.lyanhkhoa.linksentry.history.application.ScanHistoryService;
+import com.lyanhkhoa.linksentry.history.application.ScanHistoryPage;
 import com.lyanhkhoa.linksentry.history.application.ScanIdParser;
 import com.lyanhkhoa.linksentry.history.application.ScanNotFoundException;
 import com.lyanhkhoa.linksentry.history.domain.ScanHistory;
@@ -14,6 +15,7 @@ import com.lyanhkhoa.linksentry.history.domain.StoredNormalizedUrl;
 import com.lyanhkhoa.linksentry.scan.api.FindingResponse;
 import com.lyanhkhoa.linksentry.scan.api.NormalizedUrlResponse;
 import com.lyanhkhoa.linksentry.scan.api.ScanDataResponse;
+import com.lyanhkhoa.linksentry.scan.api.ScanHistoryListResponse;
 import com.lyanhkhoa.linksentry.scan.api.ScanResponse;
 import java.time.Clock;
 import java.time.Instant;
@@ -120,6 +122,24 @@ public class ScanService {
         return historyService.findRetained(scanId, ownerLicenseId)
                 .map(history -> toResponse(history, locale))
                 .orElseThrow(ScanNotFoundException::new);
+    }
+
+    /** Lists private retained scan summaries for one licensed caller. */
+    public ScanHistoryListResponse list(UUID ownerLicenseId, Integer limit, String cursor) {
+        ScanHistoryPage page = historyService.listRetained(ownerLicenseId, limit, cursor);
+        List<ScanHistoryListResponse.Item> items = page.items().stream()
+                .map(summary -> new ScanHistoryListResponse.Item(
+                        summary.scanId(),
+                        summary.redactedDisplayValue(),
+                        summary.registrableDomain(),
+                        summary.score(),
+                        summary.riskLevel(),
+                        summary.findingCount(),
+                        summary.analyzedAt()))
+                .toList();
+        return new ScanHistoryListResponse(
+                new ScanHistoryListResponse.Data(items, page.nextCursor()),
+                new ScanHistoryListResponse.Meta(page.retentionDays()));
     }
 
     private ScanHistory toHistory(UUID scanId, UUID ownerLicenseId, AnalysisResult result, Instant analyzedAt) {

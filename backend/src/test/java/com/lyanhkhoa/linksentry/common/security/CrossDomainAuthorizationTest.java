@@ -55,6 +55,14 @@ class CrossDomainAuthorizationTest {
     }
 
     @Test
+    @DisplayName("an administrator's session never satisfies the licensed-device-only history collection")
+    void adminIdentityCannotListScanHistory() throws Exception {
+        mockMvc.perform(get("/api/v1/scans").with(authentication(adminAuthentication())))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+    }
+
+    @Test
     @DisplayName("an administrator's session never satisfies the licensed-device-only AI explanation route")
     void adminIdentityCannotRequestExplanation() throws Exception {
         mockMvc.perform(post("/api/v1/scans/{scanId}/explanation", "some-scan-id")
@@ -84,6 +92,9 @@ class CrossDomainAuthorizationTest {
     @Test
     @DisplayName("no credential at all still gets 401, not 403, on both cross-domain routes")
     void trulyUnauthenticatedRequestsStillGet401() throws Exception {
+        mockMvc.perform(get("/api/v1/scans"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
         mockMvc.perform(get("/api/v1/scans/{scanId}", "some-scan-id"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));

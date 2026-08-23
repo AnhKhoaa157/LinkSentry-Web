@@ -19,11 +19,14 @@ import com.lyanhkhoa.linksentry.analysis.domain.UrlAnalyzer;
 import com.lyanhkhoa.linksentry.common.api.ResponseLocale;
 import com.lyanhkhoa.linksentry.common.config.EngineProperties;
 import com.lyanhkhoa.linksentry.history.application.ScanHistoryService;
+import com.lyanhkhoa.linksentry.history.application.ScanHistoryPage;
 import com.lyanhkhoa.linksentry.history.application.ScanNotFoundException;
 import com.lyanhkhoa.linksentry.history.domain.ScanHistory;
+import com.lyanhkhoa.linksentry.history.domain.ScanHistorySummary;
 import com.lyanhkhoa.linksentry.history.domain.StoredFinding;
 import com.lyanhkhoa.linksentry.history.domain.StoredNormalizedUrl;
 import com.lyanhkhoa.linksentry.scan.api.FindingResponse;
+import com.lyanhkhoa.linksentry.scan.api.ScanHistoryListResponse;
 import com.lyanhkhoa.linksentry.scan.api.ScanResponse;
 import java.time.Clock;
 import java.time.Instant;
@@ -225,6 +228,38 @@ class ScanServiceTest {
         assertThat(response.data().scanId()).isNull();
         assertThat(response.data().input()).isEqualTo("https://example.com/reset-password");
         verifyNoInteractions(historyService);
+    }
+
+    @Test
+    @DisplayName("history list mapping exposes only the summary fields supplied by persistence")
+    void historyListMapsSafeSummaryFields() {
+        ScanHistoryService historyService = mock(ScanHistoryService.class);
+        ScanHistorySummary summary = new ScanHistorySummary(
+                UUID.fromString("2ce16fb9-d52d-4310-8d45-a4e48f31889e"),
+                "https://example.com/reset-password",
+                "example.com",
+                40,
+                RiskLevel.HIGH,
+                2,
+                FIXED_INSTANT);
+        when(historyService.listRetained(OWNER_ID, 20, null))
+                .thenReturn(new ScanHistoryPage(List.of(summary), "opaque-cursor", 30));
+        ScanService service = new ScanService(
+                fixedAnalyzer(), new EngineProperties("0.1.0"), fixedClock, historyService);
+
+        ScanHistoryListResponse response = service.list(OWNER_ID, 20, null);
+
+        assertThat(response.data().items())
+                .containsExactly(new ScanHistoryListResponse.Item(
+                        summary.scanId(),
+                        summary.redactedDisplayValue(),
+                        summary.registrableDomain(),
+                        summary.score(),
+                        summary.riskLevel(),
+                        summary.findingCount(),
+                        summary.analyzedAt()));
+        assertThat(response.data().nextCursor()).isEqualTo("opaque-cursor");
+        assertThat(response.meta().retentionDays()).isEqualTo(30);
     }
 
     @Test

@@ -5,6 +5,7 @@ import com.lyanhkhoa.linksentry.analysis.domain.InvalidUrlException;
 import com.lyanhkhoa.linksentry.common.api.ErrorResponse;
 import com.lyanhkhoa.linksentry.explanation.application.ExplanationUnavailableException;
 import com.lyanhkhoa.linksentry.history.application.ScanNotFoundException;
+import com.lyanhkhoa.linksentry.history.application.InvalidScanHistoryRequestException;
 import com.lyanhkhoa.linksentry.license.application.DeviceAlreadyAssignedException;
 import com.lyanhkhoa.linksentry.license.application.DeviceAssignmentNotFoundException;
 import com.lyanhkhoa.linksentry.license.application.DeviceLimitExceededException;
@@ -26,6 +27,7 @@ import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
@@ -169,6 +171,35 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ErrorResponse.of("SCAN_NOT_FOUND", "The requested scan could not be found.", traceId));
+    }
+
+    /** Invalid history list parameters expose field names only, never cursor contents. */
+    @ExceptionHandler(InvalidScanHistoryRequestException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidScanHistoryRequest(
+            InvalidScanHistoryRequestException exception) {
+        String traceId = newTraceId();
+        log.info("Scan history validation failed [traceId={}] for fields {}", traceId, exception.fieldErrors().keySet());
+        return ResponseEntity.badRequest()
+                .body(ErrorResponse.ofFieldErrors(
+                        "VALIDATION_ERROR",
+                        "The request contains invalid values.",
+                        exception.fieldErrors(),
+                        traceId));
+    }
+
+    /** Query/path parameter conversion failures expose the declared field name only. */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleArgumentTypeMismatch(
+            MethodArgumentTypeMismatchException exception) {
+        String traceId = newTraceId();
+        String field = exception.getName();
+        log.info("Request parameter type mismatch [traceId={}] for field {}", traceId, field);
+        return ResponseEntity.badRequest()
+                .body(ErrorResponse.ofFieldErrors(
+                        "VALIDATION_ERROR",
+                        "The request contains invalid values.",
+                        Map.of(field, "Enter a value in the expected format."),
+                        traceId));
     }
 
     /**

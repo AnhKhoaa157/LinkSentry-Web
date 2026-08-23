@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -344,6 +345,86 @@ class ScanHistoryPostgresIntegrationTest {
                 .andExpect(jsonPath("$.data.normalized.host").value("other-example.org"));
     }
 
+    @Test
+    @DisplayName("licensed history list is owner scoped, retention aware, and stable across equal timestamps")
+    void licensedHistoryListIsPrivateRetainedAndStable() throws Exception {
+        TestDevice ownerDevice = licensedDevice();
+        TestDevice siblingDevice = licensedDevice(ownerDevice.licenseId());
+        TestDevice otherLicenseDevice = licensedDevice();
+        Instant tiedInstant = clock.instant().minusSeconds(60);
+        UUID firstId = UUID.fromString("ffffffff-ffff-4fff-8fff-ffffffffffff");
+        UUID secondId = UUID.fromString("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee");
+        UUID thirdId = UUID.fromString("dddddddd-dddd-4ddd-8ddd-dddddddddddd");
+        UUID olderId = UUID.fromString("cccccccc-cccc-4ccc-8ccc-cccccccccccc");
+        UUID expiredId = UUID.fromString("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
+        UUID crossLicenseId = UUID.fromString("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+        UUID ownerlessId = UUID.fromString("99999999-9999-4999-8999-999999999999");
+
+        historyService.save(snapshot(firstId, tiedInstant, ownerDevice.licenseId()));
+        historyService.save(snapshot(secondId, tiedInstant, ownerDevice.licenseId()));
+        historyService.save(snapshot(thirdId, tiedInstant, ownerDevice.licenseId()));
+        historyService.save(snapshot(olderId, tiedInstant.minusSeconds(60), ownerDevice.licenseId()));
+        historyService.save(snapshot(
+                expiredId,
+                clock.instant().minusSeconds(31L * 24 * 60 * 60),
+                ownerDevice.licenseId()));
+        historyService.save(snapshot(crossLicenseId, tiedInstant, otherLicenseDevice.licenseId()));
+        historyService.save(snapshot(ownerlessId, tiedInstant, ownerDevice.licenseId()));
+        jdbcTemplate.update("UPDATE scan_history SET owner_license_id = NULL WHERE scan_id = ?", ownerlessId);
+
+        MvcResult firstPageResult = mockMvc.perform(get("/api/v1/scans")
+                        .param("limit", "2")
+                        .header(HttpHeaders.AUTHORIZATION, siblingDevice.authorizationHeader()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items.length()").value(2))
+                .andExpect(jsonPath("$.data.items[0].scanId").value(firstId.toString()))
+                .andExpect(jsonPath("$.data.items[1].scanId").value(secondId.toString()))
+                .andExpect(jsonPath("$.data.items[0].findingCount").value(2))
+                .andExpect(jsonPath("$.meta.retentionDays").value(30))
+                .andReturn();
+        String firstPageBody = firstPageResult.getResponse().getContentAsString();
+        String cursor = JsonPath.parse(firstPageBody).read("$.data.nextCursor", String.class);
+
+        MvcResult secondPageResult = mockMvc.perform(get("/api/v1/scans")
+                        .param("limit", "2")
+                        .param("cursor", cursor)
+                        .header(HttpHeaders.AUTHORIZATION, siblingDevice.authorizationHeader()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items.length()").value(2))
+                .andExpect(jsonPath("$.data.items[0].scanId").value(thirdId.toString()))
+                .andExpect(jsonPath("$.data.items[1].scanId").value(olderId.toString()))
+                .andExpect(jsonPath("$.data.nextCursor").value(org.hamcrest.Matchers.nullValue()))
+                .andReturn();
+        String allVisibleBodies = firstPageBody + secondPageResult.getResponse().getContentAsString();
+        assertThat(allVisibleBodies)
+                .doesNotContain(expiredId.toString(), crossLicenseId.toString(), ownerlessId.toString());
+    }
+
+    @Test
+    @DisplayName("history list requires a licensed device and validates bounded pagination inputs")
+    void historyListRequiresLicenseAndValidPagination() throws Exception {
+        mockMvc.perform(get("/api/v1/scans"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+
+        TestDevice device = licensedDevice();
+        mockMvc.perform(get("/api/v1/scans")
+                        .param("limit", "0")
+                        .header(HttpHeaders.AUTHORIZATION, device.authorizationHeader()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.fieldErrors.limit").exists());
+
+        mockMvc.perform(get("/api/v1/scans")
+                        .param("cursor", "not-a-cursor")
+                        .header(HttpHeaders.AUTHORIZATION, device.authorizationHeader()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.fieldErrors.cursor").exists())
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("not-a-cursor"))));
+    }
+
     private ScanHistory snapshot(UUID scanId, Instant analyzedAt, UUID ownerLicenseId) {
         StoredNormalizedUrl normalized = new StoredNormalizedUrl(
                 "https",
@@ -375,6 +456,13 @@ class ScanHistoryPostgresIntegrationTest {
 
     /** Bootstraps a device over HTTP, then licenses it directly through the admin service. */
     private TestDevice licensedDevice() throws Exception {
+        UUID licenseId = licenseAdminService
+                .create(new CreateLicenseRequest("integration-test-" + UUID.randomUUID(), null, null))
+                .licenseId();
+        return licensedDevice(licenseId);
+    }
+
+    private TestDevice licensedDevice(UUID licenseId) throws Exception {
         MvcResult bootstrapResult = mockMvc.perform(post("/api/v1/devices"))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -382,9 +470,6 @@ class ScanHistoryPostgresIntegrationTest {
         String activationCode = bootstrap.read("$.activationCode", String.class);
         String credential = bootstrap.read("$.credential", String.class);
 
-        UUID licenseId = licenseAdminService
-                .create(new CreateLicenseRequest("integration-test-" + UUID.randomUUID(), null, null))
-                .licenseId();
         licenseAdminService.grantDevice(licenseId, activationCode);
 
         return new TestDevice(licenseId, credential);

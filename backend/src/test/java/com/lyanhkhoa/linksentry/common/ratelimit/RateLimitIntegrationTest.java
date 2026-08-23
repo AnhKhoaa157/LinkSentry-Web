@@ -89,6 +89,16 @@ class RateLimitIntegrationTest {
     }
 
     @Test
+    @DisplayName("the history collection consumes the existing scan-lookup bucket")
+    void historyCollectionUsesScanLookupBucket() throws Exception {
+        mockMvc.perform(get("/api/v1/scans")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/scans")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/scans"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("RATE_LIMITED"));
+    }
+
+    @Test
     @DisplayName("malformed JSON and an invalid URL share the POST bucket; a malformed id consumes the GET bucket")
     void invalidRequestsStillConsumeQuota() throws Exception {
         mockMvc.perform(post("/api/v1/scans").contentType(MediaType.APPLICATION_JSON).content("{not json"))
