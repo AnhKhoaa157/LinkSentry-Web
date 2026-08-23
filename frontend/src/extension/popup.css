@@ -1,3 +1,13 @@
+:root {
+  --popup-action-foreground: #ffffff;
+  --popup-action-shadow: rgb(3 105 161 / 22%);
+}
+
+html.dark {
+  --popup-action-foreground: #03131a;
+  --popup-action-shadow: rgb(34 211 238 / 22%);
+}
+
 body {
   width: 420px;
   min-height: 0;
@@ -5,10 +15,10 @@ body {
   margin: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  background:
-    radial-gradient(circle at 88% -5%, rgb(34 211 238 / 16%), transparent 34%),
-    radial-gradient(circle at -8% 72%, rgb(8 145 178 / 9%), transparent 34%),
-    linear-gradient(165deg, #081321 0%, var(--surface-canvas) 54%, #03060c 100%);
+  background-color: var(--surface-canvas);
+  background-image:
+    radial-gradient(circle at 88% -8%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 15rem),
+    linear-gradient(145deg, color-mix(in srgb, var(--surface-panel) 64%, transparent), transparent 24rem);
   scrollbar-color: var(--border-strong) transparent;
   scrollbar-width: thin;
 }
@@ -20,7 +30,7 @@ body {
 .popup-shell {
   box-sizing: border-box;
   width: 100%;
-  padding: 16px 16px 20px;
+  padding: 14px 14px 18px;
   color: var(--content-primary);
 }
 
@@ -28,66 +38,62 @@ body {
   position: relative;
   overflow: hidden;
   padding: 14px;
-  border: 1px solid color-mix(in srgb, var(--border-strong) 82%, transparent);
-  border-radius: 16px;
-  background: linear-gradient(135deg, rgb(16 26 44 / 94%), rgb(7 16 29 / 92%)), var(--surface-panel);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 4%),
-    0 16px 38px rgb(0 0 0 / 18%);
+  border: 1px solid var(--border-default);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--surface-panel) 94%, transparent);
+  box-shadow: var(--shadow-panel);
 }
 
-.popup-command-deck::after {
+.popup-command-deck::before {
   position: absolute;
-  top: -40px;
-  right: -36px;
-  width: 108px;
-  height: 108px;
-  border: 1px solid rgb(34 211 238 / 9%);
-  border-radius: 999px;
-  box-shadow: 0 0 52px rgb(34 211 238 / 9%);
+  inset: 0 0 auto;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
   content: '';
+  opacity: 0.8;
   pointer-events: none;
 }
 
 .popup-brand {
   position: relative;
-  z-index: 1;
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
 }
 
 .popup-brand-copy {
   min-width: 0;
-  flex: 1 1 auto;
 }
 
 .popup-brand-mark-wrap {
   display: grid;
   width: 44px;
   height: 44px;
-  flex: 0 0 auto;
   place-items: center;
-  border: 1px solid rgb(34 211 238 / 30%);
+  border: 1px solid var(--border-default);
   border-radius: 13px;
-  background: linear-gradient(145deg, rgb(34 211 238 / 15%), rgb(6 182 212 / 4%));
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 8%),
-    0 10px 28px rgb(6 182 212 / 13%);
+  background: var(--surface-inset);
 }
 
 .popup-brand-mark {
-  width: 32px;
-  height: 32px;
+  width: 31px;
+  height: 31px;
+  object-fit: contain;
+  transition: filter var(--motion-fast) ease;
+}
+
+html.dark .popup-brand-mark {
+  filter: invert(1);
 }
 
 .popup-brand h1 {
   margin: 0;
   font-family: var(--font-display);
   font-size: 18px;
-  font-weight: 720;
-  line-height: 1.15;
-  letter-spacing: -0.025em;
+  font-weight: 760;
+  line-height: 1.1;
+  letter-spacing: -0.035em;
 }
 
 .popup-eyebrow,
@@ -95,42 +101,49 @@ body {
   margin: 0 0 3px;
   color: var(--accent-strong);
   font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 750;
+  font-size: 9px;
+  font-weight: 800;
   line-height: 1.4;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.13em;
   text-transform: uppercase;
 }
 
-.popup-brand .language-switcher {
-  position: relative;
-  z-index: 1;
-  flex: 0 0 auto;
-  border-color: color-mix(in srgb, var(--border-strong) 88%, transparent);
-  background: rgb(5 8 15 / 50%);
+.popup-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.popup-brand .language-switcher button {
-  min-width: 44px;
-  min-height: 44px;
+.popup-controls .theme-switcher {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+}
+
+.popup-controls .language-switcher {
+  flex: 0 0 auto;
+}
+
+.popup-controls .language-switcher button {
+  min-width: 38px;
+  min-height: 34px;
 }
 
 .popup-tab-status {
   position: relative;
-  z-index: 1;
-  display: inline-flex;
-  min-height: 28px;
+  display: flex;
+  min-height: 34px;
   align-items: center;
-  gap: 8px;
-  margin: 11px 0 0;
-  padding: 0 10px;
-  border: 1px solid color-mix(in srgb, var(--border-default) 80%, transparent);
-  border-radius: 999px;
+  gap: 9px;
+  margin: 12px 0 0;
+  padding: 6px 11px;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
   color: var(--content-secondary);
-  background: rgb(5 8 15 / 38%);
+  background: var(--surface-inset);
   font-size: 12px;
-  font-weight: 600;
-  line-height: 1.35;
+  font-weight: 650;
+  line-height: 1.4;
 }
 
 .popup-status-dot {
@@ -157,7 +170,7 @@ body {
 }
 
 .popup-license-panel {
-  margin-top: 12px;
+  margin-top: 10px;
 }
 
 .popup-license-panel .license-status-card--compact {
@@ -165,15 +178,15 @@ body {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px 12px;
   align-items: center;
-  padding: 12px 13px;
-  border-color: color-mix(in srgb, var(--border-strong) 80%, transparent);
-  border-radius: 14px;
-  background: rgb(11 18 32 / 70%);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 3%);
+  padding: 13px 14px;
+  border-color: var(--border-default);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface-panel) 94%, transparent);
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--content-primary) 7%, transparent);
 }
 
 .popup-license-panel .license-status-card--loading {
-  min-height: 44px;
+  min-height: 46px;
 }
 
 .popup-license-panel .license-status-card__summary {
@@ -192,71 +205,68 @@ body {
   grid-column: 1 / -1;
 }
 
-.popup-license-panel .license-status-card__description {
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.5;
-}
-
+.popup-license-panel .license-status-card__description,
 .popup-license-panel .license-status-card__expired-on {
   margin: 0;
 }
 
+.popup-license-panel .license-status-card__description {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .popup-license-panel .license-status-card__activation {
   padding: 12px;
-  border-radius: 11px;
+  border-radius: 12px;
   box-shadow: none;
 }
 
 .popup-license-panel .license-status-card__refresh {
-  min-height: 44px;
+  min-height: 38px;
   grid-column: 2;
   grid-row: 1;
-  padding-inline: 8px;
+  padding-inline: 7px;
   white-space: nowrap;
 }
 
-.popup-primary-action {
+.popup-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.popup-primary-action,
+.popup-web-action {
   display: inline-flex;
   width: 100%;
-  min-height: 50px;
   align-items: center;
   justify-content: center;
   gap: 9px;
-  margin-top: 12px;
-  padding: 0 18px;
-  border: 1px solid rgb(103 232 249 / 72%);
-  border-radius: 13px;
-  color: #03131a;
-  background: linear-gradient(135deg, #67e8f9 0%, #22d3ee 45%, #06b6d4 100%);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 42%),
-    0 12px 26px rgb(6 182 212 / 22%);
+  padding: 0 16px;
+  border-radius: 12px;
   font: inherit;
-  font-size: 14px;
-  font-weight: 800;
   cursor: pointer;
-  transition:
-    transform var(--motion-fast) ease,
-    box-shadow var(--motion-fast) ease,
-    filter var(--motion-fast) ease;
 }
 
-.popup-primary-action svg {
-  width: 18px;
-  height: 18px;
-  fill: none;
-  stroke: currentcolor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 1.8;
+.popup-primary-action {
+  min-height: 50px;
+  border: 1px solid var(--accent);
+  color: var(--popup-action-foreground);
+  background: var(--accent);
+  box-shadow: 0 12px 26px var(--popup-action-shadow);
+  font-size: 14px;
+  font-weight: 800;
+  transition:
+    transform var(--motion-fast) ease,
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease;
 }
 
 .popup-primary-action:hover:not(:disabled) {
-  filter: brightness(1.05);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 42%),
-    0 15px 32px rgb(6 182 212 / 29%);
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+  box-shadow: 0 15px 32px var(--popup-action-shadow);
   transform: translateY(-1px);
 }
 
@@ -266,36 +276,32 @@ body {
 
 .popup-primary-action:disabled {
   cursor: not-allowed;
-  filter: saturate(0.55);
   opacity: 0.5;
 }
 
 .popup-web-action {
-  display: inline-flex;
-  width: 100%;
   min-height: 44px;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 8px;
-  padding: 0 14px;
-  border: 1px solid color-mix(in srgb, var(--border-strong) 84%, transparent);
-  border-radius: 12px;
+  border: 1px solid var(--border-strong);
   color: var(--content-secondary);
-  background: rgb(11 18 32 / 68%);
-  font: inherit;
+  background: var(--surface-raised);
   font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
+  font-weight: 750;
   transition:
     border-color var(--motion-fast) ease,
     color var(--motion-fast) ease,
-    background var(--motion-fast) ease;
+    background-color var(--motion-fast) ease;
 }
 
+.popup-web-action:hover {
+  border-color: var(--accent);
+  color: var(--content-primary);
+  background: var(--accent-soft);
+}
+
+.popup-primary-action svg,
 .popup-web-action svg {
-  width: 16px;
-  height: 16px;
+  width: 17px;
+  height: 17px;
   fill: none;
   stroke: currentcolor;
   stroke-linecap: round;
@@ -303,14 +309,8 @@ body {
   stroke-width: 1.8;
 }
 
-.popup-web-action:hover {
-  border-color: color-mix(in srgb, var(--accent) 48%, var(--border-strong));
-  color: var(--content-primary);
-  background: color-mix(in srgb, var(--accent) 8%, var(--surface-raised));
-}
-
 .popup-error {
-  margin-top: 12px;
+  margin-top: 10px;
   padding: 12px 13px;
   border: 1px solid color-mix(in srgb, var(--danger) 46%, var(--border-default));
   border-radius: 12px;
@@ -326,20 +326,20 @@ body {
 
 .popup-result {
   display: grid;
-  gap: 14px;
-  margin-top: 16px;
+  gap: 12px;
+  margin-top: 14px;
 }
 
 .popup-score-card {
   position: relative;
   overflow: hidden;
   padding: 14px;
-  border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--border-default));
-  border-radius: 15px;
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--border-default));
+  border-radius: 16px;
   background:
-    radial-gradient(circle at 100% 0%, rgb(34 211 238 / 11%), transparent 40%),
-    linear-gradient(145deg, rgb(16 26 44 / 96%), rgb(7 16 29 / 90%));
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 4%);
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 42%),
+    var(--surface-panel);
+  box-shadow: 0 14px 36px color-mix(in srgb, var(--content-primary) 7%, transparent);
 }
 
 .popup-score-card__topline,
@@ -355,7 +355,7 @@ body {
 }
 
 .popup-score-card__body {
-  margin-top: 9px;
+  margin-top: 10px;
 }
 
 .popup-score {
@@ -370,7 +370,7 @@ body {
   color: var(--content-primary);
   font-family: var(--font-display);
   font-size: 36px;
-  font-weight: 760;
+  font-weight: 780;
   letter-spacing: -0.06em;
   line-height: 0.95;
 }
@@ -385,9 +385,9 @@ body {
   height: 7px;
   flex: 1 1 auto;
   overflow: hidden;
-  border: 1px solid rgb(31 51 85 / 80%);
+  border: 1px solid var(--border-default);
   border-radius: 999px;
-  background: rgb(5 8 15 / 70%);
+  background: var(--surface-inset);
 }
 
 .popup-score-track span {
@@ -395,8 +395,7 @@ body {
   height: 100%;
   min-width: 2px;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--accent), var(--accent-strong));
-  box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 42%, transparent);
+  background: var(--accent);
   transition: width var(--motion-standard) ease;
 }
 
@@ -435,7 +434,7 @@ body {
 .popup-findings li.surface-inset {
   padding: 13px;
   border-radius: 12px;
-  background: rgb(7 16 29 / 76%);
+  background: var(--surface-inset);
 }
 
 .popup-findings li.surface-inset > div {
@@ -487,6 +486,7 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .popup-primary-action,
   .popup-web-action,
+  .popup-brand-mark,
   .popup-score-track span {
     transition: none;
   }

@@ -31,11 +31,19 @@ export function persistTheme(theme: Theme): void {
   }
 }
 
-/** Applies the semantic theme to the document shell and browser-tab chrome. */
-export function applyTheme(theme: Theme): void {
+interface ApplyThemeOptions {
+  readonly syncBrowserChrome?: boolean;
+}
+
+/** Applies the semantic theme and, for the web app, its browser-tab chrome. */
+export function applyTheme(theme: Theme, { syncBrowserChrome = true }: ApplyThemeOptions = {}): void {
   const root = document.documentElement;
   root.classList.toggle('light', theme === 'light');
   root.classList.toggle('dark', theme === 'dark');
+
+  if (!syncBrowserChrome) {
+    return;
+  }
 
   const themeColor = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
   themeColor?.setAttribute('content', theme === 'dark' ? '#05080f' : '#f4f7fb');
