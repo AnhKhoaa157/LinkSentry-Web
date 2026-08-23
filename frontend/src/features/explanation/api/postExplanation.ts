@@ -1,4 +1,5 @@
 import { apiClient } from '@/lib/api/client';
+import { localeRequestConfig, type LocaleRequestOptions } from '@/lib/api/localeRequestConfig';
 import {
   explanationResponseSchema,
   type ExplanationResponse,
@@ -14,11 +15,14 @@ export function explanationEndpoint(scanId: string): string {
  * There is no request body: everything the provider is allowed to see is built
  * entirely server-side from the already-persisted, already-safe scan snapshot.
  */
-export async function postExplanation(scanId: string, signal?: AbortSignal): Promise<ExplanationResponse> {
+export async function postExplanation(
+  scanId: string,
+  options?: LocaleRequestOptions,
+): Promise<ExplanationResponse> {
   const response = await apiClient.post<unknown>(
     explanationEndpoint(scanId),
     undefined,
-    signal ? { signal } : {},
+    localeRequestConfig(options),
   );
   return explanationResponseSchema.parse(response.data);
 }

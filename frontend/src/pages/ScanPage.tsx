@@ -5,13 +5,15 @@ import { ExplainResult } from '@/features/explanation/components/ExplainResult';
 import { useScanQuery } from '@/features/scanner/api/useScanQuery';
 import { ScanResult } from '@/features/scanner/components/ScanResult';
 import { normalizeApiError } from '@/lib/api/errors';
+import { useLocale } from '@/lib/i18n/useLocale';
 
 const GENERIC_LOAD_ERROR = 'We could not load this saved scan. Please try again later.';
 
 /** Renders a retained result loaded from an opaque scan permalink. */
 export function ScanPage() {
   const { scanId } = useParams<{ scanId: string }>();
-  const query = useScanQuery(scanId);
+  const { locale } = useLocale();
+  const query = useScanQuery(scanId, locale);
 
   if (query.isPending) {
     return <p role="status">Loading saved scan…</p>;

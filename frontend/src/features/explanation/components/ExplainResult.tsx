@@ -47,7 +47,7 @@ const SEVERITY_TONE: Record<Severity, 'low' | 'moderate' | 'high' | 'critical'> 
  * and `docs/adr/0005-deepseek-scan-explanation-integration.md`.
  */
 export function ExplainResult({ scanId }: Props) {
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
   const [status, setStatus] = useState<Status>('idle');
   const [data, setData] = useState<ExplanationData | null>(null);
   const [error, setError] = useState<NormalizedApiError | null>(null);
@@ -64,7 +64,7 @@ export function ExplainResult({ scanId }: Props) {
   function handleExplain() {
     setStatus('loading');
     setError(null);
-    void postExplanation(ownedScanId)
+    void postExplanation(ownedScanId, { locale })
       .then((response) => {
         setData(response.data);
         setStatus('success');

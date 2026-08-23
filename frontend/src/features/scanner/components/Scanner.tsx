@@ -7,6 +7,7 @@ import { ScanResult } from '@/features/scanner/components/ScanResult';
 import { scanRequestSchema } from '@/features/scanner/schemas/scanRequest';
 import type { ScanResponse } from '@/features/scanner/schemas/scanResponse';
 import { normalizeApiError, type NormalizedApiError } from '@/lib/api/errors';
+import { useLocale } from '@/lib/i18n/useLocale';
 
 const HINT_ID = 'scanner-url-hint';
 const CLIENT_ERROR_ID = 'scanner-url-error';
@@ -50,6 +51,7 @@ function displayMessage(error: NormalizedApiError): string {
  */
 export function Scanner() {
   const { isLicensed, isLoading: isLicenseLoading } = useLicense();
+  const { locale } = useLocale();
   const [url, setUrl] = useState('');
   const [clientError, setClientError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
@@ -96,7 +98,7 @@ export function Scanner() {
     setIsPending(true);
     setScanResponse(null);
     setApiError(null);
-    void postScan(parsed.data.url)
+    void postScan(parsed.data.url, { locale })
       .then((response) => setScanResponse(response))
       .catch((error: unknown) => setApiError(normalizeApiError(error)))
       .finally(() => setIsPending(false));

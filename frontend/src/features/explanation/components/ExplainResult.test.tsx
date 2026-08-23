@@ -97,7 +97,7 @@ describe('ExplainResult', () => {
     expect(postSpy).toHaveBeenCalledWith(
       `/api/v1/scans/${SCAN_ID}/explanation`,
       undefined,
-      expect.objectContaining({}),
+      expect.objectContaining({ headers: { 'Accept-Language': 'en' } }),
     );
     // The control is replaced by the result, not left alongside it.
     expect(screen.queryByRole('button', { name: 'Explain this result' })).not.toBeInTheDocument();
