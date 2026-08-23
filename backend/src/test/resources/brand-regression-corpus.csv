@@ -5,7 +5,9 @@ vietcombank-exact-mismatch|exact-mismatch|https://vietcombank.evil-vietcombank.x
 vietcombank-path-query-fragment|path-query-fragment-noop|https://example.com/vietcombank-info?ref=vietcombank#vietcombanksection|false||0|LOW||
 techcombank-apex|official-apex|https://techcombank.com.vn/|false||0|LOW||
 techcombank-subdomain|official-subdomain|https://www.techcombank.com.vn/|false||0|LOW||
-techcombank-exact-mismatch|exact-mismatch|https://techcombank.evil-techcombank.xyz/|false|BRAND_DOMAIN_MISMATCH|30|MODERATE||Techcombank;techcombank.com.vn
+techcombank-secondary-apex|official-secondary-apex|https://techcombank.com/|false||0|LOW||
+techcombank-secondary-subdomain|official-secondary-subdomain|https://portal.techcombank.com/|false||0|LOW||
+techcombank-exact-mismatch|exact-mismatch|https://techcombank.evil-techcombank.xyz/|false|BRAND_DOMAIN_MISMATCH|30|MODERATE||Techcombank;techcombank.com.vn;techcombank.com
 techcombank-path-query-fragment|path-query-fragment-noop|https://example.com/techcombank-info?ref=techcombank#techcombanksection|false||0|LOW||
 bidv-apex|official-apex|https://bidv.com.vn/|false||0|LOW||
 bidv-subdomain|official-subdomain|https://www.bidv.com.vn/|false||0|LOW||

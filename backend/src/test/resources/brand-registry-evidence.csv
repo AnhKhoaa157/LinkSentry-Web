@@ -1,0 +1,11 @@
+brandId|displayName|officialDomains|officialSource|verificationDate|reviewer|negativeCases|negativeHost
+vietcombank|Vietcombank|vietcombank.com.vn|https://www.vietcombank.com.vn/|2026-08-23|UIAKHOA|official-apex;official-subdomain;path-only;unrelated-host|neutral-registry.example
+techcombank|Techcombank|techcombank.com.vn,techcombank.com|https://www.techcombank.com.vn/|2026-08-23|UIAKHOA|official-apex;official-subdomain;path-only;unrelated-host|neutral-registry.example
+bidv|BIDV|bidv.com.vn|https://www.bidv.com.vn/|2026-08-23|UIAKHOA|official-apex;official-subdomain;path-only;unrelated-host|neutral-registry.example
+vietinbank|VietinBank|vietinbank.vn|https://www.vietinbank.vn/|2026-08-23|UIAKHOA|official-apex;official-subdomain;path-only;unrelated-host|neutral-registry.example
+agribank|Agribank|agribank.com.vn|https://www.agribank.com.vn/|2026-08-23|UIAKHOA|official-apex;official-subdomain;path-only;unrelated-host|neutral-registry.example
+acb|ACB|acb.com.vn|https://www.acb.com.vn/|2026-08-23|UIAKHOA|official-apex;official-subdomain;path-only;unrelated-host|neutral-registry.example
+sacombank|Sacombank|sacombank.com.vn|https://www.sacombank.com.vn/|2026-08-23|UIAKHOA|official-apex;official-subdomain;path-only;unrelated-host|neutral-registry.example
+momo|MoMo|momo.vn|https://momo.vn/|2026-08-23|UIAKHOA|official-apex;official-subdomain;path-only;unrelated-host|neutral-registry.example
+shopee|Shopee|shopee.vn|https://shopee.vn/|2026-08-23|UIAKHOA|official-apex;official-subdomain;path-only;unrelated-host|neutral-registry.example
+tiki|Tiki|tiki.vn|https://tiki.vn/|2026-08-23|UIAKHOA|official-apex;official-subdomain;path-only;unrelated-host|neutral-registry.example

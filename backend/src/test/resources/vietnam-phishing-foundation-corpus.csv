@@ -1,0 +1,10 @@
+id|category|url|expectedRuleIds|expectedScore|expectedRiskLevel|secretSentinels|milestoneThreeCompositeExpectation
+vietcombank-apk-mismatch|exact-brand-plus-apk|https://vietcombank.example.com/mobile-update.apk|BRAND_DOMAIN_MISMATCH;BRAND_IMPERSONATION_APK|50|HIGH||FIRE
+vietcombank-apk-mismatch-redaction|exact-brand-plus-apk-redaction|https://vietcombank.example.com/mobile-update.apk?token=VN_FOUNDATION_SECRET#VN_FOUNDATION_FRAGMENT|BRAND_DOMAIN_MISMATCH;BRAND_IMPERSONATION_APK|50|HIGH|VN_FOUNDATION_SECRET;VN_FOUNDATION_FRAGMENT|FIRE
+vietcombank-official-apk|official-brand-plus-apk|https://mobile.vietcombank.com.vn/updates/official.apk||0|LOW||NO_FINDING
+unrelated-apk|unrelated-apk|https://downloads.example.com/installer.apk||0|LOW||NO_FINDING
+vietcombank-mismatch-no-apk|exact-brand-without-apk|https://vietcombank.example.com/account|BRAND_DOMAIN_MISMATCH|30|MODERATE||NO_FINDING
+vietcombank-typo-apk|lookalike-plus-apk|https://vietcomban.example.com/mobile-update.apk|BRAND_IMPERSONATION_APK;BRAND_LOOKALIKE_HOSTNAME|40|HIGH||FIRE
+vietcombank-hyphen-apk|hyphen-lookalike-plus-apk|https://viet-com-bank.example.com/mobile-update.apk|BRAND_IMPERSONATION_APK;BRAND_LOOKALIKE_HOSTNAME|40|HIGH||FIRE
+encoded-apk-suffix|encoded-apk-suffix|https://vietcombank.example.com/mobile-update%2Eapk|BRAND_DOMAIN_MISMATCH;ENCODED_CHARACTERS|40|HIGH||NO_FINDING
+brand-name-only-in-path|brand-name-in-path-plus-apk|https://downloads.example.com/vietcombank-mobile.apk||0|LOW||NO_FINDING
