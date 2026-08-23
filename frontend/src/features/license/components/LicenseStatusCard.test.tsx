@@ -57,6 +57,21 @@ describe('LicenseStatusCard', () => {
     expect(screen.queryByRole('button', { name: /copy activation code/i })).not.toBeInTheDocument();
   });
 
+  it('supports the compact extension presentation without removing license controls', async () => {
+    await deviceCredentialStorage.set('existing-credential');
+    vi.mocked(getDeviceStatus).mockResolvedValue({
+      state: 'LICENSED',
+      activationCode: 'K7H9-QX3P',
+      licenseExpiresAt: '2027-01-01T00:00:00Z',
+    });
+
+    const { container } = renderWithProviders(<LicenseStatusCard variant="compact" />);
+
+    await waitFor(() => expect(screen.getByText('Licensed')).toBeInTheDocument());
+    expect(container.querySelector('.license-status-card--compact')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /check status again/i })).toBeInTheDocument();
+  });
+
   it('shows the activation-code action again for an expired license, alongside when it expired', async () => {
     await renderWithState('EXPIRED', '2020-01-01T00:00:00Z');
 

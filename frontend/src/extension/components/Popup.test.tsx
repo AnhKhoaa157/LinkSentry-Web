@@ -131,7 +131,7 @@ describe('Popup', () => {
     const { queryClient } = renderPopupWithQueryClient();
 
     await waitFor(() => expect(scanButton()).toBeEnabled());
-    expect(screen.getByText('Ready to scan the current tab.')).toBeInTheDocument();
+    expect(screen.getByText('Ready to scan the current tab.')).toHaveAttribute('data-phase', 'ready');
     for (const sentinel of RAW_URL_SENTINELS) {
       expect(document.body.innerHTML).not.toContain(sentinel);
     }
@@ -184,7 +184,7 @@ describe('Popup', () => {
     const query = stubActiveTab(SCAN_URL);
     const postSpy = vi.spyOn(apiClient, 'post').mockResolvedValue({ data: validScanResponse });
     const user = userEvent.setup();
-    const { queryClient } = renderPopupWithQueryClient();
+    const { container, queryClient } = renderPopupWithQueryClient();
 
     await waitFor(() => expect(scanButton()).toBeEnabled());
     await user.click(scanButton());
@@ -200,6 +200,7 @@ describe('Popup', () => {
     );
     expect(await screen.findByText('55')).toBeInTheDocument();
     expect(screen.getByText('High risk')).toBeInTheDocument();
+    expect(container.querySelector('.popup-score-track > span')).toHaveStyle({ width: '55%' });
     expect(screen.getByText('Subdomain uses a sensitive-sounding word')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Recommended next steps' })).toBeInTheDocument();
     postSpy.mockClear();

@@ -19,6 +19,17 @@ describe('SiteHeader license status', () => {
     expect(screen.getByText(/checking/i)).toBeInTheDocument();
   });
 
+  it('uses a single-colour logo that adapts to the active surface theme', () => {
+    renderWithProviders(<SiteHeader />);
+
+    const homeLink = screen.getByRole('link', { name: /linksentry home/i });
+    const mark = homeLink.querySelector('svg');
+
+    expect(homeLink).toHaveTextContent('LinkSentry');
+    expect(mark).toHaveClass('text-content-primary');
+    expect(mark).toHaveAttribute('stroke', 'currentColor');
+  });
+
   it('links an unlicensed (trial) device to the License page', async () => {
     renderWithProviders(<SiteHeader />);
 
