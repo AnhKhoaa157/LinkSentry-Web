@@ -10,8 +10,8 @@ import { useLocale } from '@/lib/i18n/useLocale';
 /** Renders a retained result loaded from an opaque scan permalink. */
 export function ScanPage() {
   const { scanId } = useParams<{ scanId: string }>();
-  const query = useScanQuery(scanId);
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
+  const query = useScanQuery(scanId, locale);
 
   if (query.isPending) {
     return (

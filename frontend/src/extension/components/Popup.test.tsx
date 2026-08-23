@@ -179,7 +179,13 @@ describe('Popup', () => {
 
     expect(query).toHaveBeenCalledTimes(2);
     expect(postSpy).toHaveBeenCalledTimes(1);
-    expect(postSpy).toHaveBeenCalledWith('/api/v1/scans', { url: SCAN_URL }, {});
+    expect(postSpy).toHaveBeenCalledWith(
+      '/api/v1/scans',
+      { url: SCAN_URL },
+      {
+        headers: { 'Accept-Language': 'en' },
+      },
+    );
     expect(await screen.findByText('55')).toBeInTheDocument();
     expect(screen.getByText('High risk')).toBeInTheDocument();
     expect(screen.getByText('Subdomain uses a sensitive-sounding word')).toBeInTheDocument();

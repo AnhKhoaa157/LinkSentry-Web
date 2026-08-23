@@ -1,7 +1,9 @@
 package com.lyanhkhoa.linksentry.scan.application;
 
 import com.lyanhkhoa.linksentry.analysis.domain.AnalysisResult;
+import com.lyanhkhoa.linksentry.analysis.domain.Severity;
 import com.lyanhkhoa.linksentry.analysis.domain.UrlAnalyzer;
+import com.lyanhkhoa.linksentry.common.api.ResponseLocale;
 import com.lyanhkhoa.linksentry.common.config.EngineProperties;
 import com.lyanhkhoa.linksentry.history.application.ScanHistoryService;
 import com.lyanhkhoa.linksentry.history.application.ScanIdParser;
@@ -16,6 +18,7 @@ import com.lyanhkhoa.linksentry.scan.api.ScanResponse;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,7 +63,7 @@ public class ScanService {
      *                             {@code rawInput} is not an analysable URL
      */
     public ScanResponse scan(String rawInput) {
-        return scan(rawInput, null);
+        return scan(rawInput, null, ResponseLocale.ENGLISH);
     }
 
     /**
@@ -68,13 +71,23 @@ public class ScanService {
      * is deliberately neither assigned a retrievable ID nor persisted.
      */
     public ScanResponse scan(String rawInput, UUID ownerLicenseId) {
+        return scan(rawInput, ownerLicenseId, ResponseLocale.ENGLISH);
+    }
+
+    /**
+     * Analyses one URL and maps only its server-owned presentation copy to the
+     * requested response locale. The analysis result and persisted snapshot stay
+     * locale-independent.
+     */
+    public ScanResponse scan(String rawInput, UUID ownerLicenseId, ResponseLocale locale) {
+        Objects.requireNonNull(locale, "locale");
         AnalysisResult result = urlAnalyzer.analyze(rawInput);
 
         Instant analyzedAt = Instant.now(clock);
         if (ownerLicenseId == null) {
             List<String> ruleIds = result.findings().stream().map(finding -> finding.ruleId()).toList();
             log.info("Trial scan completed [riskLevel={}, rules={}]", result.riskLevel(), ruleIds);
-            return toResponse(result, analyzedAt);
+            return toResponse(result, analyzedAt, locale);
         }
 
         UUID scanId = UUID.randomUUID();
@@ -84,7 +97,7 @@ public class ScanService {
         List<String> ruleIds = scanHistory.findings().stream().map(StoredFinding::ruleId).toList();
         log.info("Scan completed [scanId={}, riskLevel={}, rules={}]", scanId, result.riskLevel(), ruleIds);
 
-        return toResponse(scanHistory);
+        return toResponse(scanHistory, locale);
     }
 
     /** Retrieves a retained scan by its opaque, canonical UUID string. */
@@ -94,12 +107,18 @@ public class ScanService {
 
     /** Retrieves only a retained scan owned by {@code ownerLicenseId}. */
     public ScanResponse get(String rawScanId, UUID ownerLicenseId) {
+        return get(rawScanId, ownerLicenseId, ResponseLocale.ENGLISH);
+    }
+
+    /** Retrieves a retained scan and localizes its server-owned finding copy. */
+    public ScanResponse get(String rawScanId, UUID ownerLicenseId, ResponseLocale locale) {
+        Objects.requireNonNull(locale, "locale");
         if (ownerLicenseId == null) {
             throw new ScanNotFoundException();
         }
         UUID scanId = ScanIdParser.parse(rawScanId);
         return historyService.findRetained(scanId, ownerLicenseId)
-                .map(ScanService::toResponse)
+                .map(history -> toResponse(history, locale))
                 .orElseThrow(ScanNotFoundException::new);
     }
 
@@ -135,16 +154,17 @@ public class ScanService {
                 ownerLicenseId);
     }
 
-    private ScanResponse toResponse(AnalysisResult result, Instant analyzedAt) {
+    private ScanResponse toResponse(AnalysisResult result, Instant analyzedAt, ResponseLocale locale) {
         StoredNormalizedUrl normalized = toStoredNormalizedUrl(result);
         List<FindingResponse> findings = result.findings().stream()
-                .map(finding -> new FindingResponse(
+                .map(finding -> toFindingResponse(
                         finding.ruleId(),
                         finding.severity(),
                         finding.points(),
                         finding.title(),
                         finding.explanation(),
-                        finding.evidence()))
+                        finding.evidence(),
+                        locale))
                 .toList();
         return new ScanResponse(
                 new ScanDataResponse(
@@ -183,7 +203,7 @@ public class ScanService {
                 normalized.fragmentPresent());
     }
 
-    private static ScanResponse toResponse(ScanHistory scanHistory) {
+    private static ScanResponse toResponse(ScanHistory scanHistory, ResponseLocale locale) {
         StoredNormalizedUrl normalized = scanHistory.normalized();
         NormalizedUrlResponse normalizedResponse = new NormalizedUrlResponse(
                 normalized.scheme(),
@@ -195,13 +215,14 @@ public class ScanService {
                 normalized.queryPresent(),
                 normalized.fragmentPresent());
         List<FindingResponse> findings = scanHistory.findings().stream()
-                .map(finding -> new FindingResponse(
+                .map(finding -> toFindingResponse(
                         finding.ruleId(),
                         finding.severity(),
                         finding.points(),
                         finding.title(),
                         finding.explanation(),
-                        finding.evidence()))
+                        finding.evidence(),
+                        locale))
                 .toList();
         ScanDataResponse data = new ScanDataResponse(
                 scanHistory.scanId(),
@@ -212,5 +233,18 @@ public class ScanService {
                 findings,
                 scanHistory.analyzedAt());
         return new ScanResponse(data, new ScanResponse.ScanMeta(scanHistory.engineVersion()));
+    }
+
+    private static FindingResponse toFindingResponse(
+            String ruleId,
+            Severity severity,
+            int points,
+            String title,
+            String explanation,
+            String evidence,
+            ResponseLocale locale) {
+        FindingCopyLocalizer.FindingCopy copy = FindingCopyLocalizer.localize(
+                ruleId, title, explanation, locale);
+        return new FindingResponse(ruleId, severity, points, copy.title(), copy.explanation(), evidence);
     }
 }

@@ -21,7 +21,7 @@ function displayMessage(t: ReturnType<typeof useLocale>['t'], error: NormalizedA
 /** The real scanner: a validated text form plus a server-owned result. */
 export function Scanner() {
   const { isLicensed, isLoading: isLicenseLoading } = useLicense();
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
   const [url, setUrl] = useState('');
   const [clientError, setClientError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
@@ -58,7 +58,7 @@ export function Scanner() {
     setIsPending(true);
     setScanResponse(null);
     setApiError(null);
-    void postScan(parsed.data.url)
+    void postScan(parsed.data.url, { locale })
       .then((response) => setScanResponse(response))
       .catch((error: unknown) => setApiError(normalizeApiError(error)))
       .finally(() => setIsPending(false));
