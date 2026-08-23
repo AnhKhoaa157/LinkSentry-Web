@@ -191,6 +191,46 @@ describe('Popup', () => {
     }
   });
 
+  it('renders a BRAND_IMPERSONATION_APK finding as plain text without making it interactive', async () => {
+    const query = stubActiveTab(SCAN_URL);
+    const response = {
+      ...validScanResponse,
+      data: {
+        ...validScanResponse.data,
+        score: 20,
+        riskLevel: 'MODERATE',
+        findings: [
+          {
+            ruleId: 'BRAND_IMPERSONATION_APK',
+            severity: 'MEDIUM',
+            points: 20,
+            title: 'Brand impersonation paired with an Android package',
+            explanation:
+              'This address combines a known brand name with a download of an Android application package. ' +
+              "Use the organisation's official channel to verify before installing anything. " +
+              'This signal does not confirm that the link is malicious.',
+            evidence: 'Vietcombank official domain(s): vietcombank.com.vn; signal: Android package download',
+          },
+        ],
+      },
+    };
+    vi.spyOn(apiClient, 'post').mockResolvedValue({ data: response });
+    const user = userEvent.setup();
+
+    renderPopupWithQueryClient();
+    await waitFor(() => expect(scanButton()).toBeEnabled());
+    await user.click(scanButton());
+
+    expect(await screen.findByText('Brand impersonation paired with an Android package')).toBeInTheDocument();
+    const evidence = screen.getByText(
+      'Vietcombank official domain(s): vietcombank.com.vn; signal: Android package download',
+    );
+    expect(evidence.tagName).toBe('P');
+    expect(evidence.closest('a')).toBeNull();
+    expect(document.querySelector('iframe')).toBeNull();
+    expect(query).toHaveBeenCalledTimes(2);
+  });
+
   it('rechecks the active tab on click and skips the request if it became unsupported', async () => {
     const query = stubActiveTab(SCAN_URL);
     const postSpy = vi.spyOn(apiClient, 'post');
