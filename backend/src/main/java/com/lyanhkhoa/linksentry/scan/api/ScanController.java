@@ -1,14 +1,17 @@
 package com.lyanhkhoa.linksentry.scan.api;
 
+import com.lyanhkhoa.linksentry.common.api.ResponseLocale;
 import com.lyanhkhoa.linksentry.license.security.LicensedDeviceContext;
 import com.lyanhkhoa.linksentry.scan.application.ScanService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.security.access.AccessDeniedException;
@@ -35,20 +38,28 @@ public class ScanController {
 
     @PostMapping
     @Operation(summary = "Analyse a URL and return its explainable risk score")
-    public ScanResponse scan(@Valid @RequestBody ScanRequest request, Authentication authentication) {
+    public ScanResponse scan(
+            @Valid @RequestBody ScanRequest request,
+            @RequestHeader(value = HttpHeaders.ACCEPT_LANGUAGE, required = false) String acceptLanguage,
+            Authentication authentication) {
         // Anonymous and licensed-device callers are both legitimate here — this route is
         // `permitAll()`. Any other authenticated principal (e.g. an administrator's own session)
         // is treated exactly like an anonymous caller: it grants no scan privilege of its own, so
         // there is nothing to reject, unlike the strictly device-scoped routes below.
         LicensedDeviceContext device = optionalLicensedDevice(authentication);
-        return device == null ? scanService.scan(request.url()) : scanService.scan(request.url(), device.licenseId());
+        ResponseLocale locale = ResponseLocale.negotiate(acceptLanguage);
+        return scanService.scan(request.url(), device == null ? null : device.licenseId(), locale);
     }
 
     @GetMapping("/{scanId}")
     @Operation(summary = "Retrieve a retained scan result by opaque scan ID")
-    public ScanResponse get(@PathVariable String scanId, Authentication authentication) {
+    public ScanResponse get(
+            @PathVariable String scanId,
+            @RequestHeader(value = HttpHeaders.ACCEPT_LANGUAGE, required = false) String acceptLanguage,
+            Authentication authentication) {
         LicensedDeviceContext device = requireLicensedDeviceForLookup(authentication);
-        return device == null ? scanService.get(scanId) : scanService.get(scanId, device.licenseId());
+        ResponseLocale locale = ResponseLocale.negotiate(acceptLanguage);
+        return scanService.get(scanId, device == null ? null : device.licenseId(), locale);
     }
 
     /**

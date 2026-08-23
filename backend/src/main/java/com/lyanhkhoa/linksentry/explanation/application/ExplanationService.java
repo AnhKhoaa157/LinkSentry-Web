@@ -1,5 +1,6 @@
 package com.lyanhkhoa.linksentry.explanation.application;
 
+import com.lyanhkhoa.linksentry.common.api.ResponseLocale;
 import com.lyanhkhoa.linksentry.common.config.AiExplanationProperties;
 import com.lyanhkhoa.linksentry.explanation.domain.AiAdvisory;
 import com.lyanhkhoa.linksentry.explanation.domain.ExplanationProvider;
@@ -12,7 +13,9 @@ import com.lyanhkhoa.linksentry.history.application.ScanIdParser;
 import com.lyanhkhoa.linksentry.history.application.ScanNotFoundException;
 import com.lyanhkhoa.linksentry.history.domain.ScanHistory;
 import com.lyanhkhoa.linksentry.history.domain.StoredFinding;
+import com.lyanhkhoa.linksentry.scan.application.FindingCopyLocalizer;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,6 +72,15 @@ public class ExplanationService {
      *                                          provider could not produce a result
      */
     public ExplanationResult explain(String rawScanId, UUID ownerLicenseId) {
+        return explain(rawScanId, ownerLicenseId, ResponseLocale.ENGLISH);
+    }
+
+    /**
+     * Produces an explanation while localizing only deterministic, server-owned
+     * key-finding presentation copy.
+     */
+    public ExplanationResult explain(String rawScanId, UUID ownerLicenseId, ResponseLocale locale) {
+        Objects.requireNonNull(locale, "locale");
         if (!properties.enabled()) {
             throw new ExplanationUnavailableException();
         }
@@ -83,7 +95,7 @@ public class ExplanationService {
         try {
             AiAdvisory advisory = provider.explain(summary);
             return new ExplanationResult(
-                    history.riskLevel(), toKeyFindings(history), advisory.summary(), advisory.recommendedActions());
+                    history.riskLevel(), toKeyFindings(history, locale), advisory.summary(), advisory.recommendedActions());
         } catch (ExplanationProviderException exception) {
             // Never the provider's own message: it may quote request or response detail.
             log.warn("AI explanation provider could not produce a result");
@@ -109,9 +121,17 @@ public class ExplanationService {
      * the scan's existing order, and drops {@code ruleId} and {@code evidence}.
      */
     static List<KeyFinding> toKeyFindings(ScanHistory history) {
+        return toKeyFindings(history, ResponseLocale.ENGLISH);
+    }
+
+    static List<KeyFinding> toKeyFindings(ScanHistory history, ResponseLocale locale) {
         return history.findings().stream()
                 .limit(MAX_KEY_FINDINGS)
-                .map(finding -> new KeyFinding(finding.title(), finding.explanation(), finding.severity(), finding.points()))
+                .map(finding -> {
+                    FindingCopyLocalizer.FindingCopy copy = FindingCopyLocalizer.localize(
+                            finding.ruleId(), finding.title(), finding.explanation(), locale);
+                    return new KeyFinding(copy.title(), copy.explanation(), finding.severity(), finding.points());
+                })
                 .toList();
     }
 }

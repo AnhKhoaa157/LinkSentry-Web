@@ -2,6 +2,8 @@ package com.lyanhkhoa.linksentry.scan.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -17,6 +19,7 @@ import com.lyanhkhoa.linksentry.analysis.domain.InvalidUrlException;
 import com.lyanhkhoa.linksentry.analysis.domain.RiskLevel;
 import com.lyanhkhoa.linksentry.analysis.domain.RuleExecutionException;
 import com.lyanhkhoa.linksentry.analysis.domain.Severity;
+import com.lyanhkhoa.linksentry.common.api.ResponseLocale;
 import com.lyanhkhoa.linksentry.common.exception.GlobalExceptionHandler;
 import com.lyanhkhoa.linksentry.history.application.ScanNotFoundException;
 import com.lyanhkhoa.linksentry.scan.application.ScanService;
@@ -60,7 +63,7 @@ class ScanControllerTest {
     @Test
     @DisplayName("a valid URL returns 200 with the analysis result")
     void validUrlReturnsResult() throws Exception {
-        given(scanService.scan(anyString())).willReturn(sampleResponse());
+        given(scanService.scan(anyString(), isNull(), eq(ResponseLocale.ENGLISH))).willReturn(sampleResponse());
 
         mockMvc.perform(post("/api/v1/scans")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -75,7 +78,7 @@ class ScanControllerTest {
     @Test
     @DisplayName("a successful scan keeps the exact public wire field set")
     void successfulScanKeepsExactPublicWireFieldSet() throws Exception {
-        given(scanService.scan(anyString())).willReturn(sampleResponse());
+        given(scanService.scan(anyString(), isNull(), eq(ResponseLocale.ENGLISH))).willReturn(sampleResponse());
 
         String body = mockMvc.perform(post("/api/v1/scans")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -136,7 +139,8 @@ class ScanControllerTest {
     @Test
     @DisplayName("an unsupported scheme is reported as INVALID_URL")
     void unsupportedSchemeReturnsInvalidUrl() throws Exception {
-        given(scanService.scan(anyString())).willThrow(new InvalidUrlException("Only http and https are supported"));
+        given(scanService.scan(anyString(), isNull(), eq(ResponseLocale.ENGLISH)))
+                .willThrow(new InvalidUrlException("Only http and https are supported"));
 
         mockMvc.perform(post("/api/v1/scans")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -149,7 +153,8 @@ class ScanControllerTest {
     @Test
     @DisplayName("a rule failure returns a generic 500 with no partial result, ever")
     void ruleFailureReturnsGenericErrorWithNoPartialResult() throws Exception {
-        given(scanService.scan(anyString())).willThrow(new RuleExecutionException("EXCESSIVE_URL_LENGTH", "IllegalStateException"));
+        given(scanService.scan(anyString(), isNull(), eq(ResponseLocale.ENGLISH)))
+                .willThrow(new RuleExecutionException("EXCESSIVE_URL_LENGTH", "IllegalStateException"));
 
         mockMvc.perform(post("/api/v1/scans")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -175,7 +180,7 @@ class ScanControllerTest {
     @Test
     @DisplayName("the response never exposes the raw submitted input, only the redacted value")
     void responseNeverExposesRawInput() throws Exception {
-        given(scanService.scan(anyString())).willReturn(sampleResponse());
+        given(scanService.scan(anyString(), isNull(), eq(ResponseLocale.ENGLISH))).willReturn(sampleResponse());
 
         mockMvc.perform(post("/api/v1/scans")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -187,10 +192,36 @@ class ScanControllerTest {
     }
 
     @Test
+    @DisplayName("a Vietnamese language header selects Vietnamese response mapping")
+    void vietnameseHeaderSelectsVietnameseResponseLocale() throws Exception {
+        given(scanService.scan(anyString(), isNull(), eq(ResponseLocale.VIETNAMESE))).willReturn(sampleResponse());
+
+        mockMvc.perform(post("/api/v1/scans")
+                        .header("Accept-Language", "vi-VN")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"url\":\"https://example.com/account\"}"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("English, unsupported, and malformed language headers select English response mapping")
+    void nonVietnameseHeadersSelectEnglishResponseLocale() throws Exception {
+        for (String header : List.of("en", "fr-FR", "vi;q=not-a-number")) {
+            given(scanService.scan(anyString(), isNull(), eq(ResponseLocale.ENGLISH))).willReturn(sampleResponse());
+
+            mockMvc.perform(post("/api/v1/scans")
+                            .header("Accept-Language", header)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"url\":\"https://example.com/account\"}"))
+                    .andExpect(status().isOk());
+        }
+    }
+
+    @Test
     @DisplayName("a retained scan is returned with the existing response shape")
     void retainedScanReturnsExistingResponseShape() throws Exception {
         UUID scanId = UUID.fromString("2ce16fb9-d52d-4310-8d45-a4e48f31889e");
-        given(scanService.get(scanId.toString())).willReturn(sampleResponse());
+        given(scanService.get(eq(scanId.toString()), isNull(), eq(ResponseLocale.ENGLISH))).willReturn(sampleResponse());
 
         mockMvc.perform(get("/api/v1/scans/{scanId}", scanId))
                 .andExpect(status().isOk())
@@ -203,7 +234,8 @@ class ScanControllerTest {
     @Test
     @DisplayName("a missing, malformed, or expired scan ID returns safe SCAN_NOT_FOUND")
     void missingScanReturnsSafeNotFound() throws Exception {
-        given(scanService.get("not-a-uuid")).willThrow(new ScanNotFoundException());
+        given(scanService.get(eq("not-a-uuid"), isNull(), eq(ResponseLocale.ENGLISH)))
+                .willThrow(new ScanNotFoundException());
 
         mockMvc.perform(get("/api/v1/scans/not-a-uuid"))
                 .andExpect(status().isNotFound())

@@ -1,15 +1,18 @@
 package com.lyanhkhoa.linksentry.explanation.api;
 
+import com.lyanhkhoa.linksentry.common.api.ResponseLocale;
+import com.lyanhkhoa.linksentry.explanation.application.ExplanationService;
 import com.lyanhkhoa.linksentry.explanation.domain.ExplanationResult;
 import com.lyanhkhoa.linksentry.license.security.LicensedDeviceContext;
-import com.lyanhkhoa.linksentry.explanation.application.ExplanationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
+import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -37,9 +40,13 @@ public class ExplanationController {
 
     @PostMapping("/{scanId}/explanation")
     @Operation(summary = "Generate a short, advisory AI explanation of a retained scan result")
-    public ExplanationResponse explain(@PathVariable String scanId, Authentication authentication) {
+    public ExplanationResponse explain(
+            @PathVariable String scanId,
+            @RequestHeader(value = HttpHeaders.ACCEPT_LANGUAGE, required = false) String acceptLanguage,
+            Authentication authentication) {
         LicensedDeviceContext device = requireLicensedDevice(authentication);
-        ExplanationResult result = explanationService.explain(scanId, device.licenseId());
+        ExplanationResult result = explanationService.explain(
+                scanId, device.licenseId(), ResponseLocale.negotiate(acceptLanguage));
         return ExplanationResponse.from(result);
     }
 

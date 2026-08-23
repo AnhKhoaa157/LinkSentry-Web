@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import com.lyanhkhoa.linksentry.analysis.domain.RiskLevel;
 import com.lyanhkhoa.linksentry.analysis.domain.Severity;
+import com.lyanhkhoa.linksentry.common.api.ResponseLocale;
 import com.lyanhkhoa.linksentry.common.config.AiExplanationProperties;
 import com.lyanhkhoa.linksentry.common.config.HistoryProperties;
 import com.lyanhkhoa.linksentry.explanation.domain.AiAdvisory;
@@ -93,6 +94,25 @@ class ExplanationServiceTest {
         assertThat(keyFinding.explanation()).isEqualTo("Generic rule explanation text.");
         assertThat(keyFinding.severity()).isEqualTo(Severity.HIGH);
         assertThat(keyFinding.points()).isEqualTo(30);
+    }
+
+    @Test
+    @DisplayName("Vietnamese explanation key findings are localized after the provider receives canonical copy")
+    void vietnameseKeyFindingsAreLocalizedAfterProviderMapping() {
+        ScanHistoryRepository repository = mock(ScanHistoryRepository.class);
+        when(repository.findRetained(eq(SCAN_ID), eq(OWNER_ID), any(Instant.class)))
+                .thenReturn(Optional.of(sensitiveHistory()));
+        FakeExplanationProvider provider = FakeExplanationProvider.returning(
+                new AiAdvisory("explanation text", List.of("action")));
+        ExplanationService service = newService(true, repository, provider);
+
+        ExplanationResult result = service.explain(SCAN_ID.toString(), OWNER_ID, ResponseLocale.VIETNAMESE);
+
+        assertThat(result.keyFindings().get(0).title())
+                .isEqualTo("Tên máy chủ chứa tên thương hiệu nhưng không thuộc tên miền đã đăng ký cho thương hiệu đó");
+        assertThat(provider.lastSummary().findings().get(0).title())
+                .isEqualTo("Hostname names a brand it is not registered to");
+        assertThat(result.riskLevel()).isEqualTo(RiskLevel.CRITICAL);
     }
 
     @Test

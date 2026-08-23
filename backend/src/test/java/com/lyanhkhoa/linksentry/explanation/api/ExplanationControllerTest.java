@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.lyanhkhoa.linksentry.admin.domain.AdminIdentity;
 import com.lyanhkhoa.linksentry.analysis.domain.RiskLevel;
 import com.lyanhkhoa.linksentry.analysis.domain.Severity;
+import com.lyanhkhoa.linksentry.common.api.ResponseLocale;
 import com.lyanhkhoa.linksentry.common.exception.GlobalExceptionHandler;
 import com.lyanhkhoa.linksentry.explanation.application.ExplanationService;
 import com.lyanhkhoa.linksentry.explanation.application.ExplanationUnavailableException;
@@ -71,7 +72,7 @@ class ExplanationControllerTest {
                 List.of(new KeyFinding("Hostname names a brand it is not registered to", "Generic explanation.", Severity.HIGH, 30)),
                 "This link shows several risk signals worth a second look.",
                 List.of("Verify the sender.", "Avoid entering credentials."));
-        given(explanationService.explain(anyString(), any(UUID.class))).willReturn(result);
+        given(explanationService.explain(anyString(), any(UUID.class), any(ResponseLocale.class))).willReturn(result);
 
         mockMvc.perform(post("/api/v1/scans/{scanId}/explanation", SCAN_ID).principal(authenticationOf(LICENSE_ID)))
                 .andExpect(status().isOk())
@@ -94,7 +95,8 @@ class ExplanationControllerTest {
     @Test
     @DisplayName("a missing, malformed, expired, or another license's scan returns the same safe not-found")
     void notFoundScanReturnsSafeNotFound() throws Exception {
-        given(explanationService.explain(anyString(), any(UUID.class))).willThrow(new ScanNotFoundException());
+        given(explanationService.explain(anyString(), any(UUID.class), any(ResponseLocale.class)))
+                .willThrow(new ScanNotFoundException());
 
         mockMvc.perform(post("/api/v1/scans/{scanId}/explanation", SCAN_ID).principal(authenticationOf(LICENSE_ID)))
                 .andExpect(status().isNotFound())
@@ -105,7 +107,7 @@ class ExplanationControllerTest {
     @Test
     @DisplayName("a disabled feature or a provider failure returns the one safe unavailable response")
     void unavailableExplanationReturnsSafeError() throws Exception {
-        given(explanationService.explain(anyString(), any(UUID.class)))
+        given(explanationService.explain(anyString(), any(UUID.class), any(ResponseLocale.class)))
                 .willThrow(new ExplanationUnavailableException());
 
         mockMvc.perform(post("/api/v1/scans/{scanId}/explanation", SCAN_ID).principal(authenticationOf(LICENSE_ID)))
