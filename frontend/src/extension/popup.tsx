@@ -6,6 +6,7 @@ import { Popup } from '@/extension/components/Popup';
 import { LicenseProvider } from '@/features/license/context/LicenseProvider';
 import { createQueryClient } from '@/lib/api/queryClient';
 import { LocaleProvider } from '@/lib/i18n/LocaleProvider';
+import { ThemeProvider } from '@/lib/theme/ThemeProvider';
 import '@/app/styles.css';
 import '@/extension/popup.css';
 
@@ -17,12 +18,14 @@ if (!container) {
 
 createRoot(container).render(
   <StrictMode>
-    <LocaleProvider>
-      <QueryClientProvider client={createQueryClient()}>
-        <LicenseProvider clientLabel="extension">
-          <Popup />
-        </LicenseProvider>
-      </QueryClientProvider>
-    </LocaleProvider>
+    <ThemeProvider syncBrowserChrome={false}>
+      <LocaleProvider>
+        <QueryClientProvider client={createQueryClient()}>
+          <LicenseProvider clientLabel="extension">
+            <Popup />
+          </LicenseProvider>
+        </QueryClientProvider>
+      </LocaleProvider>
+    </ThemeProvider>
   </StrictMode>,
 );

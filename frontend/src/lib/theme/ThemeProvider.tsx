@@ -6,15 +6,16 @@ import { applyTheme, getInitialTheme, persistTheme } from '@/lib/theme/theme';
 
 interface ThemeProviderProps {
   readonly children: ReactNode;
+  readonly syncBrowserChrome?: boolean;
 }
 
-/** Owns the web theme and keeps the document, logo treatment, and favicon in sync. */
-export function ThemeProvider({ children }: ThemeProviderProps) {
+/** Owns the active theme and optionally keeps the browser-tab chrome in sync. */
+export function ThemeProvider({ children, syncBrowserChrome = true }: ThemeProviderProps) {
   const [theme, setTheme] = useState(getInitialTheme);
 
   useLayoutEffect(() => {
-    applyTheme(theme);
-  }, [theme]);
+    applyTheme(theme, { syncBrowserChrome });
+  }, [syncBrowserChrome, theme]);
 
   const toggleTheme = useCallback(() => {
     setTheme((currentTheme) => {

@@ -9,6 +9,7 @@ import { LicenseProvider } from '@/features/license/context/LicenseProvider';
 import { apiClient } from '@/lib/api/client';
 import { createQueryClient } from '@/lib/api/queryClient';
 import { LocaleProvider } from '@/lib/i18n/LocaleProvider';
+import { ThemeProvider } from '@/lib/theme/ThemeProvider';
 import { renderWithProviders } from '@/test/renderWithProviders';
 
 function axiosErrorWithResponse(status: number, data: unknown, requestBody?: unknown) {
@@ -107,13 +108,15 @@ const scanButton = () => screen.getByRole('button', { name: /scan this tab|scan 
 function renderPopupWithQueryClient() {
   const queryClient = createQueryClient();
   const rendered = render(
-    <LocaleProvider>
-      <QueryClientProvider client={queryClient}>
-        <LicenseProvider clientLabel="extension">
-          <Popup />
-        </LicenseProvider>
-      </QueryClientProvider>
-    </LocaleProvider>,
+    <ThemeProvider syncBrowserChrome={false}>
+      <LocaleProvider>
+        <QueryClientProvider client={queryClient}>
+          <LicenseProvider clientLabel="extension">
+            <Popup />
+          </LicenseProvider>
+        </QueryClientProvider>
+      </LocaleProvider>
+    </ThemeProvider>,
   );
 
   return { ...rendered, queryClient };
@@ -136,6 +139,22 @@ describe('Popup', () => {
       expect(document.body.innerHTML).not.toContain(sentinel);
     }
     expect(queryClient.getMutationCache().getAll()).toHaveLength(0);
+  });
+
+  it('uses the shared logo and exposes the light/dark theme control', async () => {
+    stubActiveTab(SCAN_URL);
+    localStorage.setItem('linksentry.theme', 'light');
+    const user = userEvent.setup();
+
+    const { container } = renderPopupWithQueryClient();
+
+    expect(container.querySelector('.popup-brand-mark')).toHaveAttribute('src', './icons/logo-mark.png');
+    expect(document.documentElement).toHaveClass('light');
+
+    await user.click(screen.getByRole('button', { name: /switch to dark theme/i }));
+
+    expect(document.documentElement).toHaveClass('dark');
+    expect(localStorage.getItem('linksentry.theme')).toBe('dark');
   });
 
   it('opens only the configured LinkSentry homepage in a new tab', async () => {

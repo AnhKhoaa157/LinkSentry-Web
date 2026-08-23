@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { getActiveTabUrl } from '@/extension/lib/activeTabUrl';
 import { LanguageSwitcher } from '@/extension/components/LanguageSwitcher';
+import { ThemeSwitcher } from '@/components/ui/ThemeSwitcher';
 import { ExplainResult } from '@/features/explanation/components/ExplainResult';
 import { LicenseStatusCard } from '@/features/license/components/LicenseStatusCard';
 import { postScan } from '@/features/scanner/api/postScan';
@@ -115,13 +116,16 @@ export function Popup() {
       <section className="popup-command-deck" aria-labelledby={TITLE_ID}>
         <header className="popup-brand">
           <span className="popup-brand-mark-wrap" aria-hidden="true">
-            <img src="./icons/icon-32.png" alt="" className="popup-brand-mark" />
+            <img src="./icons/logo-mark.png" alt="" className="popup-brand-mark" />
           </span>
           <div className="popup-brand-copy">
             <p className="popup-eyebrow">{t('popup.eyebrow')}</p>
             <h1 id={TITLE_ID}>{t('popup.title')}</h1>
           </div>
-          <LanguageSwitcher />
+          <div className="popup-controls">
+            <ThemeSwitcher />
+            <LanguageSwitcher />
+          </div>
         </header>
 
         <p id={STATUS_ID} role="status" aria-live="polite" className="popup-tab-status" data-phase={tabPhase}>
@@ -134,33 +138,35 @@ export function Popup() {
         <LicenseStatusCard variant="compact" />
       </section>
 
-      <button
-        ref={scanButtonRef}
-        type="button"
-        onClick={() => void handleScan()}
-        disabled={!canScan}
-        aria-describedby={STATUS_ID}
-        className="popup-primary-action"
-      >
-        <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
-          <path d="M12 3v3m0 12v3M3 12h3m12 0h3m-3.64-6.36-2.12 2.12M8.76 15.24l-2.12 2.12m0-11.72 2.12 2.12m6.48 7.48 2.12 2.12" />
-          <circle cx="12" cy="12" r="3.5" />
-        </svg>
-        <span>
-          {isPending
-            ? t('popup.scan.button.scanning')
-            : scanResponse
-              ? t('popup.scan.button.scanAgain')
-              : t('popup.scan.button.scan')}
-        </span>
-      </button>
+      <div className="popup-actions">
+        <button
+          ref={scanButtonRef}
+          type="button"
+          onClick={() => void handleScan()}
+          disabled={!canScan}
+          aria-describedby={STATUS_ID}
+          className="popup-primary-action"
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+            <path d="M12 3v3m0 12v3M3 12h3m12 0h3m-3.64-6.36-2.12 2.12M8.76 15.24l-2.12 2.12m0-11.72 2.12 2.12m6.48 7.48 2.12 2.12" />
+            <circle cx="12" cy="12" r="3.5" />
+          </svg>
+          <span>
+            {isPending
+              ? t('popup.scan.button.scanning')
+              : scanResponse
+                ? t('popup.scan.button.scanAgain')
+                : t('popup.scan.button.scan')}
+          </span>
+        </button>
 
-      <button type="button" onClick={openWebApp} className="popup-web-action">
-        <span>{t('popup.web.open')}</span>
-        <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
-          <path d="M14 5h5v5M19 5l-8 8M19 13v5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5" />
-        </svg>
-      </button>
+        <button type="button" onClick={openWebApp} className="popup-web-action">
+          <span>{t('popup.web.open')}</span>
+          <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+            <path d="M14 5h5v5M19 5l-8 8M19 13v5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5" />
+          </svg>
+        </button>
+      </div>
 
       {apiError ? (
         <div role="alert" className="popup-error">
