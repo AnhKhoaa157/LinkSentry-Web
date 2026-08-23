@@ -39,7 +39,7 @@ function statusText(t: Translate, phase: TabPhase): string {
  * never-render/never-persist requirement in docs/SECURITY_BOUNDARY.md.
  */
 export function Popup() {
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
   const [tabPhase, setTabPhase] = useState<TabPhase>('checking');
   const scanButtonRef = useRef<HTMLButtonElement>(null);
   const [isPending, setIsPending] = useState(false);
@@ -94,7 +94,7 @@ export function Popup() {
         return;
       }
 
-      setScanResponse(await postScan(lookup.url));
+      setScanResponse(await postScan(lookup.url, { locale }));
     } catch (error) {
       setApiError(normalizeApiError(error));
     } finally {

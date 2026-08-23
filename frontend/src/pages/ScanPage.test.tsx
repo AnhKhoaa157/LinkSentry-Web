@@ -65,7 +65,10 @@ describe('ScanPage', () => {
     expect(screen.getByText('Moderate risk')).toBeInTheDocument();
     expect(getSpy).toHaveBeenCalledWith(
       `/api/v1/scans/${scanId}`,
-      expect.objectContaining({ signal: expect.anything() }),
+      expect.objectContaining({
+        signal: expect.anything(),
+        headers: { 'Accept-Language': 'en' },
+      }),
     );
   });
 
@@ -153,7 +156,10 @@ describe('ScanPage', () => {
     expect(screen.getByRole('link', { name: /back to scanner/i })).toHaveAttribute('href', '/');
     expect(getSpy).toHaveBeenCalledWith(
       '/api/v1/scans/not-a-uuid',
-      expect.objectContaining({ signal: expect.anything() }),
+      expect.objectContaining({
+        signal: expect.anything(),
+        headers: { 'Accept-Language': 'en' },
+      }),
     );
   });
 });
