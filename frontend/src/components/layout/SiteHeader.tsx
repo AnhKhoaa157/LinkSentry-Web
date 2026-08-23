@@ -3,14 +3,17 @@ import { NavLink } from 'react-router';
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
 import { ThemeSwitcher } from '@/components/ui/ThemeSwitcher';
 import { LicenseBadge } from '@/features/license/components/LicenseBadge';
+import { useLicense } from '@/features/license/context/useLicense';
 import { useLocale } from '@/lib/i18n/useLocale';
 import { cn } from '@/lib/utils/cn';
 
 /** Wordmark and primary navigation. */
 export function SiteHeader() {
   const { t } = useLocale();
+  const { isLicensed } = useLicense();
   const navigation = [
     { to: '/', label: t('nav.home') },
+    ...(isLicensed ? [{ to: '/history', label: t('nav.history') }] : []),
     { to: '/methodology', label: t('nav.methodology') },
   ] as const;
 

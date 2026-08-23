@@ -51,6 +51,13 @@ describe('application shell', () => {
     expect(screen.getByRole('heading', { name: /methodology/i, level: 1 })).toBeInTheDocument();
   });
 
+  it('renders the private history page inside the public shell', () => {
+    renderWithProviders(<AppRoutes />, { route: '/history' });
+
+    expect(screen.getByRole('heading', { name: /scan history/i, level: 1 })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /checking history access/i })).toBeInTheDocument();
+  });
+
   it('renders the not-found page for an unknown route', () => {
     renderWithProviders(<AppRoutes />, { route: '/this-route-does-not-exist' });
 

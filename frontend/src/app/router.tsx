@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router';
 
 import { AppLayout } from '@/components/layout/AppLayout';
 import { AdminApp } from '@/features/admin/AdminApp';
+import { HistoryPage } from '@/features/history/pages/HistoryPage';
 import { HomePage } from '@/pages/HomePage';
 import { LicensePage } from '@/pages/LicensePage';
 import { MethodologyPage } from '@/pages/MethodologyPage';
@@ -19,6 +20,7 @@ export function AppRoutes() {
       <Route path="admin/*" element={<AdminApp />} />
       <Route element={<AppLayout />}>
         <Route index element={<HomePage />} />
+        <Route path="history" element={<HistoryPage />} />
         <Route path="methodology" element={<MethodologyPage />} />
         <Route path="license" element={<LicensePage />} />
         <Route path="scans/:scanId" element={<ScanPage />} />

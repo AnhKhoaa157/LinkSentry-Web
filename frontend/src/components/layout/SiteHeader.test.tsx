@@ -36,6 +36,7 @@ describe('SiteHeader license status', () => {
     const link = await screen.findByRole('link', { name: /installation status: trial/i });
     expect(link).toHaveAttribute('href', '/license');
     expect(link).toHaveTextContent('Trial');
+    expect(screen.queryByRole('link', { name: 'History' })).not.toBeInTheDocument();
   });
 
   it('shows Licensed for a device with an active license', async () => {
@@ -49,6 +50,7 @@ describe('SiteHeader license status', () => {
     renderWithProviders(<SiteHeader />);
 
     expect(await screen.findByRole('link', { name: /installation status: licensed/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'History' })).toHaveAttribute('href', '/history');
   });
 
   it('shows Revoked for a revoked device, distinct from Trial or Expired', async () => {
