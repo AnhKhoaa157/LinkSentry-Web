@@ -1,5 +1,6 @@
 package com.lyanhkhoa.linksentry.common.exception;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -9,6 +10,9 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -34,6 +38,7 @@ import org.springframework.web.bind.annotation.RestController;
 @WebMvcTest(controllers = HealthController.class)
 @Import({GlobalExceptionHandler.class, GlobalExceptionHandlerTest.FixtureController.class})
 @AutoConfigureMockMvc(addFilters = false)
+@ExtendWith(OutputCaptureExtension.class)
 class GlobalExceptionHandlerTest {
 
     @Autowired
@@ -74,6 +79,17 @@ class GlobalExceptionHandlerTest {
                 .andExpect(jsonPath("$.message").value("The request could not be completed. Please try again later."))
                 .andExpect(jsonPath("$.stackTrace").doesNotExist())
                 .andExpect(jsonPath("$.exception").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("unexpected failure logs only a safe event, never the exception message or stack trace")
+    void unexpectedFailureLogOmitsExceptionDetails(CapturedOutput output) {
+        String secret = "M0_LOG_QUERY_SECRET";
+
+        new GlobalExceptionHandler().handleUnexpected(new IllegalStateException(secret));
+
+        assertThat(output.getAll()).doesNotContain(secret, "\tat ");
+        assertThat(output.getAll()).contains("Unhandled exception", "IllegalStateException");
     }
 
     @Test

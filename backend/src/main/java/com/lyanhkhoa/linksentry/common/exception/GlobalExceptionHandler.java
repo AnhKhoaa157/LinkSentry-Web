@@ -35,9 +35,9 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
  *
  * <ol>
  *   <li><strong>Nothing internal escapes.</strong> Unexpected failures return a
- *       fixed generic message. The exception itself is logged with a
- *       {@code traceId} that the client also receives, so an operator can find the
- *       stack trace without the client ever seeing it.
+ *       fixed generic message. A safe event records only the {@code traceId} and
+ *       exception class; the exception object is never passed to the logger because
+ *       its message or stack trace may contain submitted input.
  *   <li><strong>Nothing user-submitted is logged.</strong> A rejected value may be
  *       a URL carrying a session token in its query string. Log the failure and
  *       the field <em>name</em>, never the value.
@@ -218,7 +218,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleUnexpected(Exception exception) {
         String traceId = newTraceId();
-        log.error("Unhandled exception [traceId={}]", traceId, exception);
+        log.error(
+                "Unhandled exception [traceId={}, exceptionClass={}]",
+                traceId,
+                exception.getClass().getName());
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ErrorResponse.of("INTERNAL_ERROR", GENERIC_MESSAGE, traceId));
