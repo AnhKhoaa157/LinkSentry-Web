@@ -6,6 +6,7 @@ import com.lyanhkhoa.linksentry.analysis.domain.UrlAnalyzer;
 import com.lyanhkhoa.linksentry.analysis.normalization.DefaultUrlNormalizer;
 import com.lyanhkhoa.linksentry.analysis.rules.Brand;
 import com.lyanhkhoa.linksentry.analysis.rules.BrandDomainMismatchRule;
+import com.lyanhkhoa.linksentry.analysis.rules.BrandImpersonationApkRule;
 import com.lyanhkhoa.linksentry.analysis.rules.BrandLookalikeRule;
 import com.lyanhkhoa.linksentry.analysis.rules.BrandRegistry;
 import com.lyanhkhoa.linksentry.analysis.rules.EncodedCharactersRule;
@@ -47,7 +48,11 @@ final class AnalyzerFixture {
     private static final Brand VIETCOMBANK =
             new Brand("vietcombank", "Vietcombank", List.of("vietcombank"), List.of("vietcombank.com.vn"));
     private static final Brand TECHCOMBANK =
-            new Brand("techcombank", "Techcombank", List.of("techcombank"), List.of("techcombank.com.vn"));
+            new Brand(
+                    "techcombank",
+                    "Techcombank",
+                    List.of("techcombank"),
+                    List.of("techcombank.com.vn", "techcombank.com"));
     private static final Brand BIDV = new Brand("bidv", "BIDV", List.of("bidv"), List.of("bidv.com.vn"));
     private static final Brand VIETINBANK =
             new Brand("vietinbank", "VietinBank", List.of("vietinbank"), List.of("vietinbank.vn"));
@@ -79,6 +84,7 @@ final class AnalyzerFixture {
                 new SuspiciousKeywordsRule(SUSPICIOUS_KEYWORDS),
                 new BrandDomainMismatchRule(brandRegistry),
                 new BrandLookalikeRule(brandRegistry),
+                new BrandImpersonationApkRule(brandRegistry),
                 new PunycodeHostRule(),
                 new EncodedCharactersRule(),
                 new KnownUrlShortenerRule(KNOWN_SHORTENERS));

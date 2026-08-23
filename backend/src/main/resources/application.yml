@@ -191,7 +191,7 @@ linksentry:
       - id: techcombank
         display-name: Techcombank
         tokens: techcombank
-        official-domains: techcombank.com.vn
+        official-domains: techcombank.com.vn,techcombank.com
       - id: bidv
         display-name: BIDV
         tokens: bidv

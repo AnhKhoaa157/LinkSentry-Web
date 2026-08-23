@@ -13,6 +13,7 @@
  *   <li>{@code SUSPICIOUS_KEYWORDS}
  *   <li>{@code BRAND_DOMAIN_MISMATCH}
  *   <li>{@code BRAND_LOOKALIKE_HOSTNAME}
+ *   <li>{@code BRAND_IMPERSONATION_APK}
  *   <li>{@code PUNYCODE_HOST}
  *   <li>{@code ENCODED_CHARACTERS}
  *   <li>{@code KNOWN_URL_SHORTENER}

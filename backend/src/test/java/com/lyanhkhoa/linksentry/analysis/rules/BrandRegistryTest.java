@@ -12,7 +12,11 @@ class BrandRegistryTest {
     private static final Brand VIETCOMBANK =
             new Brand("vietcombank", "Vietcombank", List.of("vietcombank"), List.of("vietcombank.com.vn"));
     private static final Brand TECHCOMBANK =
-            new Brand("techcombank", "Techcombank", List.of("techcombank"), List.of("techcombank.com.vn"));
+            new Brand(
+                    "techcombank",
+                    "Techcombank",
+                    List.of("techcombank"),
+                    List.of("techcombank.com.vn", "techcombank.com"));
 
     @Test
     @DisplayName("rejects an empty brand list")

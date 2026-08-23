@@ -16,7 +16,11 @@ class BrandLookalikeRuleTest {
     private static final Brand VIETCOMBANK =
             new Brand("vietcombank", "Vietcombank", List.of("vietcombank"), List.of("vietcombank.com.vn"));
     private static final Brand TECHCOMBANK =
-            new Brand("techcombank", "Techcombank", List.of("techcombank"), List.of("techcombank.com.vn"));
+            new Brand(
+                    "techcombank",
+                    "Techcombank",
+                    List.of("techcombank"),
+                    List.of("techcombank.com.vn", "techcombank.com"));
     private static final Brand ACB = new Brand("acb", "ACB", List.of("acb"), List.of("acb.com.vn"));
 
     private final BrandLookalikeRule rule =

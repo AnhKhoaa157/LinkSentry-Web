@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 class AnalysisConfigRuleSetTest {
 
     @Test
-    void productionWiringContainsTheDocumentedElevenRulesInStableOrder() {
+    void productionWiringContainsTheDocumentedTwelveRulesInStableOrder() {
         RulesProperties properties = new RulesProperties(
                 new RulesProperties.ExcessiveUrlLength(100),
                 new RulesProperties.ExcessiveSubdomains(3),
@@ -33,6 +33,7 @@ class AnalysisConfigRuleSetTest {
                         "SUSPICIOUS_KEYWORDS",
                         "BRAND_DOMAIN_MISMATCH",
                         "BRAND_LOOKALIKE_HOSTNAME",
+                        "BRAND_IMPERSONATION_APK",
                         "PUNYCODE_HOST",
                         "ENCODED_CHARACTERS",
                         "KNOWN_URL_SHORTENER");

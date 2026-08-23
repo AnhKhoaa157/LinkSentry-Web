@@ -13,7 +13,11 @@ class BrandDomainMismatchRuleTest {
     private static final Brand VIETCOMBANK =
             new Brand("vietcombank", "Vietcombank", List.of("vietcombank"), List.of("vietcombank.com.vn"));
     private static final Brand TECHCOMBANK =
-            new Brand("techcombank", "Techcombank", List.of("techcombank"), List.of("techcombank.com.vn"));
+            new Brand(
+                    "techcombank",
+                    "Techcombank",
+                    List.of("techcombank"),
+                    List.of("techcombank.com.vn", "techcombank.com"));
 
     private final BrandDomainMismatchRule rule =
             new BrandDomainMismatchRule(new BrandRegistry(List.of(VIETCOMBANK, TECHCOMBANK)));

@@ -30,6 +30,7 @@ class ReleaseRegressionInvariantTest {
             Map.entry("SUSPICIOUS_KEYWORDS", "https://login.example.com/"),
             Map.entry("BRAND_DOMAIN_MISMATCH", "https://vietcombank.evil-domain.xyz/"),
             Map.entry("BRAND_LOOKALIKE_HOSTNAME", "https://v1etcombank.evil-domain.xyz/"),
+            Map.entry("BRAND_IMPERSONATION_APK", "https://vietcombank.example.com/mobile.apk"),
             Map.entry("PUNYCODE_HOST", "https://xn--mnchen-3ya.example/"),
             Map.entry("ENCODED_CHARACTERS", "https://example.com/reset%20password"),
             Map.entry("KNOWN_URL_SHORTENER", "https://bit.ly/release"));
@@ -45,12 +46,19 @@ class ReleaseRegressionInvariantTest {
                 "https://203.0.113.5/",
                 "https://[fd00::1]/path?token=DETERMINISM_SECRET#fragment");
 
-        for (String input : inputs) {
+        for (int index = 0; index < inputs.size(); index++) {
+            String input = inputs.get(index);
             AnalysisResult first = analyzer.analyze(input);
             AnalysisResult second = analyzer.analyze(input);
 
-            assertThat(second).as(input).isEqualTo(first);
+            assertThat(second).as(determinismAssertionDescription(index)).isEqualTo(first);
         }
+    }
+
+    @Test
+    void determinismAssertionDescriptionIsIndependentOfSubmittedInput() {
+        assertThat(determinismAssertionDescription(7))
+                .isEqualTo("analysis result must be deterministic for fixture #7");
     }
 
     @Test
@@ -101,5 +109,14 @@ class ReleaseRegressionInvariantTest {
 
     private static Stream<String> findingCopy(RuleFinding finding) {
         return Stream.of(finding.title(), finding.explanation(), finding.evidence()).filter(Objects::nonNull);
+    }
+
+    /**
+     * Keep assertion descriptions independent of submitted input: AssertJ prints
+     * the description when the comparison fails, and the input may contain a
+     * query, fragment, or other secret.
+     */
+    private static String determinismAssertionDescription(int fixtureIndex) {
+        return "analysis result must be deterministic for fixture #" + fixtureIndex;
     }
 }
