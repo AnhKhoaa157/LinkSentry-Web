@@ -2,16 +2,18 @@ import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router';
 
 import { useAdminAuth } from '@/features/admin/context/useAdminAuth';
+import { useLocale } from '@/lib/i18n/useLocale';
 
 /** Redirects to admin sign-in when no admin session is active. */
 export function AdminProtectedRoute({ children }: { readonly children: ReactNode }) {
   const auth = useAdminAuth();
   const location = useLocation();
+  const { t } = useLocale();
 
   if (auth.isLoading) {
     return (
       <div className="flex min-h-dvh items-center justify-center">
-        <p className="text-ink-300 text-sm">Loading…</p>
+        <p role="status" className="body-secondary text-sm">{t('common.loading')}</p>
       </div>
     );
   }

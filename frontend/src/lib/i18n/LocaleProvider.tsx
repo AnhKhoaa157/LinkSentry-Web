@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { LocaleContext, type Translate } from '@/lib/i18n/LocaleContext';
-import type { Locale } from '@/lib/i18n/locale';
+import { getBrowserLocale, type Locale } from '@/lib/i18n/locale';
 import { localeStorage } from '@/lib/i18n/localeStorage';
 import { dictionaries } from '@/lib/i18n/translations';
 
@@ -17,7 +17,7 @@ interface LocaleProviderProps {
  * shape of.
  */
 export function LocaleProvider({ children }: LocaleProviderProps) {
-  const [locale, setLocaleState] = useState<Locale>('en');
+  const [locale, setLocaleState] = useState<Locale>(getBrowserLocale);
 
   useEffect(() => {
     let cancelled = false;
@@ -28,8 +28,14 @@ export function LocaleProvider({ children }: LocaleProviderProps) {
     });
     return () => {
       cancelled = true;
-    };
+      };
   }, []);
+
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = locale;
+    }
+  }, [locale]);
 
   const setLocale = useCallback((next: Locale) => {
     setLocaleState(next);
@@ -38,7 +44,7 @@ export function LocaleProvider({ children }: LocaleProviderProps) {
 
   const t = useCallback<Translate>(
     (key, params) => {
-      const template = dictionaries[locale][key];
+      const template = dictionaries[locale][key] ?? dictionaries.en[key] ?? key;
       if (!params) {
         return template;
       }

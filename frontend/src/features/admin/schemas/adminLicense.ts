@@ -3,13 +3,13 @@ import { z } from 'zod';
 const instantSchema = z.string().min(1);
 
 export const createLicenseRequestSchema = z.object({
-  label: z.string().trim().min(1, 'Enter a label for this license.').max(200),
+  label: z.string().trim().min(1, 'validation.license.label').max(200),
   expiresAt: instantSchema.nullable(),
   maxDevices: z.number().int().min(1).optional(),
 });
 
 export const grantDeviceRequestSchema = z.object({
-  activationCode: z.string().trim().min(1, 'Enter an activation code.').max(32),
+  activationCode: z.string().trim().min(1, 'validation.activationCode.required').max(32),
 });
 
 export const extendLicenseRequestSchema = z.object({

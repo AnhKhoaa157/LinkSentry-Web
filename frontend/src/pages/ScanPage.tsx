@@ -5,62 +5,60 @@ import { ExplainResult } from '@/features/explanation/components/ExplainResult';
 import { useScanQuery } from '@/features/scanner/api/useScanQuery';
 import { ScanResult } from '@/features/scanner/components/ScanResult';
 import { normalizeApiError } from '@/lib/api/errors';
-
-const GENERIC_LOAD_ERROR = 'We could not load this saved scan. Please try again later.';
+import { useLocale } from '@/lib/i18n/useLocale';
 
 /** Renders a retained result loaded from an opaque scan permalink. */
 export function ScanPage() {
   const { scanId } = useParams<{ scanId: string }>();
   const query = useScanQuery(scanId);
+  const { t } = useLocale();
 
   if (query.isPending) {
-    return <p role="status">Loading saved scan…</p>;
+    return (
+      <p role="status" className="body-secondary text-sm">
+        {t('scanPage.loading')}
+      </p>
+    );
   }
 
   if (query.isError) {
     const apiError = normalizeApiError(query.error);
     if (apiError.code === 'UNAUTHORIZED') {
       return (
-        <StateMessage title="A license is required to view this scan">
-          Saved scan history is private to the license that created it.
+        <StateMessage title={t('scanPage.licenseRequiredTitle')}>
+          {t('scanPage.licenseRequiredBody')}
           <br />
-          <Link to="/license" className="text-accent-400 underline underline-offset-4">
-            View this installation's license status
+          <Link to="/license" className="text-accent-strong font-bold underline underline-offset-4">
+            {t('scanPage.licenseLink')}
           </Link>
         </StateMessage>
       );
     }
     if (apiError.code === 'SCAN_NOT_FOUND') {
       return (
-        <StateMessage title="Saved scan unavailable">
-          This scan ID is invalid, expired, ownerless, or not available to this license.
+        <StateMessage title={t('scanPage.unavailableTitle')}>
+          {t('scanPage.unavailableBody')}
         </StateMessage>
       );
     }
     if (apiError.code === 'RATE_LIMITED') {
-      return (
-        <StateMessage title="Too many requests">
-          This link is being requested too quickly. Wait a moment and try again.
-        </StateMessage>
-      );
+      return <StateMessage title={t('scanPage.rateTitle')}>{t('scanPage.rateBody')}</StateMessage>;
     }
-    return <StateMessage title="Could not load saved scan">{GENERIC_LOAD_ERROR}</StateMessage>;
+    return <StateMessage title={t('scanPage.errorTitle')}>{t('scanPage.errorBody')}</StateMessage>;
   }
 
   if (!query.data) {
-    return (
-      <StateMessage title="Saved scan unavailable">This scan result is no longer available.</StateMessage>
-    );
+    return <StateMessage title={t('scanPage.unavailableTitle')}>{t('scanPage.unavailableBody')}</StateMessage>;
   }
 
   return (
-    <div>
-      <p className="text-accent-400 font-mono text-sm">Saved result</p>
-      <h1 className="mt-2 text-3xl font-semibold tracking-tight">Link analysis</h1>
-      <p className="text-ink-300 mt-3 text-sm">
-        This private result is available only to its owner during the configured retention period (30 days by
-        default).
-      </p>
+    <div className="mx-auto max-w-4xl">
+      <header className="max-w-2xl space-y-4">
+        <p className="eyebrow">{t('scanPage.eyebrow')}</p>
+        <h1 className="display-title text-content-primary text-4xl sm:text-5xl">{t('scanPage.title')}</h1>
+        <p className="body-secondary text-sm leading-6">{t('scanPage.description')}</p>
+      </header>
+
       <ScanResult data={query.data.data} />
       <ExplainResult scanId={query.data.data.scanId} />
     </div>
@@ -68,16 +66,15 @@ export function ScanPage() {
 }
 
 function StateMessage({ title, children }: { readonly title: string; readonly children: ReactNode }) {
+  const { t } = useLocale();
+
   return (
-    <div role="alert" className="max-w-xl">
-      <p className="text-accent-400 font-mono text-sm">Scan history</p>
-      <h1 className="mt-2 text-3xl font-semibold tracking-tight">{title}</h1>
-      <p className="text-ink-300 mt-3 text-sm">{children}</p>
-      <Link
-        to="/"
-        className="bg-accent-500 text-ink-950 hover:bg-accent-400 mt-7 inline-block rounded-lg px-5 py-2.5 text-sm font-semibold transition-colors"
-      >
-        Back to scanner
+    <div role="alert" className="surface-panel max-w-2xl p-6 sm:p-8">
+      <p className="eyebrow">{t('scanPage.eyebrow')}</p>
+      <h1 className="section-title text-content-primary mt-2">{title}</h1>
+      <p className="body-secondary mt-3 text-sm leading-6">{children}</p>
+      <Link to="/" className="ui-button ui-button-primary mt-7">
+        {t('common.backToScanner')}
       </Link>
     </div>
   );

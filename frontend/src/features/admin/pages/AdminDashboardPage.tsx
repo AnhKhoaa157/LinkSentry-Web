@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 
+import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
 import { Card } from '@/components/ui/Card';
 import { AdminLicenseManagement } from '@/features/admin/components/AdminLicenseManagement';
 import { useAdminAuth } from '@/features/admin/context/useAdminAuth';
+import { useLocale } from '@/lib/i18n/useLocale';
 
-/** Protected dashboard shell: identity, session expiry, logout, and license/device management. */
+/** Protected dashboard shell for administrator identity and license operations. */
 export function AdminDashboardPage() {
   const navigate = useNavigate();
   const auth = useAdminAuth();
+  const { locale, t } = useLocale();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   async function handleLogout() {
@@ -16,44 +19,60 @@ export function AdminDashboardPage() {
     try {
       await auth.logout();
     } finally {
-      // Relative "login" (a sibling route), not a hardcoded "/admin/login".
       navigate('login', { replace: true });
     }
   }
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+    <div className="min-h-dvh px-4 py-8 sm:px-6">
+      <header className="mx-auto flex max-w-5xl flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-accent-400 font-mono text-sm">LinkSentry</p>
-          <h1 className="text-ink-100 mt-2 text-3xl font-semibold tracking-tight">Admin dashboard</h1>
+          <p className="eyebrow">{t('admin.dashboard.eyebrow')}</p>
+          <h1 className="display-title text-content-primary mt-3 text-4xl sm:text-5xl">
+            {t('admin.dashboard.title')}
+          </h1>
+          <p className="body-secondary mt-4 max-w-xl text-sm leading-6">{t('admin.dashboard.description')}</p>
         </div>
-        <button
-          type="button"
-          onClick={() => void handleLogout()}
-          disabled={isLoggingOut}
-          className="border-ink-700 bg-ink-900/60 text-ink-100 rounded-lg border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {isLoggingOut ? 'Signing out…' : 'Log out'}
-        </button>
-      </div>
+        <div className="flex items-center gap-3">
+          <LanguageSwitcher />
+          <button
+            type="button"
+            onClick={() => void handleLogout()}
+            disabled={isLoggingOut}
+            className="ui-button ui-button-secondary"
+          >
+            {isLoggingOut ? t('admin.dashboard.loggingOut') : t('admin.dashboard.logout')}
+          </button>
+        </div>
+      </header>
 
-      <Card className="mt-7" title="Signed in as">
-        <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <dt className="text-ink-300 text-xs font-medium tracking-wide uppercase">Administrator</dt>
-            <dd className="text-ink-100 mt-1 text-sm">{auth.admin?.username}</dd>
-          </div>
-          <div>
-            <dt className="text-ink-300 text-xs font-medium tracking-wide uppercase">Session expires</dt>
-            <dd className="text-ink-100 mt-1 text-sm">
-              {auth.expiresAt ? new Date(auth.expiresAt).toLocaleString() : 'Unknown'}
-            </dd>
-          </div>
-        </dl>
-      </Card>
+      <main className="mx-auto mt-8 max-w-5xl space-y-6">
+        <Card title={t('admin.dashboard.signedInAs')}>
+          <dl className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <div>
+              <dt className="body-muted text-xs font-bold tracking-wide uppercase">
+                {t('admin.dashboard.administrator')}
+              </dt>
+              <dd className="text-content-primary mt-1 text-sm">{auth.admin?.username}</dd>
+            </div>
+            <div>
+              <dt className="body-muted text-xs font-bold tracking-wide uppercase">
+                {t('admin.dashboard.sessionExpires')}
+              </dt>
+              <dd className="text-content-primary mt-1 text-sm">
+                {auth.expiresAt
+                  ? new Intl.DateTimeFormat(locale === 'vi' ? 'vi-VN' : 'en-US', {
+                      dateStyle: 'medium',
+                      timeStyle: 'short',
+                    }).format(new Date(auth.expiresAt))
+                  : t('admin.dashboard.sessionUnknown')}
+              </dd>
+            </div>
+          </dl>
+        </Card>
 
-      <AdminLicenseManagement />
+        <AdminLicenseManagement />
+      </main>
     </div>
   );
 }

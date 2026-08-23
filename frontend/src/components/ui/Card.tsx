@@ -13,7 +13,7 @@ interface CardProps {
 /** Bordered surface used to group related content. */
 export function Card({ children, className, title, description }: CardProps) {
   const surface = cn(
-    'rounded-xl border border-ink-800 bg-ink-900/60 p-5 shadow-sm backdrop-blur-sm sm:p-6',
+    'surface-panel p-5 sm:p-6',
     className,
   );
 
@@ -23,10 +23,10 @@ export function Card({ children, className, title, description }: CardProps) {
 
   return (
     <section className={surface} aria-labelledby={toId(title)}>
-      <h2 id={toId(title)} className="text-ink-100 text-base font-semibold tracking-tight">
+      <h2 id={toId(title)} className="text-content-primary text-base font-bold tracking-tight">
         {title}
       </h2>
-      {description ? <p className="text-ink-300 mt-1 text-sm">{description}</p> : null}
+      {description ? <p className="text-content-secondary mt-1 text-sm">{description}</p> : null}
       <div className="mt-4">{children}</div>
     </section>
   );

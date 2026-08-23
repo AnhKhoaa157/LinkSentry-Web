@@ -8,9 +8,9 @@ interface StatusDotProps {
 }
 
 const stateClasses: Record<StatusState, string> = {
-  online: 'bg-emerald-400',
-  offline: 'bg-rose-400',
-  pending: 'bg-amber-300',
+  online: 'bg-emerald-500',
+  offline: 'bg-rose-500',
+  pending: 'bg-amber-500',
 };
 
 /**
@@ -24,7 +24,7 @@ export function StatusDot({ state, className }: StatusDotProps) {
   return (
     <span
       aria-hidden="true"
-      className={cn('inline-block size-2 shrink-0 rounded-full', stateClasses[state], className)}
+      className={cn('inline-block size-2.5 shrink-0 rounded-full ring-4 ring-current/10', stateClasses[state], className)}
     />
   );
 }

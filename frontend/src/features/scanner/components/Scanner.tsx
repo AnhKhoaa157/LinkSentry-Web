@@ -7,49 +7,24 @@ import { ScanResult } from '@/features/scanner/components/ScanResult';
 import { scanRequestSchema } from '@/features/scanner/schemas/scanRequest';
 import type { ScanResponse } from '@/features/scanner/schemas/scanResponse';
 import { normalizeApiError, type NormalizedApiError } from '@/lib/api/errors';
+import { localizeApiError, localizeValidationMessage } from '@/lib/i18n/messages';
+import { useLocale } from '@/lib/i18n/useLocale';
 
 const HINT_ID = 'scanner-url-hint';
 const CLIENT_ERROR_ID = 'scanner-url-error';
 const SERVER_FIELD_ERROR_ID = 'scanner-url-field-error';
 
-/**
- * Rate limiting is a scanner condition, not a generic failure, so it gets
- * wording that tells the user what to do. Nothing about the quota is inferred:
- * no countdown, no `Retry-After` parsing, and no automatic retry — the backend
- * deliberately publishes no quota detail (docs/API_CONTRACT.md).
- */
-const RATE_LIMITED_MESSAGE = 'Too many scan requests. Wait a moment before trying again.';
-
-/**
- * The anonymous trial guard is a distinct scanner condition from rate limiting:
- * it means "get a license", not "wait". As with `RATE_LIMITED`, nothing about the
- * quota is inferred here — no count, no reset time, no explanation tied to an
- * IP address, since the backend publishes none of it (docs/API_CONTRACT.md).
- * A licensed device never sees this code; the guard only ever gates an
- * unlicensed one.
- */
-const ANONYMOUS_TRIAL_EXHAUSTED_MESSAGE =
-  'Your free trial scan allowance is used up for now. Get a license to keep scanning.';
-
-function displayMessage(error: NormalizedApiError): string {
-  if (error.code === 'RATE_LIMITED') {
-    return RATE_LIMITED_MESSAGE;
-  }
-  if (error.code === 'ANONYMOUS_TRIAL_EXHAUSTED') {
-    return ANONYMOUS_TRIAL_EXHAUSTED_MESSAGE;
-  }
-  return error.message;
+function displayMessage(
+  t: ReturnType<typeof useLocale>['t'],
+  error: NormalizedApiError,
+): string {
+  return localizeApiError(t, error);
 }
 
-/**
- * The real scanner: a validated URL form plus its result.
- *
- * States are explicit rather than inferred: idle (nothing submitted yet), a
- * client-side validation error (caught before any request is sent), loading,
- * an API error, and success. Never more than one of these is shown at once.
- */
+/** The real scanner: a validated text form plus a server-owned result. */
 export function Scanner() {
   const { isLicensed, isLoading: isLicenseLoading } = useLicense();
+  const { t } = useLocale();
   const [url, setUrl] = useState('');
   const [clientError, setClientError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
@@ -57,14 +32,8 @@ export function Scanner() {
   const [apiError, setApiError] = useState<NormalizedApiError | null>(null);
   const urlInputRef = useRef<HTMLInputElement>(null);
 
-  // Only a `url` field error says anything about the input. A 429, a 500, or a
-  // dropped connection is a request-level failure and must leave the field valid.
   const serverFieldError = apiError?.fieldErrors?.url ?? null;
 
-  // A field error is only actionable inside the input, so send keyboard and
-  // screen-reader users there when the server reports one. Typing cannot trigger
-  // this: `handleChange` clears the safe request state, so the value returns to
-  // null before it can change again.
   useEffect(() => {
     if (serverFieldError !== null) {
       urlInputRef.current?.focus();
@@ -73,13 +42,9 @@ export function Scanner() {
 
   function handleChange(value: string) {
     setUrl(value);
-    if (clientError) {
-      setClientError(null);
-    }
-    if (scanResponse !== null || apiError !== null) {
-      setScanResponse(null);
-      setApiError(null);
-    }
+    setClientError(null);
+    setScanResponse(null);
+    setApiError(null);
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -87,7 +52,7 @@ export function Scanner() {
 
     const parsed = scanRequestSchema.safeParse({ url });
     if (!parsed.success) {
-      setClientError(parsed.error.issues[0]?.message ?? 'Enter a valid URL.');
+      setClientError(localizeValidationMessage(t, parsed.error.issues[0]?.message));
       urlInputRef.current?.focus();
       return;
     }
@@ -102,103 +67,121 @@ export function Scanner() {
       .finally(() => setIsPending(false));
   }
 
-  // Exactly one field message can be live: editing clears both sources, and a
-  // submit clears the client error before the request is sent.
   const activeErrorId =
     clientError !== null ? CLIENT_ERROR_ID : serverFieldError !== null ? SERVER_FIELD_ERROR_ID : null;
-  // The hint always stays described; the error ID is appended only while its
-  // element is rendered, so the list never duplicates or dangles.
-  const describedBy = activeErrorId === null ? HINT_ID : `${HINT_ID} ${activeErrorId}`;
+  const describedBy = activeErrorId === null ? HINT_ID : HINT_ID + ' ' + activeErrorId;
 
   return (
-    <div className="border-ink-700 bg-ink-900/40 rounded-xl border p-5 sm:p-6">
-      <form onSubmit={handleSubmit} noValidate>
-        <label htmlFor="scanner-url" className="text-ink-100 block text-sm font-medium">
-          Suspicious URL
-        </label>
-        <p id={HINT_ID} className="text-ink-500 mt-1 text-sm">
-          Paste a link to analyse its structure. LinkSentry never visits it.
+    <section className="surface-panel overflow-hidden" aria-labelledby="scanner-heading">
+      <div className="border-border-default bg-surface-raised/70 border-b px-5 py-5 sm:px-7">
+        <p className="eyebrow">{t('scanner.eyebrow')}</p>
+        <h2 id="scanner-heading" className="section-title text-content-primary mt-2">
+          {t('scanner.formTitle')}
+        </h2>
+        <p id={HINT_ID} className="body-secondary mt-2 max-w-2xl text-sm leading-6">
+          {t('scanner.hint')}
         </p>
+      </div>
 
-        <div className="mt-3 flex flex-col gap-3 sm:flex-row">
-          <input
-            id="scanner-url"
-            name="url"
-            ref={urlInputRef}
-            type="text"
-            inputMode="url"
-            autoComplete="off"
-            spellCheck={false}
-            value={url}
-            onChange={(event) => handleChange(event.target.value)}
-            aria-describedby={describedBy}
-            aria-invalid={activeErrorId !== null}
-            placeholder="https://login.example.com.security-check.invalid/account"
-            className="border-ink-800 bg-ink-950 text-ink-100 placeholder:text-ink-500 min-w-0 flex-1 rounded-lg border px-3.5 py-2.5 font-mono text-sm"
-          />
-          <button
-            type="submit"
-            disabled={isPending || isLicenseLoading}
-            className="bg-accent-500 text-ink-950 rounded-lg px-5 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isPending ? 'Analyzing…' : 'Analyze'}
-          </button>
-        </div>
+      <div className="p-5 sm:p-7">
+        <form onSubmit={handleSubmit} noValidate>
+          <label htmlFor="scanner-url" className="ui-label">
+            {t('scanner.label')}
+          </label>
 
-        {clientError ? (
-          <p id={CLIENT_ERROR_ID} role="alert" className="mt-2 text-sm text-rose-400">
-            {clientError}
-          </p>
-        ) : null}
-      </form>
+          <div className="mt-3 flex flex-col gap-3 sm:flex-row">
+            <input
+              id="scanner-url"
+              name="url"
+              ref={urlInputRef}
+              type="text"
+              inputMode="url"
+              autoComplete="off"
+              spellCheck={false}
+              value={url}
+              onChange={(event) => handleChange(event.target.value)}
+              aria-describedby={describedBy}
+              aria-invalid={activeErrorId !== null}
+              placeholder={t('scanner.placeholder')}
+              className="ui-input min-w-0 flex-1 px-3.5 py-3 font-mono text-sm"
+            />
+            <button
+              type="submit"
+              disabled={isPending || isLicenseLoading}
+              aria-busy={isPending}
+              className="ui-button ui-button-primary shrink-0 px-6"
+            >
+              {isPending
+                ? t('scanner.analyzing')
+                : isLicenseLoading
+                  ? t('scanner.initializing')
+                  : t('scanner.submit')}
+            </button>
+          </div>
 
-      {apiError ? (
-        <div role="alert" className="mt-5 rounded-lg border border-rose-600/40 bg-rose-500/10 p-4">
-          <p className="text-sm font-medium text-rose-400">{displayMessage(apiError)}</p>
-          {serverFieldError ? (
-            <p id={SERVER_FIELD_ERROR_ID} className="mt-1 text-sm text-rose-400/80">
-              {serverFieldError}
+          {clientError ? (
+            <p id={CLIENT_ERROR_ID} role="alert" className="mt-2 text-sm text-danger">
+              {clientError}
             </p>
           ) : null}
-          {apiError.code === 'ANONYMOUS_TRIAL_EXHAUSTED' ? (
-            <Link
-              to="/license"
-              className="text-accent-400 hover:text-accent-300 mt-2 inline-block text-sm font-medium underline underline-offset-4"
-            >
-              Get a license to continue scanning
-            </Link>
-          ) : null}
-        </div>
-      ) : null}
+        </form>
 
-      {scanResponse !== null ? (
-        <>
-          <ScanResult data={scanResponse.data} />
-          {isLicensed && scanResponse.data.scanId ? (
-            <div className="border-ink-800 mt-5 border-t pt-4">
-              <Link
-                to={`/scans/${encodeURIComponent(scanResponse.data.scanId)}`}
-                className="text-accent-400 hover:text-accent-300 text-sm font-medium underline underline-offset-4"
-              >
-                Open your private result
+        {apiError ? (
+          <div role="alert" className="ui-alert mt-5 p-4">
+            <p className="text-sm font-bold">{displayMessage(t, apiError)}</p>
+            {serverFieldError ? (
+              <p id={SERVER_FIELD_ERROR_ID} className="mt-1 text-sm opacity-90">
+                {localizeValidationMessage(t, serverFieldError)}
+              </p>
+            ) : null}
+            {apiError.code === 'ANONYMOUS_TRIAL_EXHAUSTED' ? (
+              <Link to="/license" className="text-accent-strong mt-3 inline-flex text-sm font-bold underline">
+                {t('scanner.trialResultLink')}
               </Link>
-              <p className="text-ink-500 mt-1 text-xs">
-                Only this license's installations can view this saved result.
+            ) : null}
+          </div>
+        ) : null}
+
+        {scanResponse ? (
+          <div className="mt-8 border-border-default border-t pt-7">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <p className="eyebrow">{t('scanner.resultHeading')}</p>
+                <p className="body-secondary mt-1 text-sm">{t('scanner.resultDescription')}</p>
+              </div>
+              <p className="body-muted font-mono text-xs">
+                {t('scanner.engineVersion', { version: scanResponse.meta.engineVersion })}
               </p>
             </div>
-          ) : (
-            <div className="border-ink-800 mt-5 border-t pt-4">
-              <p className="text-ink-500 text-xs">This one-off scan is not saved.</p>
-              <Link
-                to="/license"
-                className="text-accent-400 hover:text-accent-300 mt-1 inline-block text-sm font-medium underline underline-offset-4"
-              >
-                Get a license to save future scans
-              </Link>
+
+            <ScanResult data={scanResponse.data} />
+
+            <div className="mt-6 border-border-default border-t pt-4">
+              {isLicensed && scanResponse.data.scanId ? (
+                <>
+                  <Link
+                    to={'/scans/' + encodeURIComponent(scanResponse.data.scanId)}
+                    className="text-accent-strong text-sm font-bold underline underline-offset-4"
+                  >
+                    {t('scanner.savedResultLink')}
+                  </Link>
+                  <p className="body-muted mt-1 text-xs">{t('scanner.savedResultDescription')}</p>
+                </>
+              ) : (
+                <>
+                  <p className="body-muted text-xs">{t('scanner.trialResult')}</p>
+                  <Link
+                    to="/license"
+                    className="text-accent-strong mt-1 inline-flex text-sm font-bold underline underline-offset-4"
+                  >
+                    {t('scanner.trialResultLink')}
+                  </Link>
+                </>
+              )}
             </div>
-          )}
-        </>
-      ) : null}
-    </div>
+          </div>
+        ) : null}
+      </div>
+    </section>
   );
 }

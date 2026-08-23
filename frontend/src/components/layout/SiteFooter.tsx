@@ -1,14 +1,14 @@
-/** Footer carrying the portfolio and limitations disclaimer. */
+import { useLocale } from '@/lib/i18n/useLocale';
+
+/** Footer carrying the product boundary and limitations disclaimer. */
 export function SiteFooter() {
+  const { t } = useLocale();
+
   return (
-    <footer className="border-ink-800 bg-ink-950 mt-16 border-t">
-      <div className="text-ink-500 mx-auto max-w-5xl px-4 py-8 text-sm sm:px-6">
-        <p className="max-w-3xl">
-          LinkSentry is a portfolio project built to demonstrate defensive security engineering. It inspects
-          the text of a URL only and cannot determine whether a website is safe. Treat its output as one
-          signal among several, never as a verdict.
-        </p>
-        <p className="mt-3">Static analysis only — no submitted URL is ever visited.</p>
+    <footer className="border-border-default mt-auto border-t">
+      <div className="page-container body-muted flex flex-col gap-2 py-8 text-sm sm:flex-row sm:items-start sm:justify-between">
+        <p className="max-w-2xl">{t('footer.description')}</p>
+        <p className="font-mono text-xs">{t('footer.staticOnly')}</p>
       </div>
     </footer>
   );
