@@ -5,6 +5,7 @@ import { BrowserRouter } from 'react-router';
 
 import { createQueryClient } from '@/lib/api/queryClient';
 import { LocaleProvider } from '@/lib/i18n/LocaleProvider';
+import { ThemeProvider } from '@/lib/theme/ThemeProvider';
 
 interface AppProvidersProps {
   readonly children: ReactNode;
@@ -22,10 +23,12 @@ export function AppProviders({ children }: AppProvidersProps) {
   const [queryClient] = useState(createQueryClient);
 
   return (
-    <LocaleProvider>
-      <QueryClientProvider client={queryClient}>
-        <BrowserRouter>{children}</BrowserRouter>
-      </QueryClientProvider>
-    </LocaleProvider>
+    <ThemeProvider>
+      <LocaleProvider>
+        <QueryClientProvider client={queryClient}>
+          <BrowserRouter>{children}</BrowserRouter>
+        </QueryClientProvider>
+      </LocaleProvider>
+    </ThemeProvider>
   );
 }

@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router';
 
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
+import { ThemeSwitcher } from '@/components/ui/ThemeSwitcher';
 import { LicenseBadge } from '@/features/license/components/LicenseBadge';
 import { useLocale } from '@/lib/i18n/useLocale';
 import { cn } from '@/lib/utils/cn';
@@ -17,7 +18,7 @@ export function SiteHeader() {
     <header className="border-border-default bg-surface-canvas/85 sticky top-0 z-10 border-b backdrop-blur-xl">
       <div className="page-container flex flex-wrap items-center justify-between gap-x-6 gap-y-3 py-3.5">
         <NavLink to="/" className="group flex items-center gap-3" aria-label={t('nav.homeAria')}>
-          <ShieldMark />
+          <img src="/brand/linksentry-mark.png" alt="" className="brand-mark size-7" aria-hidden="true" />
           <span className="text-content-primary text-base font-bold tracking-tight">LinkSentry</span>
         </NavLink>
 
@@ -55,34 +56,11 @@ export function SiteHeader() {
           </ul>
         </nav>
 
-        <LanguageSwitcher className="order-2 sm:order-3" />
+        <div className="order-2 flex items-center gap-2 sm:order-3">
+          <ThemeSwitcher />
+          <LanguageSwitcher />
+        </div>
       </div>
     </header>
-  );
-}
-
-/**
- * Shield-and-link mark, drawn in inline SVG.
- *
- * Uses one semantic foreground colour, so the same mark remains legible on the
- * application's light and dark surfaces without an alternate asset.
- */
-function ShieldMark() {
-  return (
-    <svg
-      viewBox="0 0 32 32"
-      className="text-content-primary size-7"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.7"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M16 3.5 25 7v6.8c0 6-3.8 11.1-9 13.2-5.2-2.1-9-7.2-9-13.2V7l9-3.5Z" />
-      <path d="m13.2 18.8 5.6-5.6" />
-      <path d="m12 13.2 1.2-1.2a3.4 3.4 0 0 1 4.8 0" />
-      <path d="m20 18.8-1.2 1.2a3.4 3.4 0 0 1-4.8 0" />
-    </svg>
   );
 }

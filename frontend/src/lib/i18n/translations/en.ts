@@ -30,6 +30,9 @@ export const en = {
   'languageSwitcher.en': 'EN',
   'languageSwitcher.vi': 'VI',
 
+  'themeSwitcher.toLight': 'Switch to light theme',
+  'themeSwitcher.toDark': 'Switch to dark theme',
+
   'nav.home': 'Scanner',
   'nav.methodology': 'Methodology',
   'nav.license': 'Installation',

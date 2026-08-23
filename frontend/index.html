@@ -8,11 +8,31 @@
       content="LinkSentry analyses suspicious links as text and explains what looks wrong. It never visits the URL you submit."
     />
     <meta name="color-scheme" content="light dark" />
-    <!-- Inline SVG so the shell needs no network request for its icon. -->
-    <link
-      rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b1220'/%3E%3Cpath d='M16 5l9 3.2v7.3c0 5.6-3.7 10-9 11.5-5.3-1.5-9-5.9-9-11.5V8.2L16 5z' fill='none' stroke='%2322d3ee' stroke-width='2'/%3E%3C/svg%3E"
-    />
+    <meta name="theme-color" content="#f4f7fb" />
+    <link rel="icon" data-app-favicon href="/brand/linksentry-mark.png" />
+    <script>
+      try {
+        const storedTheme = localStorage.getItem('linksentry.theme');
+        const theme =
+          storedTheme === 'light' || storedTheme === 'dark'
+            ? storedTheme
+            : matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light';
+        document.documentElement.classList.add(theme);
+        document
+          .querySelector('meta[name="theme-color"]')
+          ?.setAttribute('content', theme === 'dark' ? '#05080f' : '#f4f7fb');
+        document
+          .querySelector('link[data-app-favicon]')
+          ?.setAttribute(
+            'href',
+            theme === 'dark' ? '/brand/linksentry-mark-white.png' : '/brand/linksentry-mark.png',
+          );
+      } catch {
+        document.documentElement.classList.add('light');
+      }
+    </script>
     <title>LinkSentry — Explainable phishing URL analysis</title>
   </head>
   <body>

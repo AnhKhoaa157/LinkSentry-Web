@@ -26,6 +26,9 @@ export const vi: Record<TranslationKey, string> = {
   'languageSwitcher.en': 'EN',
   'languageSwitcher.vi': 'VI',
 
+  'themeSwitcher.toLight': 'Chuyển sang giao diện sáng',
+  'themeSwitcher.toDark': 'Chuyển sang giao diện tối',
+
   'nav.home': 'Trình quét',
   'nav.methodology': 'Phương pháp',
   'nav.license': 'Cài đặt',
