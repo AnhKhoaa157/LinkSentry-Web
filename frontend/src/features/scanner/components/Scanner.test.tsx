@@ -96,7 +96,7 @@ describe('Scanner', () => {
     expect(await screen.findByText('25')).toBeInTheDocument();
     expect(screen.getByText('Moderate risk')).toBeInTheDocument();
     expect(screen.getByText('Connection is not encrypted')).toBeInTheDocument();
-    expect(screen.getByText('security-check.invalid')).toBeInTheDocument();
+    expect(screen.getAllByText('security-check.invalid')).toHaveLength(2);
     expect(screen.queryByRole('link', { name: /open your private result/i })).not.toBeInTheDocument();
     const licenseLink = screen.getByRole('link', { name: /get a license to save future scans/i });
     expect(licenseLink).toHaveAttribute('href', '/license');
@@ -289,7 +289,7 @@ describe('Scanner', () => {
     expect(alert).not.toHaveTextContent(/\d+\s*(second|minute|hour|s\b)/i);
     expect(alert).not.toHaveTextContent(/remaining|reset|quota|address|ip\b/i);
 
-    const licenseLink = screen.getByRole('link', { name: /get a license to continue scanning/i });
+    const licenseLink = screen.getByRole('link', { name: /get a license to save future scans/i });
     expect(licenseLink).toHaveAttribute('href', '/license');
     // The link must never carry the submitted URL or any address.
     expect(licenseLink.getAttribute('href')).not.toMatch(/login|example|security-check|http/i);

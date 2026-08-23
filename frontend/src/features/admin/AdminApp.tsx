@@ -4,6 +4,7 @@ import { AdminProtectedRoute } from '@/features/admin/components/AdminProtectedR
 import { AdminAuthProvider } from '@/features/admin/context/AdminAuthProvider';
 import { AdminDashboardPage } from '@/features/admin/pages/AdminDashboardPage';
 import { AdminLoginPage } from '@/features/admin/pages/AdminLoginPage';
+import { LocaleProvider } from '@/lib/i18n/LocaleProvider';
 
 /**
  * Self-contained admin console: its own auth provider and route table, mounted once at
@@ -12,18 +13,20 @@ import { AdminLoginPage } from '@/features/admin/pages/AdminLoginPage';
  */
 export function AdminApp() {
   return (
-    <AdminAuthProvider>
-      <Routes>
-        <Route path="login" element={<AdminLoginPage />} />
-        <Route
-          index
-          element={
-            <AdminProtectedRoute>
-              <AdminDashboardPage />
-            </AdminProtectedRoute>
-          }
-        />
-      </Routes>
-    </AdminAuthProvider>
+    <LocaleProvider>
+      <AdminAuthProvider>
+        <Routes>
+          <Route path="login" element={<AdminLoginPage />} />
+          <Route
+            index
+            element={
+              <AdminProtectedRoute>
+                <AdminDashboardPage />
+              </AdminProtectedRoute>
+            }
+          />
+        </Routes>
+      </AdminAuthProvider>
+    </LocaleProvider>
   );
 }

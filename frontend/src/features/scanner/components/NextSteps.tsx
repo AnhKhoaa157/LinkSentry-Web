@@ -124,24 +124,21 @@ export function NextSteps({ riskLevel, score, registrableDomain, findings }: Pro
   }
 
   return (
-    <section aria-labelledby={HEADING_ID} className="border-ink-800 bg-ink-950/40 rounded-lg border p-4">
-      <h3 id={HEADING_ID} className="text-ink-100 text-sm font-semibold">
+    <section aria-labelledby={HEADING_ID} className="surface-panel p-5">
+      <p className="eyebrow">{t('scanner.limitTitle')}</p>
+      <h3 id={HEADING_ID} className="text-content-primary mt-1 text-lg font-bold">
         {t('nextSteps.heading')}
       </h3>
-      <p className="text-ink-300 mt-2 text-sm">{t(RECOMMENDED_ACTION_KEY[riskLevel])}</p>
+      <p className="body-secondary mt-2 text-sm leading-6">{t(RECOMMENDED_ACTION_KEY[riskLevel])}</p>
 
       <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
-        <button
-          type="button"
-          onClick={handleCopy}
-          className="border-ink-700 bg-ink-850 text-ink-100 hover:bg-ink-800 rounded-lg border px-4 py-2 text-sm font-medium transition-colors"
-        >
+        <button type="button" onClick={handleCopy} className="ui-button ui-button-secondary">
           {t('nextSteps.copyButton')}
         </button>
 
         {/* Always mounted so the message is announced when its text changes, and
             polite because a failed copy is an inconvenience, not an emergency. */}
-        <p role="status" className={status === 'failed' ? 'text-sm text-rose-400' : 'text-ink-300 text-sm'}>
+        <p role="status" className={status === 'failed' ? 'text-danger text-sm' : 'body-secondary text-sm'}>
           {status === 'copied'
             ? t('nextSteps.copySuccess')
             : status === 'failed'
@@ -150,7 +147,7 @@ export function NextSteps({ riskLevel, score, registrableDomain, findings }: Pro
         </p>
       </div>
 
-      <p className="text-ink-500 mt-3 text-xs">{t('nextSteps.disclaimer')}</p>
+      <p className="body-muted mt-4 text-xs leading-5">{t('nextSteps.disclaimer')}</p>
     </section>
   );
 }

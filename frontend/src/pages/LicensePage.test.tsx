@@ -12,8 +12,8 @@ describe('LicensePage', () => {
   it('explains the device-license model and shows the installation status card', async () => {
     renderWithProviders(<LicensePage />);
 
-    expect(screen.getByRole('heading', { name: 'License', level: 1 })).toBeInTheDocument();
-    expect(screen.getByText(/no accounts, passwords, or sign-in/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'License and activation', level: 1 })).toBeInTheDocument();
+    expect(screen.getByText(/no end-user accounts or passwords/i)).toBeInTheDocument();
     // The default bootstrap mock (test/setup.ts) returns this activation code.
     expect(await screen.findByText('TEST-CODE')).toBeInTheDocument();
   });

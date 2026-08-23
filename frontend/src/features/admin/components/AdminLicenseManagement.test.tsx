@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminLicenseManagement } from '@/features/admin/components/AdminLicenseManagement';
 import * as adminLicenseApi from '@/features/admin/api/adminLicenses';
 import { createQueryClient } from '@/lib/api/queryClient';
+import { LocaleProvider } from '@/lib/i18n/LocaleProvider';
 
 vi.mock('@/features/admin/api/adminLicenses', () => ({
   createAdminLicense: vi.fn(),
@@ -50,7 +51,9 @@ const deviceLookup = {
 function renderManagement() {
   return render(
     <QueryClientProvider client={createQueryClient()}>
-      <AdminLicenseManagement />
+      <LocaleProvider>
+        <AdminLicenseManagement />
+      </LocaleProvider>
     </QueryClientProvider>,
   );
 }

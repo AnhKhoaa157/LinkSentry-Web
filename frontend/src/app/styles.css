@@ -2,30 +2,143 @@
 @source '../';
 
 /*
- * LinkSentry design tokens.
+ * LinkSentry visual foundation.
  *
- * Calm, technical, deliberately not alarmist: a security tool that shouts loses
- * the user's attention exactly when a real finding appears. Risk colours will be
- * added with the result UI (Exercise 9) and must always be paired with a text
- * label — colour alone is not an accessible signal.
+ * The token names describe purpose rather than hue. The light palette is the
+ * default; the dark palette is selected by the existing dark document class
+ * (the extension) or the user's system preference (the web app). Components
+ * consume the same semantic tokens in both products.
  */
-@theme {
-  --color-ink-950: #05080f;
-  --color-ink-900: #0b1220;
-  --color-ink-850: #101a2c;
-  --color-ink-800: #16243c;
-  --color-ink-700: #1f3355;
-  --color-ink-500: #64769a;
-  --color-ink-300: #a8b6d1;
-  --color-ink-100: #e6ecf7;
+:root {
+  color-scheme: light;
 
-  --color-accent-400: #22d3ee;
-  --color-accent-500: #06b6d4;
-  --color-accent-600: #0891b2;
+  --ink-950: #f4f7fb;
+  --ink-900: #ffffff;
+  --ink-850: #eef3f9;
+  --ink-800: #d9e3ef;
+  --ink-700: #c0cfdf;
+  --ink-500: #60718a;
+  --ink-300: #40536d;
+  --ink-100: #14243b;
+
+  --surface-canvas: #f4f7fb;
+  --surface-panel: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-inset: #eef3f9;
+  --content-primary: #14243b;
+  --content-secondary: #40536d;
+  --content-muted: #60718a;
+  --border-default: #d9e3ef;
+  --border-strong: #c0cfdf;
+  --accent: #0369a1;
+  --accent-strong: #075985;
+  --accent-soft: #e0f2fe;
+  --focus: #0284c7;
+  --success: #047857;
+  --warning: #b45309;
+  --danger: #be123c;
+  --space-page-x: clamp(1rem, 4vw, 2.75rem);
+  --space-section: clamp(2.75rem, 7vw, 5.5rem);
+  --radius-panel: 1.25rem;
+  --shadow-panel: 0 20px 60px rgb(30 64 98 / 10%);
+  --motion-fast: 160ms;
+  --motion-standard: 220ms;
+}
+
+html.dark {
+  color-scheme: dark;
+
+  --ink-950: #05080f;
+  --ink-900: #0b1220;
+  --ink-850: #101a2c;
+  --ink-800: #16243c;
+  --ink-700: #1f3355;
+  --ink-500: #64769a;
+  --ink-300: #a8b6d1;
+  --ink-100: #e6ecf7;
+
+  --surface-canvas: #05080f;
+  --surface-panel: #0b1220;
+  --surface-raised: #101a2c;
+  --surface-inset: #07101d;
+  --content-primary: #e6ecf7;
+  --content-secondary: #a8b6d1;
+  --content-muted: #64769a;
+  --border-default: #16243c;
+  --border-strong: #1f3355;
+  --accent: #22d3ee;
+  --accent-strong: #67e8f9;
+  --accent-soft: rgb(6 182 212 / 14%);
+  --focus: #67e8f9;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger: #fb7185;
+  --shadow-panel: 0 24px 70px rgb(0 0 0 / 28%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    color-scheme: dark;
+    --ink-950: #05080f;
+    --ink-900: #0b1220;
+    --ink-850: #101a2c;
+    --ink-800: #16243c;
+    --ink-700: #1f3355;
+    --ink-500: #64769a;
+    --ink-300: #a8b6d1;
+    --ink-100: #e6ecf7;
+    --surface-canvas: #05080f;
+    --surface-panel: #0b1220;
+    --surface-raised: #101a2c;
+    --surface-inset: #07101d;
+    --content-primary: #e6ecf7;
+    --content-secondary: #a8b6d1;
+    --content-muted: #64769a;
+    --border-default: #16243c;
+    --border-strong: #1f3355;
+    --accent: #22d3ee;
+    --accent-strong: #67e8f9;
+    --accent-soft: rgb(6 182 212 / 14%);
+    --focus: #67e8f9;
+    --success: #34d399;
+    --warning: #fbbf24;
+    --danger: #fb7185;
+    --shadow-panel: 0 24px 70px rgb(0 0 0 / 28%);
+  }
+}
+
+@theme {
+  --color-ink-950: var(--ink-950);
+  --color-ink-900: var(--ink-900);
+  --color-ink-850: var(--ink-850);
+  --color-ink-800: var(--ink-800);
+  --color-ink-700: var(--ink-700);
+  --color-ink-500: var(--ink-500);
+  --color-ink-300: var(--ink-300);
+  --color-ink-100: var(--ink-100);
+
+  --color-surface-canvas: var(--surface-canvas);
+  --color-surface-panel: var(--surface-panel);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-inset: var(--surface-inset);
+  --color-content-primary: var(--content-primary);
+  --color-content-secondary: var(--content-secondary);
+  --color-content-muted: var(--content-muted);
+  --color-border-default: var(--border-default);
+  --color-border-strong: var(--border-strong);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-focus: var(--focus);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
 
   --font-sans:
     ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-mono: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Consolas, monospace;
+  --font-display:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
 @layer base {
@@ -34,30 +147,267 @@
   }
 
   body {
-    background-color: var(--color-ink-950);
-    color: var(--color-ink-100);
+    min-width: 320px;
+    background-color: var(--surface-canvas);
+    background-image:
+      radial-gradient(
+        circle at 86% -8%,
+        color-mix(in srgb, var(--accent) 14%, transparent),
+        transparent 34rem
+      ),
+      linear-gradient(135deg, color-mix(in srgb, var(--surface-panel) 48%, transparent), transparent 38rem);
+    color: var(--content-primary);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     text-wrap: pretty;
   }
 
-  /* A visible focus ring on every focusable element. Keyboard users are not an
-     afterthought, and a security tool that cannot be operated without a mouse is
-     not finished. */
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+
+  button:not(:disabled),
+  a {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+
   :focus-visible {
-    outline: 2px solid var(--color-accent-400);
-    outline-offset: 2px;
-    border-radius: 2px;
+    outline: 3px solid var(--focus);
+    outline-offset: 3px;
+    border-radius: 0.45rem;
   }
 
   ::selection {
-    background-color: var(--color-accent-600);
-    color: white;
+    background-color: var(--accent);
+    color: var(--surface-canvas);
   }
 }
 
-@layer utilities {
-  /* Visible only to assistive technology — used by the skip link. */
+@layer components {
+  .page-container {
+    width: 100%;
+    max-width: 70rem;
+    margin-inline: auto;
+    padding-inline: var(--space-page-x);
+  }
+
+  .page-main {
+    width: 100%;
+    max-width: 70rem;
+    margin-inline: auto;
+    padding-inline: var(--space-page-x);
+    padding-block: clamp(2.5rem, 6vw, 5.5rem);
+  }
+
+  .surface-panel {
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-panel);
+    background: color-mix(in srgb, var(--surface-panel) 92%, transparent);
+    box-shadow: var(--shadow-panel);
+  }
+
+  .surface-inset {
+    border: 1px solid var(--border-default);
+    border-radius: 0.9rem;
+    background: var(--surface-inset);
+  }
+
+  .eyebrow {
+    color: var(--accent-strong);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    line-height: 1.4;
+    text-transform: uppercase;
+  }
+
+  .display-title {
+    font-family: var(--font-display);
+    font-size: clamp(2.25rem, 6vw, 4.65rem);
+    font-weight: 750;
+    letter-spacing: -0.055em;
+    line-height: 0.98;
+  }
+
+  .section-title {
+    font-family: var(--font-display);
+    font-size: clamp(1.35rem, 2.3vw, 1.85rem);
+    font-weight: 700;
+    letter-spacing: -0.035em;
+    line-height: 1.1;
+  }
+
+  .body-secondary {
+    color: var(--content-secondary);
+  }
+
+  .body-muted {
+    color: var(--content-muted);
+  }
+
+  .ui-label {
+    color: var(--content-primary);
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 700;
+    line-height: 1.4;
+  }
+
+  .ui-input {
+    width: 100%;
+    border: 1px solid var(--border-strong);
+    border-radius: 0.7rem;
+    background: var(--surface-inset);
+    color: var(--content-primary);
+    transition:
+      border-color var(--motion-fast) ease,
+      box-shadow var(--motion-fast) ease,
+      background-color var(--motion-fast) ease;
+  }
+
+  .ui-input::placeholder {
+    color: var(--content-muted);
+    opacity: 0.8;
+  }
+
+  .ui-input:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--accent) 55%, var(--border-strong));
+  }
+
+  .ui-input:focus {
+    border-color: var(--focus);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 22%, transparent);
+    outline: none;
+  }
+
+  .ui-input[aria-invalid='true'] {
+    border-color: var(--danger);
+  }
+
+  .ui-input:disabled {
+    opacity: 0.62;
+  }
+
+  .ui-button {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border: 1px solid transparent;
+    border-radius: 0.7rem;
+    padding-inline: 1rem;
+    font-size: 0.875rem;
+    font-weight: 750;
+    line-height: 1;
+    transition:
+      background-color var(--motion-fast) ease,
+      border-color var(--motion-fast) ease,
+      color var(--motion-fast) ease,
+      box-shadow var(--motion-fast) ease,
+      transform var(--motion-fast) ease;
+  }
+
+  .ui-button:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+
+  .ui-button:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  .ui-button:disabled {
+    opacity: 0.52;
+  }
+
+  .ui-button-primary {
+    color: #03131a;
+    background: var(--accent);
+    box-shadow: 0 10px 24px color-mix(in srgb, var(--accent) 24%, transparent);
+  }
+
+  .ui-button-primary:hover:not(:disabled) {
+    background: var(--accent-strong);
+  }
+
+  .ui-button-secondary {
+    border-color: var(--border-strong);
+    color: var(--content-primary);
+    background: var(--surface-raised);
+  }
+
+  .ui-button-secondary:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+
+  .ui-button-quiet {
+    min-height: 2.25rem;
+    color: var(--accent-strong);
+    background: transparent;
+  }
+
+  .ui-button-quiet:hover:not(:disabled) {
+    background: var(--accent-soft);
+  }
+
+  .ui-alert {
+    border: 1px solid color-mix(in srgb, var(--danger) 50%, var(--border-default));
+    border-radius: 0.85rem;
+    background: color-mix(in srgb, var(--danger) 10%, var(--surface-panel));
+    color: var(--danger);
+  }
+
+  .ui-success {
+    color: var(--success);
+  }
+
+  .language-switcher {
+    display: inline-flex;
+    gap: 0.15rem;
+    border: 1px solid var(--border-default);
+    border-radius: 999px;
+    padding: 0.18rem;
+    background: color-mix(in srgb, var(--surface-panel) 86%, transparent);
+  }
+
+  .language-switcher button {
+    min-width: 2.25rem;
+    min-height: 2rem;
+    border: 0;
+    border-radius: 999px;
+    color: var(--content-muted);
+    background: transparent;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    transition:
+      color var(--motion-fast) ease,
+      background-color var(--motion-fast) ease;
+  }
+
+  .language-switcher button:hover:not(:disabled) {
+    color: var(--content-primary);
+    background: var(--surface-inset);
+  }
+
+  .language-switcher button[aria-pressed='true'] {
+    color: #03131a;
+    background: var(--accent);
+  }
+
+  .language-switcher button:disabled {
+    cursor: default;
+  }
+
   .sr-only-focusable:not(:focus):not(:focus-within) {
     position: absolute;
     width: 1px;
@@ -68,6 +418,12 @@
     clip-path: inset(50%);
     white-space: nowrap;
     border-width: 0;
+  }
+}
+
+@media (max-width: 680px) {
+  .display-title {
+    font-size: clamp(2.15rem, 13vw, 3.5rem);
   }
 }
 

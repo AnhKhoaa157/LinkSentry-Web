@@ -1,40 +1,42 @@
-import { useHealth } from '@/features/health/api/useHealth';
 import { StatusDot } from '@/components/ui/StatusDot';
+import { useHealth } from '@/features/health/api/useHealth';
 import { normalizeApiError } from '@/lib/api/errors';
+import { localizeApiError } from '@/lib/i18n/messages';
+import { useLocale } from '@/lib/i18n/useLocale';
 
-/**
- * Shows whether the API is reachable.
- *
- * The state is announced in text as well as by the coloured dot, and the region is
- * polite-live so a change is announced without stealing focus.
- */
+/** Shows API reachability with explicit text, recovery, and live-state feedback. */
 export function HealthStatus() {
   const { data, isPending, isError, error, refetch, isFetching } = useHealth();
+  const { t } = useLocale();
 
-  const label = isPending ? 'Checking…' : isError ? 'Offline' : (data?.status ?? 'Unknown');
+  const label = isPending
+    ? t('health.checking')
+    : isError
+      ? t('health.offline')
+      : (data?.status ?? t('health.unknown'));
   const state = isPending ? 'pending' : isError ? 'offline' : 'online';
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <p className="flex items-center gap-2 text-sm" aria-live="polite">
+    <div className="flex flex-wrap items-center justify-between gap-4" aria-live="polite">
+      <p className="flex items-center gap-3 text-sm">
         <StatusDot state={state} />
-        <span className="text-ink-300">Backend API</span>
-        <span className="text-ink-100 font-medium">{label}</span>
-        {data ? <span className="text-ink-500 font-mono text-xs">{data.service}</span> : null}
+        <span className="text-content-secondary font-medium">{t('health.api')}</span>
+        <span className="text-content-primary font-bold">{label}</span>
+        {data ? <span className="body-muted font-mono text-xs">{data.service}</span> : null}
       </p>
 
       {isError ? (
         <div className="flex flex-wrap items-center gap-3">
-          <p role="alert" className="text-ink-300 text-sm">
-            {normalizeApiError(error).message}
+          <p role="alert" className="body-secondary text-sm">
+            {localizeApiError(t, normalizeApiError(error))}
           </p>
           <button
             type="button"
             onClick={() => void refetch()}
             disabled={isFetching}
-            className="border-ink-700 text-ink-100 hover:bg-ink-850 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+            className="ui-button ui-button-secondary min-h-9 px-3 text-xs"
           >
-            {isFetching ? 'Retrying…' : 'Retry'}
+            {isFetching ? t('health.retrying') : t('health.retry')}
           </button>
         </div>
       ) : null}

@@ -1,27 +1,30 @@
 import { NavLink } from 'react-router';
 
+import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
 import { LicenseBadge } from '@/features/license/components/LicenseBadge';
+import { useLocale } from '@/lib/i18n/useLocale';
 import { cn } from '@/lib/utils/cn';
-
-const navigation = [
-  { to: '/', label: 'Home' },
-  { to: '/methodology', label: 'Methodology' },
-] as const;
 
 /** Wordmark and primary navigation. */
 export function SiteHeader() {
+  const { t } = useLocale();
+  const navigation = [
+    { to: '/', label: t('nav.home') },
+    { to: '/methodology', label: t('nav.methodology') },
+  ] as const;
+
   return (
-    <header className="border-ink-800 bg-ink-950/85 sticky top-0 z-10 border-b backdrop-blur">
-      <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-        <NavLink to="/" className="group flex items-center gap-2.5" aria-label="LinkSentry home">
+    <header className="border-border-default bg-surface-canvas/85 sticky top-0 z-10 border-b backdrop-blur-xl">
+      <div className="page-container flex flex-wrap items-center justify-between gap-x-6 gap-y-3 py-3.5">
+        <NavLink to="/" className="group flex items-center gap-3" aria-label={t('nav.homeAria')}>
           <ShieldMark />
-          <span className="text-base font-semibold tracking-tight">
-            Link<span className="text-accent-400">Sentry</span>
+          <span className="text-content-primary text-base font-bold tracking-tight">
+            Link<span className="text-accent-strong">Sentry</span>
           </span>
         </NavLink>
 
-        <nav aria-label="Main">
-          <ul className="flex items-center gap-1">
+        <nav aria-label={t('nav.main')} className="order-3 w-full sm:order-2 sm:w-auto">
+          <ul className="flex flex-wrap items-center justify-end gap-1">
             {navigation.map((item) => (
               <li key={item.to}>
                 <NavLink
@@ -29,10 +32,10 @@ export function SiteHeader() {
                   end={item.to === '/'}
                   className={({ isActive }) =>
                     cn(
-                      'rounded-md px-3 py-1.5 text-sm transition-colors',
+                      'rounded-lg px-3 py-2 text-sm transition-colors',
                       isActive
-                        ? 'bg-ink-850 text-ink-100 font-medium'
-                        : 'text-ink-300 hover:bg-ink-900 hover:text-ink-100',
+                        ? 'bg-accent-soft text-content-primary font-bold'
+                        : 'text-content-secondary hover:bg-surface-inset hover:text-content-primary',
                     )
                   }
                 >
@@ -43,8 +46,18 @@ export function SiteHeader() {
             <li>
               <LicenseBadge />
             </li>
+            <li>
+              <NavLink
+                to="/admin"
+                className="text-content-muted hover:bg-surface-inset hover:text-content-primary rounded-lg px-3 py-2 text-sm transition-colors"
+              >
+                {t('nav.admin')}
+              </NavLink>
+            </li>
           </ul>
         </nav>
+
+        <LanguageSwitcher className="order-2 sm:order-3" />
       </div>
     </header>
   );
@@ -60,7 +73,7 @@ function ShieldMark() {
   return (
     <svg
       viewBox="0 0 24 24"
-      className="text-accent-400 size-6"
+      className="text-accent-strong size-7"
       fill="none"
       stroke="currentColor"
       strokeWidth="1.8"

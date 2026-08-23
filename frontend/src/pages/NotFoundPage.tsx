@@ -1,19 +1,18 @@
 import { Link } from 'react-router';
 
-/** 404 page. */
+import { useLocale } from '@/lib/i18n/useLocale';
+
+/** 404 page with an explicit recovery path. */
 export function NotFoundPage() {
+  const { t } = useLocale();
+
   return (
-    <div className="mx-auto max-w-xl py-12 text-center">
-      <p className="text-accent-400 font-mono text-sm">404</p>
-      <h1 className="mt-3 text-3xl font-semibold tracking-tight">Page not found</h1>
-      <p className="text-ink-300 mt-3">
-        That page does not exist. It may have been moved, or the address may be mistyped.
-      </p>
-      <Link
-        to="/"
-        className="bg-accent-500 text-ink-950 hover:bg-accent-400 mt-7 inline-block rounded-lg px-5 py-2.5 text-sm font-semibold transition-colors"
-      >
-        Back to home
+    <div className="mx-auto max-w-xl py-12 text-center sm:py-20">
+      <p className="eyebrow">{t('notFound.eyebrow')}</p>
+      <h1 className="display-title text-content-primary mt-3 text-4xl sm:text-5xl">{t('notFound.title')}</h1>
+      <p className="body-secondary mt-4 leading-6">{t('notFound.body')}</p>
+      <Link to="/" className="ui-button ui-button-primary mt-8">
+        {t('common.backToHome')}
       </Link>
     </div>
   );

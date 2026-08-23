@@ -5,6 +5,7 @@ import { postExplanation } from '@/features/explanation/api/postExplanation';
 import type { ExplanationData } from '@/features/explanation/schemas/explanationResponse';
 import type { RiskLevel, Severity } from '@/features/scanner/schemas/scanResponse';
 import { normalizeApiError, type NormalizedApiError } from '@/lib/api/errors';
+import { localizeApiError } from '@/lib/i18n/messages';
 import { useLocale } from '@/lib/i18n/useLocale';
 
 interface Props {
@@ -76,32 +77,32 @@ export function ExplainResult({ scanId }: Props) {
   }
 
   return (
-    <div className="border-ink-800 mt-5 border-t pt-4">
+    <div className="border-border-default mt-7 border-t pt-6">
       {status === 'idle' || status === 'loading' ? (
         <button
           type="button"
           onClick={handleExplain}
           disabled={status === 'loading'}
           aria-busy={status === 'loading'}
-          className="border-ink-700 text-ink-100 hover:bg-ink-800 rounded-lg border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
+          className="ui-button ui-button-secondary disabled:opacity-50"
         >
           {status === 'loading' ? t('explain.button.loading') : t('explain.button.idle')}
         </button>
       ) : null}
 
       {status === 'loading' ? (
-        <p role="status" className="text-ink-500 mt-2 text-sm">
+        <p role="status" className="body-muted mt-2 text-sm">
           {t('explain.button.loading')}
         </p>
       ) : null}
 
       {status === 'error' && error ? (
         <div role="alert" className="mt-2">
-          <p className="text-sm text-rose-400">{error.message}</p>
+          <p className="text-danger text-sm">{localizeApiError(t, error)}</p>
           <button
             type="button"
             onClick={handleExplain}
-            className="text-accent-400 hover:text-accent-300 mt-1 text-sm font-medium underline underline-offset-4"
+            className="text-accent-strong mt-2 text-sm font-bold underline underline-offset-4"
           >
             {t('explain.tryAgain')}
           </button>
@@ -114,48 +115,48 @@ export function ExplainResult({ scanId }: Props) {
             {t('explain.riskBadgeLabel', { level: data.riskLevel })}
           </Badge>
 
-          <section>
-            <h3 className="text-ink-100 text-sm font-semibold">{t('explain.detectedHeading')}</h3>
+          <section className="surface-inset p-4">
+            <h3 className="text-content-primary text-sm font-bold">{t('explain.detectedHeading')}</h3>
             {data.keyFindings.length === 0 ? (
-              <p className="text-ink-300 mt-2 text-sm">{t('explain.noSignals')}</p>
+              <p className="body-secondary mt-2 text-sm">{t('explain.noSignals')}</p>
             ) : (
               <ul className="mt-2 space-y-2">
                 {data.keyFindings.map((finding, index) => (
                   <li
                     key={`${finding.title}-${index}`}
-                    className="border-ink-800 bg-ink-950/40 rounded-lg border p-3"
+                    className="border-border-default bg-surface-panel rounded-lg border p-3"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-2">
-                      <h4 className="text-ink-100 text-sm font-medium">{finding.title}</h4>
+                      <h4 className="text-content-primary text-sm font-bold">{finding.title}</h4>
                       <div className="flex items-center gap-2">
                         <Badge tone={SEVERITY_TONE[finding.severity]}>{finding.severity}</Badge>
-                        <span className="text-ink-500 font-mono text-xs">+{finding.points}</span>
+                        <span className="body-muted font-mono text-xs">+{finding.points}</span>
                       </div>
                     </div>
-                    <p className="text-ink-300 mt-1 text-sm">{finding.explanation}</p>
+                    <p className="body-secondary mt-1 text-sm">{finding.explanation}</p>
                   </li>
                 ))}
               </ul>
             )}
           </section>
 
-          <section>
-            <p className="text-ink-500 text-xs font-medium tracking-wide uppercase">
+          <section className="surface-panel p-4">
+            <p className="body-muted text-xs font-bold tracking-wide uppercase">
               {t('explain.aiContextLabel')}
             </p>
-            <p className="text-ink-100 mt-1 text-sm">{data.summary}</p>
+            <p className="text-content-primary mt-2 text-sm leading-6">{data.summary}</p>
           </section>
 
           <section>
-            <h3 className="text-ink-100 text-sm font-semibold">{t('explain.whatToDoHeading')}</h3>
-            <ul className="text-ink-300 mt-2 list-disc space-y-1 pl-5 text-sm">
+            <h3 className="text-content-primary text-sm font-bold">{t('explain.whatToDoHeading')}</h3>
+            <ul className="body-secondary mt-2 list-disc space-y-1 pl-5 text-sm">
               {data.recommendedActions.map((action, index) => (
                 <li key={index}>{action}</li>
               ))}
             </ul>
           </section>
 
-          <p className="text-ink-500 text-xs">{t('explain.disclaimer')}</p>
+          <p className="body-muted text-xs">{t('explain.disclaimer')}</p>
         </div>
       ) : null}
     </div>

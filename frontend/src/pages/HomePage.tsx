@@ -4,73 +4,73 @@ import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { HealthStatus } from '@/features/health/components/HealthStatus';
 import { Scanner } from '@/features/scanner/components/Scanner';
+import type { TranslationKey } from '@/lib/i18n/translations';
+import { useLocale } from '@/lib/i18n/useLocale';
 
-const boundaries = [
-  {
-    title: 'The link is never visited',
-    body: 'LinkSentry reads the URL as text. It does not open the page, resolve the hostname, follow redirects, or download anything.',
-  },
-  {
-    title: 'Every point is traceable',
-    body: 'A score comes from named rules, each contributing an explicit number. There is no opaque model deciding for you.',
-  },
-  {
-    title: 'No result is a clickable link',
-    body: 'A suspicious URL is only ever shown as text, so it cannot be opened by accident from this page.',
-  },
-] as const;
+const boundaryKeys = [
+  ['home.boundary.1.title', 'home.boundary.1.body'],
+  ['home.boundary.2.title', 'home.boundary.2.body'],
+  ['home.boundary.3.title', 'home.boundary.3.body'],
+] as const satisfies ReadonlyArray<readonly [TranslationKey, TranslationKey]>;
 
 /** Landing page: product statement, scanner, boundary, and service health. */
 export function HomePage() {
+  const { t } = useLocale();
+
   return (
-    <div className="space-y-12">
-      <section className="space-y-5">
-        <Badge tone="muted">Static analysis only</Badge>
+    <div className="space-y-[var(--space-section)]">
+      <section
+        className="grid items-end gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]"
+        aria-labelledby="home-title"
+      >
+        <div className="max-w-3xl space-y-5">
+          <Badge tone="accent">{t('home.eyebrow')}</Badge>
+          <h1 id="home-title" className="display-title text-content-primary">
+            {t('home.title')}
+          </h1>
+          <p className="body-secondary max-w-2xl text-base leading-7 sm:text-lg">{t('home.description')}</p>
+        </div>
 
-        <h1 className="max-w-3xl text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
-          Analyze suspicious links before you trust them.
-        </h1>
-
-        <p className="text-ink-300 max-w-2xl text-base sm:text-lg">
-          LinkSentry inspects the structure of a URL and explains what looks wrong — which domain is really
-          registered, where a familiar brand name is hiding, and which patterns phishing links tend to share.
-        </p>
+        <aside className="surface-inset hidden p-5 lg:block" aria-label={t('common.staticAnalysisOnly')}>
+          <p className="eyebrow">{t('common.staticAnalysisOnly')}</p>
+          <p className="text-content-primary mt-3 text-sm font-bold">{t('home.boundary.1.title')}</p>
+          <p className="body-secondary mt-2 text-sm leading-6">{t('home.boundary.1.body')}</p>
+        </aside>
       </section>
 
       <Scanner />
 
-      <section aria-labelledby="boundary-heading" className="space-y-4">
-        <h2 id="boundary-heading" className="text-xl font-semibold tracking-tight">
-          How the analysis stays safe
-        </h2>
-        <p className="text-ink-300 max-w-2xl text-sm">
-          A tool that fetched every submitted link would be a tool an attacker could point at anything.
-          LinkSentry works entirely on the text of the URL, which removes that risk — and means it can never
-          confirm that a site is safe, only describe what the link itself reveals.
-        </p>
+      <section aria-labelledby="boundary-heading" className="space-y-5">
+        <div className="max-w-2xl space-y-3">
+          <p className="eyebrow">{t('common.staticAnalysisOnly')}</p>
+          <h2 id="boundary-heading" className="section-title text-content-primary">
+            {t('home.boundaryHeading')}
+          </h2>
+          <p className="body-secondary text-sm leading-6">{t('home.boundaryIntro')}</p>
+        </div>
 
-        <ul className="grid gap-4 sm:grid-cols-3">
-          {boundaries.map((item) => (
-            <li key={item.title}>
+        <ul className="grid gap-4 md:grid-cols-3">
+          {boundaryKeys.map(([titleKey, bodyKey], index) => (
+            <li key={titleKey} className="h-full">
               <Card className="h-full">
-                <h3 className="text-ink-100 text-sm font-semibold">{item.title}</h3>
-                <p className="text-ink-300 mt-2 text-sm">{item.body}</p>
+                <p className="eyebrow">0{index + 1}</p>
+                <h3 className="text-content-primary mt-3 text-base font-bold">{t(titleKey)}</h3>
+                <p className="body-secondary mt-2 text-sm leading-6">{t(bodyKey)}</p>
               </Card>
             </li>
           ))}
         </ul>
 
-        <p className="text-sm">
-          <Link
-            to="/methodology"
-            className="text-accent-400 decoration-accent-600 hover:text-accent-500 font-medium underline underline-offset-4"
-          >
-            Read the methodology
-          </Link>
-        </p>
+        <Link
+          to="/methodology"
+          className="text-accent-strong inline-flex items-center gap-2 text-sm font-bold underline underline-offset-4"
+        >
+          {t('home.methodologyLink')}
+          <span aria-hidden="true">↗</span>
+        </Link>
       </section>
 
-      <Card title="Service status" description="Whether this page can currently reach the analysis API.">
+      <Card title={t('home.statusTitle')} description={t('home.statusDescription')}>
         <HealthStatus />
       </Card>
     </div>

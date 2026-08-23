@@ -61,7 +61,7 @@ describe('ScanResult', () => {
     expect(screen.getByText('/100')).toBeInTheDocument();
     expect(screen.getByText('Critical risk')).toBeInTheDocument();
     expect(screen.getByText('login.example.com.')).toBeInTheDocument();
-    expect(screen.getByText('security-check.invalid')).toBeInTheDocument();
+    expect(screen.getAllByText('security-check.invalid')).toHaveLength(2);
     expect(screen.getByText('Subdomain uses a sensitive-sounding word')).toBeInTheDocument();
     expect(screen.getByText('Unusually deep subdomain structure')).toBeInTheDocument();
   });

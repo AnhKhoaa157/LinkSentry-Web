@@ -1,5 +1,6 @@
 import { Badge } from '@/components/ui/Badge';
 import type { Finding, Severity } from '@/features/scanner/schemas/scanResponse';
+import type { TranslationKey } from '@/lib/i18n/translations';
 import { useLocale } from '@/lib/i18n/useLocale';
 
 const SEVERITY_TONE: Record<Severity, 'low' | 'moderate' | 'high' | 'critical'> = {
@@ -9,37 +10,46 @@ const SEVERITY_TONE: Record<Severity, 'low' | 'moderate' | 'high' | 'critical'> 
   HIGH: 'high',
 };
 
+const SEVERITY_KEY: Record<Severity, TranslationKey> = {
+  INFO: 'severity.INFO',
+  LOW: 'severity.LOW',
+  MEDIUM: 'severity.MEDIUM',
+  HIGH: 'severity.HIGH',
+};
+
 interface Props {
   readonly findings: readonly Finding[];
 }
 
-/**
- * Lists every finding that fired, in the order the API already sorted them.
- *
- * An empty list is rendered as its own state, worded to avoid ever reading as
- * "safe" — the absence of a detected signal is not the presence of safety.
- */
+/** Renders server-owned findings in stable order as inert, readable evidence. */
 export function FindingsList({ findings }: Props) {
   const { t } = useLocale();
 
   if (findings.length === 0) {
-    return <p className="text-ink-300 text-sm">{t('findings.empty')}</p>;
+    return <p className="body-secondary text-sm leading-6">{t('findings.empty')}</p>;
   }
 
   return (
     <ul className="space-y-3">
       {findings.map((finding) => (
-        <li key={finding.ruleId} className="border-ink-800 bg-ink-950/40 rounded-lg border p-4">
-          <div className="flex flex-wrap items-start justify-between gap-2">
-            <h3 className="text-ink-100 text-sm font-semibold">{finding.title}</h3>
-            <div className="flex items-center gap-2">
-              <Badge tone={SEVERITY_TONE[finding.severity]}>{finding.severity}</Badge>
-              <span className="text-ink-500 font-mono text-xs">+{finding.points}</span>
+        <li key={finding.ruleId} className="surface-inset p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <h4 className="text-content-primary max-w-xl text-sm leading-5 font-bold">{finding.title}</h4>
+            <div className="flex shrink-0 items-center gap-2">
+              <Badge tone={SEVERITY_TONE[finding.severity]}>{t(SEVERITY_KEY[finding.severity])}</Badge>
+              <span className="body-muted font-mono text-xs">
+                {t('findings.points', { points: finding.points })}
+              </span>
             </div>
           </div>
-          <p className="text-ink-300 mt-2 text-sm">{finding.explanation}</p>
+          <p className="body-secondary mt-2 text-sm leading-6">{finding.explanation}</p>
           {finding.evidence ? (
-            <p className="text-ink-500 mt-2 font-mono text-xs break-all">{finding.evidence}</p>
+            <p
+              aria-label={t('findings.evidence') + ': ' + finding.evidence}
+              className="body-muted border-accent/50 mt-3 border-l-2 pl-3 font-mono text-xs leading-5 break-all"
+            >
+              {finding.evidence}
+            </p>
           ) : null}
         </li>
       ))}

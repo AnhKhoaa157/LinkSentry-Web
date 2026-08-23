@@ -22,7 +22,7 @@ describe('SiteHeader license status', () => {
   it('links an unlicensed (trial) device to the License page', async () => {
     renderWithProviders(<SiteHeader />);
 
-    const link = await screen.findByRole('link', { name: /license status: trial/i });
+    const link = await screen.findByRole('link', { name: /installation status: trial/i });
     expect(link).toHaveAttribute('href', '/license');
     expect(link).toHaveTextContent('Trial');
   });
@@ -37,7 +37,7 @@ describe('SiteHeader license status', () => {
 
     renderWithProviders(<SiteHeader />);
 
-    expect(await screen.findByRole('link', { name: /license status: licensed/i })).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: /installation status: licensed/i })).toBeInTheDocument();
   });
 
   it('shows Revoked for a revoked device, distinct from Trial or Expired', async () => {
@@ -51,7 +51,7 @@ describe('SiteHeader license status', () => {
     renderWithProviders(<SiteHeader />);
 
     await waitFor(() =>
-      expect(screen.getByRole('link', { name: /license status: revoked/i })).toBeInTheDocument(),
+      expect(screen.getByRole('link', { name: /installation status: revoked/i })).toBeInTheDocument(),
     );
   });
 
@@ -64,7 +64,7 @@ describe('SiteHeader license status', () => {
     });
 
     renderWithProviders(<SiteHeader />);
-    await screen.findByRole('link', { name: /license status: licensed/i });
+    await screen.findByRole('link', { name: /installation status: licensed/i });
 
     expect(document.body).not.toHaveTextContent('super-secret-device-credential');
   });

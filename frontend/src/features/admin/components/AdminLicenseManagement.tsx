@@ -24,6 +24,10 @@ import {
   type LicenseResponse,
 } from '@/features/admin/schemas/adminLicense';
 import { normalizeApiError } from '@/lib/api/errors';
+import { localizeApiError, localizeValidationMessage } from '@/lib/i18n/messages';
+import type { Translate } from '@/lib/i18n/LocaleContext';
+import type { TranslationKey } from '@/lib/i18n/translations';
+import { useLocale } from '@/lib/i18n/useLocale';
 
 interface Feedback {
   readonly kind: 'success' | 'error';
@@ -39,6 +43,7 @@ export function AdminLicenseManagement() {
   const [deviceCodeInput, setDeviceCodeInput] = useState('');
   const [deviceLookupCode, setDeviceLookupCode] = useState<string | null>(null);
   const deviceQuery = useAdminDeviceQuery(deviceLookupCode);
+  const { locale, t } = useLocale();
 
   const [createLabel, setCreateLabel] = useState('');
   const [createExpiryDate, setCreateExpiryDate] = useState('');
@@ -58,9 +63,9 @@ export function AdminLicenseManagement() {
     setExtendExpiryDate(toDateInputValue(expiresAt));
   }
 
-  const invalidateLicenseQueries = async () => {
+  async function invalidateLicenseQueries() {
     await queryClient.invalidateQueries({ queryKey: adminLicensesQueryKey });
-  };
+  }
 
   const createMutation = useMutation({
     mutationFn: createAdminLicense,
@@ -70,9 +75,9 @@ export function AdminLicenseManagement() {
       setCreateLabel('');
       setCreateExpiryDate('');
       setCreateMaxDevices('');
-      setFeedback({ kind: 'success', message: 'License created.' });
+      setFeedback({ kind: 'success', message: t('admin.management.feedbackCreated') });
     },
-    onError: (error) => setFeedback({ kind: 'error', message: safeErrorMessage(error) }),
+    onError: (error) => setFeedback({ kind: 'error', message: safeErrorMessage(error, t) }),
   });
 
   const grantMutation = useMutation({
@@ -83,9 +88,9 @@ export function AdminLicenseManagement() {
       setGrantCode('');
       setGrantFormError(null);
       selectLicense(license.licenseId, license.expiresAt);
-      setFeedback({ kind: 'success', message: 'Device granted to the license.' });
+      setFeedback({ kind: 'success', message: t('admin.management.feedbackGranted') });
     },
-    onError: (error) => setFeedback({ kind: 'error', message: safeErrorMessage(error) }),
+    onError: (error) => setFeedback({ kind: 'error', message: safeErrorMessage(error, t) }),
   });
 
   const extendMutation = useMutation({
@@ -99,18 +104,18 @@ export function AdminLicenseManagement() {
     onSuccess: async (license) => {
       await invalidateLicenseQueries();
       selectLicense(license.licenseId, license.expiresAt);
-      setFeedback({ kind: 'success', message: 'License expiry updated.' });
+      setFeedback({ kind: 'success', message: t('admin.management.feedbackExtended') });
     },
-    onError: (error) => setFeedback({ kind: 'error', message: safeErrorMessage(error) }),
+    onError: (error) => setFeedback({ kind: 'error', message: safeErrorMessage(error, t) }),
   });
 
   const revokeLicenseMutation = useMutation({
     mutationFn: revokeAdminLicense,
     onSuccess: async () => {
       await invalidateLicenseQueries();
-      setFeedback({ kind: 'success', message: 'License revoked.' });
+      setFeedback({ kind: 'success', message: t('admin.management.feedbackLicenseRevoked') });
     },
-    onError: (error) => setFeedback({ kind: 'error', message: safeErrorMessage(error) }),
+    onError: (error) => setFeedback({ kind: 'error', message: safeErrorMessage(error, t) }),
   });
 
   const revokeDeviceMutation = useMutation({
@@ -120,9 +125,9 @@ export function AdminLicenseManagement() {
       if (deviceLookupCode !== null) {
         await queryClient.invalidateQueries({ queryKey: ['admin', 'device', deviceLookupCode] });
       }
-      setFeedback({ kind: 'success', message: 'Device revoked.' });
+      setFeedback({ kind: 'success', message: t('admin.management.feedbackDeviceRevoked') });
     },
-    onError: (error) => setFeedback({ kind: 'error', message: safeErrorMessage(error) }),
+    onError: (error) => setFeedback({ kind: 'error', message: safeErrorMessage(error, t) }),
   });
 
   function handleCreate(event: FormEvent<HTMLFormElement>) {
@@ -134,7 +139,7 @@ export function AdminLicenseManagement() {
       createMaxDevices.trim() === '' ? base : { ...base, maxDevices: Number(createMaxDevices) };
     const parsed = createLicenseRequestSchema.safeParse(candidate);
     if (!parsed.success) {
-      setCreateFormError(parsed.error.issues[0]?.message ?? 'Check the license details and try again.');
+      setCreateFormError(localizeValidationMessage(t, parsed.error.issues[0]?.message));
       return;
     }
     createMutation.mutate(parsed.data);
@@ -149,7 +154,7 @@ export function AdminLicenseManagement() {
     }
     const parsed = grantDeviceRequestSchema.safeParse({ activationCode: grantCode });
     if (!parsed.success) {
-      setGrantFormError(parsed.error.issues[0]?.message ?? 'Enter a valid activation code.');
+      setGrantFormError(localizeValidationMessage(t, parsed.error.issues[0]?.message));
       return;
     }
     grantMutation.mutate({ licenseId: selectedLicenseId, code: parsed.data.activationCode });
@@ -166,7 +171,7 @@ export function AdminLicenseManagement() {
       expiresAt: extendNoExpiry ? null : dateToInstant(extendExpiryDate),
     });
     if (!parsed.success) {
-      setExtendFormError(parsed.error.issues[0]?.message ?? 'Choose an expiry date or no expiry.');
+      setExtendFormError(localizeValidationMessage(t, parsed.error.issues[0]?.message));
       return;
     }
     extendMutation.mutate({ licenseId: selectedLicenseId, expiresAt: parsed.data.expiresAt });
@@ -178,69 +183,67 @@ export function AdminLicenseManagement() {
     setFeedback(null);
     const parsed = grantDeviceRequestSchema.safeParse({ activationCode: deviceCodeInput });
     if (!parsed.success) {
-      setLookupFormError(parsed.error.issues[0]?.message ?? 'Enter a valid activation code.');
+      setLookupFormError(localizeValidationMessage(t, parsed.error.issues[0]?.message));
       return;
     }
     setDeviceLookupCode(parsed.data.activationCode);
   }
 
   function confirmLicenseRevoke(license: LicenseResponse) {
-    if (window.confirm(`Revoke the license "${license.label}"? Its devices will lose access.`)) {
+    if (window.confirm(t('admin.confirm.revokeLicense', { label: license.label }))) {
       setFeedback(null);
       revokeLicenseMutation.mutate(license.licenseId);
     }
   }
 
   function confirmDeviceRevoke(deviceId: string) {
-    if (window.confirm('Revoke this device assignment?')) {
+    if (window.confirm(t('admin.confirm.revokeDevice'))) {
       setFeedback(null);
       revokeDeviceMutation.mutate(deviceId);
     }
   }
 
   return (
-    <div className="mt-6 space-y-6">
+    <div className="space-y-6">
       {feedback ? (
         <p
           role={feedback.kind === 'error' ? 'alert' : 'status'}
-          className={feedback.kind === 'error' ? 'text-sm text-rose-400' : 'text-sm text-emerald-400'}
+          className={feedback.kind === 'error' ? 'ui-alert p-3 text-sm' : 'ui-success text-sm font-bold'}
         >
           {feedback.message}
         </p>
       ) : null}
 
-      <Card title="Licenses" description="Create, inspect, and manage administrator-granted device access.">
-        <form
-          onSubmit={handleCreate}
-          noValidate
-          className="border-ink-800 bg-ink-950/40 space-y-4 rounded-lg border p-4"
-        >
-          <h3 className="text-ink-100 text-sm font-semibold">Create a license</h3>
+      <Card title={t('admin.management.title')} description={t('admin.management.description')}>
+        <form onSubmit={handleCreate} noValidate className="surface-inset space-y-5 p-4 sm:p-5">
+          <h3 className="text-content-primary text-sm font-bold">{t('admin.management.createTitle')}</h3>
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="text-ink-100 text-sm font-medium sm:col-span-2" htmlFor="create-license-label">
-              Label
+            <label className="ui-label sm:col-span-2" htmlFor="create-license-label">
+              {t('admin.management.label')}
               <input
                 id="create-license-label"
                 value={createLabel}
                 onChange={(event) => setCreateLabel(event.target.value)}
                 maxLength={200}
                 required
-                className="border-ink-800 bg-ink-900 text-ink-100 mt-2 w-full rounded-lg border px-3 py-2 font-normal"
+                className="ui-input mt-2 px-3 py-2.5 font-normal"
               />
             </label>
-            <label className="text-ink-100 text-sm font-medium" htmlFor="create-license-expiry">
-              Expiry (optional)
+            <label className="ui-label" htmlFor="create-license-expiry">
+              {t('admin.management.expiry')} ({t('admin.management.expiryOptional')})
               <input
                 id="create-license-expiry"
                 type="date"
                 value={createExpiryDate}
                 onChange={(event) => setCreateExpiryDate(event.target.value)}
-                className="border-ink-800 bg-ink-900 text-ink-100 mt-2 w-full rounded-lg border px-3 py-2 font-normal"
+                className="ui-input mt-2 px-3 py-2.5 font-normal"
               />
-              <span className="text-ink-400 mt-1 block text-xs font-normal">Leave blank for no expiry.</span>
+              <span className="body-muted mt-1 block text-xs font-normal">
+                {t('admin.management.expiryHint')}
+              </span>
             </label>
-            <label className="text-ink-100 text-sm font-medium" htmlFor="create-license-max-devices">
-              Maximum devices (optional)
+            <label className="ui-label" htmlFor="create-license-max-devices">
+              {t('admin.management.maxDevices')} ({t('admin.management.maxDevicesOptional')})
               <input
                 id="create-license-max-devices"
                 type="number"
@@ -248,61 +251,62 @@ export function AdminLicenseManagement() {
                 step={1}
                 value={createMaxDevices}
                 onChange={(event) => setCreateMaxDevices(event.target.value)}
-                className="border-ink-800 bg-ink-900 text-ink-100 mt-2 w-full rounded-lg border px-3 py-2 font-normal"
+                className="ui-input mt-2 px-3 py-2.5 font-normal"
               />
-              <span className="text-ink-400 mt-1 block text-xs font-normal">
-                Blank uses the backend default.
+              <span className="body-muted mt-1 block text-xs font-normal">
+                {t('admin.management.maxDevicesHint')}
               </span>
             </label>
           </div>
           {createFormError ? (
-            <p role="alert" className="text-sm text-rose-400">
+            <p role="alert" className="text-danger text-sm">
               {createFormError}
             </p>
           ) : null}
-          <button
-            type="submit"
-            disabled={createMutation.isPending}
-            className="bg-accent-500 text-ink-950 rounded-lg px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {createMutation.isPending ? 'Creating…' : 'Create license'}
+          <button type="submit" disabled={createMutation.isPending} className="ui-button ui-button-primary">
+            {createMutation.isPending ? t('admin.management.creating') : t('admin.management.create')}
           </button>
         </form>
 
-        <div className="mt-6">
-          <h3 className="text-ink-100 text-sm font-semibold">All licenses</h3>
-          {licensesQuery.isPending ? <p className="text-ink-300 mt-3 text-sm">Loading licenses…</p> : null}
+        <div className="mt-7">
+          <h3 className="text-content-primary text-sm font-bold">{t('admin.management.allLicenses')}</h3>
+          {licensesQuery.isPending ? (
+            <p className="body-secondary mt-3 text-sm">{t('admin.management.loadingLicenses')}</p>
+          ) : null}
           {licensesQuery.isError ? (
-            <p role="alert" className="mt-3 text-sm text-rose-400">
-              {safeErrorMessage(licensesQuery.error)}
+            <p role="alert" className="ui-alert mt-3 p-3 text-sm">
+              {safeErrorMessage(licensesQuery.error, t)}
             </p>
           ) : null}
           {licensesQuery.isSuccess && licensesQuery.data.length === 0 ? (
-            <p className="text-ink-300 mt-3 text-sm">No licenses yet. Create one above to get started.</p>
+            <p className="body-secondary mt-3 text-sm">{t('admin.management.noLicenses')}</p>
           ) : null}
           {licensesQuery.isSuccess && licensesQuery.data.length > 0 ? (
             <div className="mt-3 space-y-3">
               {licensesQuery.data.map((license) => (
-                <div key={license.licenseId} className="border-ink-800 bg-ink-950/30 rounded-lg border p-4">
+                <div key={license.licenseId} className="surface-inset p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <h4 className="text-ink-100 font-medium">{license.label}</h4>
-                      <p className="text-ink-300 mt-1 text-sm">
-                        {license.activeDeviceCount} of {license.maxDevices} devices ·{' '}
-                        {formatExpiry(license.expiresAt)}
+                      <h4 className="text-content-primary font-bold">{license.label}</h4>
+                      <p className="body-secondary mt-1 text-sm">
+                        {t('admin.management.devicesCount', {
+                          active: license.activeDeviceCount,
+                          max: license.maxDevices,
+                          expiry: formatExpiry(license.expiresAt, locale, t),
+                        })}
                       </p>
                     </div>
                     <Badge tone={license.revoked ? 'high' : 'accent'}>
-                      {license.revoked ? 'Revoked' : 'Active'}
+                      {license.revoked ? t('admin.management.revoked') : t('admin.management.active')}
                     </Badge>
                   </div>
                   <button
                     type="button"
                     onClick={() => selectLicense(license.licenseId, license.expiresAt)}
-                    className="border-ink-700 bg-ink-900 text-ink-100 mt-4 rounded-lg border px-3 py-2 text-sm font-medium"
-                    aria-label={`Inspect license ${license.label}`}
+                    className="ui-button ui-button-secondary mt-4 min-h-10 px-3 text-xs"
+                    aria-label={t('admin.management.inspectAria', { label: license.label })}
                   >
-                    Inspect license
+                    {t('admin.management.inspect')}
                   </button>
                 </div>
               ))}
@@ -311,19 +315,16 @@ export function AdminLicenseManagement() {
         </div>
       </Card>
 
-      <Card
-        title="License details"
-        description="Inspect attached devices, change expiry, or revoke a license."
-      >
+      <Card title={t('admin.management.detailsTitle')} description={t('admin.management.detailsDescription')}>
         {selectedLicenseId === null ? (
-          <p className="text-ink-300 text-sm">Select a license above to inspect it.</p>
+          <p className="body-secondary text-sm">{t('admin.management.selectPrompt')}</p>
         ) : null}
         {selectedLicenseQuery.isPending ? (
-          <p className="text-ink-300 text-sm">Loading license details…</p>
+          <p className="body-secondary text-sm">{t('admin.management.loadingDetails')}</p>
         ) : null}
         {selectedLicenseQuery.isError ? (
-          <p role="alert" className="text-sm text-rose-400">
-            {safeErrorMessage(selectedLicenseQuery.error)}
+          <p role="alert" className="ui-alert p-3 text-sm">
+            {safeErrorMessage(selectedLicenseQuery.error, t)}
           </p>
         ) : null}
         {selectedLicenseQuery.data ? (
@@ -348,45 +349,41 @@ export function AdminLicenseManagement() {
       </Card>
 
       <Card
-        title="Device activations"
-        description="Inspect a public activation code before granting or revoking it."
+        title={t('admin.management.activationsTitle')}
+        description={t('admin.management.activationsDescription')}
       >
         <form
           onSubmit={handleDeviceLookup}
           noValidate
           className="flex flex-col gap-3 sm:flex-row sm:items-end"
         >
-          <label className="text-ink-100 flex-1 text-sm font-medium" htmlFor="device-activation-code">
-            Activation code
+          <label className="ui-label flex-1" htmlFor="device-activation-code">
+            {t('admin.management.activationCode')}
             <input
               id="device-activation-code"
               value={deviceCodeInput}
               onChange={(event) => setDeviceCodeInput(event.target.value)}
               maxLength={32}
               required
-              className="border-ink-800 bg-ink-900 text-ink-100 mt-2 w-full rounded-lg border px-3 py-2 font-mono font-normal"
-              placeholder="K7H9-QX3P"
+              className="ui-input mt-2 px-3 py-2.5 font-mono font-normal"
+              placeholder={t('admin.management.activationPlaceholder')}
             />
           </label>
-          <button
-            type="submit"
-            disabled={deviceQuery.isFetching}
-            className="border-ink-700 bg-ink-900 text-ink-100 rounded-lg border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Inspect device
+          <button type="submit" disabled={deviceQuery.isFetching} className="ui-button ui-button-secondary">
+            {t('admin.management.inspectDevice')}
           </button>
         </form>
         {lookupFormError ? (
-          <p role="alert" className="mt-3 text-sm text-rose-400">
+          <p role="alert" className="text-danger mt-3 text-sm">
             {lookupFormError}
           </p>
         ) : null}
         {deviceLookupCode !== null && deviceQuery.isPending ? (
-          <p className="text-ink-300 mt-4 text-sm">Loading device…</p>
+          <p className="body-secondary mt-4 text-sm">{t('admin.management.loadingDevice')}</p>
         ) : null}
         {deviceQuery.isError ? (
-          <p role="alert" className="mt-4 text-sm text-rose-400">
-            {safeErrorMessage(deviceQuery.error)}
+          <p role="alert" className="ui-alert mt-4 p-3 text-sm">
+            {safeErrorMessage(deviceQuery.error, t)}
           </p>
         ) : null}
         {deviceQuery.data ? (
@@ -436,107 +433,101 @@ function LicenseDetail({
   isExtendPending,
   isRevokePending,
 }: LicenseDetailProps) {
+  const { locale, t } = useLocale();
+
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="text-ink-100 text-lg font-semibold">{license.label}</h3>
-          <p className="text-ink-300 mt-1 text-sm">
-            Created {formatDate(license.createdAt)} · {formatExpiry(license.expiresAt)}
+          <h3 className="text-content-primary text-lg font-bold">{license.label}</h3>
+          <p className="body-secondary mt-1 text-sm">
+            {t('admin.management.created')} {formatDate(license.createdAt, locale)} ·{' '}
+            {formatExpiry(license.expiresAt, locale, t)}
           </p>
         </div>
-        <Badge tone={license.revoked ? 'high' : 'accent'}>{license.revoked ? 'Revoked' : 'Active'}</Badge>
+        <Badge tone={license.revoked ? 'high' : 'accent'}>
+          {license.revoked ? t('admin.management.revoked') : t('admin.management.active')}
+        </Badge>
       </div>
 
-      <div>
-        <h4 className="text-ink-100 text-sm font-semibold">Attached devices</h4>
+      <section aria-labelledby="attached-devices-heading">
+        <h4 id="attached-devices-heading" className="text-content-primary text-sm font-bold">
+          {t('admin.management.attachedDevices')}
+        </h4>
         {license.devices.length === 0 ? (
-          <p className="text-ink-300 mt-2 text-sm">No devices are attached to this license.</p>
+          <p className="body-secondary mt-2 text-sm">{t('admin.management.noDevices')}</p>
         ) : (
           <ul className="mt-2 space-y-2">
             {license.devices.map((device) => (
-              <li
-                key={device.deviceId}
-                className="border-ink-800 bg-ink-950/30 rounded-lg border p-3 text-sm"
-              >
-                <span className="text-ink-100 font-mono">{device.activationCode}</span>
-                <span className="text-ink-300 ml-2">{device.clientLabel ?? 'Unlabelled device'}</span>
-                <span className="text-ink-400 mt-1 block text-xs">
-                  Granted {formatDate(device.grantedAt)}
+              <li key={device.deviceId} className="surface-inset p-3 text-sm">
+                <span className="text-content-primary font-mono font-bold">{device.activationCode}</span>
+                <span className="body-secondary ml-2">
+                  {device.clientLabel ?? t('admin.management.unlabelledDevice')}
+                </span>
+                <span className="body-muted mt-1 block text-xs">
+                  {t('admin.management.granted', { date: formatDate(device.grantedAt, locale) })}
                 </span>
               </li>
             ))}
           </ul>
         )}
-      </div>
+      </section>
 
-      <form
-        onSubmit={onGrant}
-        noValidate
-        className="border-ink-800 bg-ink-950/30 space-y-3 rounded-lg border p-4"
-      >
-        <h4 className="text-ink-100 text-sm font-semibold">Grant a device</h4>
-        <label className="text-ink-100 block text-sm font-medium" htmlFor="grant-device-code">
-          Pasted activation code
+      <form onSubmit={onGrant} noValidate className="surface-inset space-y-3 p-4">
+        <h4 className="text-content-primary text-sm font-bold">{t('admin.management.grantTitle')}</h4>
+        <label className="ui-label" htmlFor="grant-device-code">
+          {t('admin.management.pastedCode')}
           <input
             id="grant-device-code"
             value={grantCode}
             onChange={(event) => setGrantCode(event.target.value)}
             maxLength={32}
             required
-            className="border-ink-800 bg-ink-900 text-ink-100 mt-2 w-full rounded-lg border px-3 py-2 font-mono font-normal"
+            className="ui-input mt-2 px-3 py-2.5 font-mono font-normal"
           />
         </label>
         {grantFormError ? (
-          <p role="alert" className="text-sm text-rose-400">
+          <p role="alert" className="text-danger text-sm">
             {grantFormError}
           </p>
         ) : null}
         <button
           type="submit"
           disabled={isGrantPending || license.revoked}
-          className="bg-accent-500 text-ink-950 rounded-lg px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+          className="ui-button ui-button-primary"
         >
-          {isGrantPending ? 'Granting…' : 'Grant device'}
+          {isGrantPending ? t('admin.management.granting') : t('admin.management.grant')}
         </button>
       </form>
 
-      <form
-        onSubmit={onExtend}
-        noValidate
-        className="border-ink-800 bg-ink-950/30 space-y-3 rounded-lg border p-4"
-      >
-        <h4 className="text-ink-100 text-sm font-semibold">Change expiry</h4>
-        <label className="text-ink-100 block text-sm font-medium" htmlFor="extend-license-expiry">
-          New expiry date
+      <form onSubmit={onExtend} noValidate className="surface-inset space-y-3 p-4">
+        <h4 className="text-content-primary text-sm font-bold">{t('admin.management.changeExpiry')}</h4>
+        <label className="ui-label" htmlFor="extend-license-expiry">
+          {t('admin.management.newExpiry')}
           <input
             id="extend-license-expiry"
             type="date"
             value={extendExpiryDate}
             disabled={extendNoExpiry}
             onChange={(event) => setExtendExpiryDate(event.target.value)}
-            className="border-ink-800 bg-ink-900 text-ink-100 mt-2 w-full rounded-lg border px-3 py-2 font-normal disabled:opacity-50"
+            className="ui-input mt-2 px-3 py-2.5 font-normal"
           />
         </label>
-        <label className="text-ink-300 flex items-center gap-2 text-sm">
+        <label className="body-secondary flex items-center gap-2 text-sm">
           <input
             type="checkbox"
             checked={extendNoExpiry}
             onChange={(event) => setExtendNoExpiry(event.target.checked)}
           />
-          No expiry
+          {t('admin.management.noExpiryOption')}
         </label>
         {extendFormError ? (
-          <p role="alert" className="text-sm text-rose-400">
+          <p role="alert" className="text-danger text-sm">
             {extendFormError}
           </p>
         ) : null}
-        <button
-          type="submit"
-          disabled={isExtendPending}
-          className="border-ink-700 bg-ink-900 text-ink-100 rounded-lg border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {isExtendPending ? 'Saving…' : 'Save expiry'}
+        <button type="submit" disabled={isExtendPending} className="ui-button ui-button-secondary">
+          {isExtendPending ? t('admin.management.saving') : t('admin.management.saveExpiry')}
         </button>
       </form>
 
@@ -544,9 +535,13 @@ function LicenseDetail({
         type="button"
         onClick={onRevoke}
         disabled={isRevokePending || license.revoked}
-        className="rounded-lg border border-rose-700/60 bg-rose-950/30 px-4 py-2 text-sm font-medium text-rose-300 disabled:cursor-not-allowed disabled:opacity-50"
+        className="ui-button border-rose-700/60 bg-rose-50 text-rose-700 dark:bg-rose-950/30 dark:text-rose-300"
       >
-        {isRevokePending ? 'Revoking…' : license.revoked ? 'License revoked' : 'Revoke license'}
+        {isRevokePending
+          ? t('admin.management.revoking')
+          : license.revoked
+            ? t('admin.management.licenseRevoked')
+            : t('admin.management.revokeLicense')}
       </button>
     </div>
   );
@@ -561,41 +556,61 @@ function DeviceDetail({
   readonly onRevoke: () => void;
   readonly isRevoking: boolean;
 }) {
+  const { locale, t } = useLocale();
+  const stateKey: Record<DeviceLookupResponse['state'], TranslationKey> = {
+    PENDING: 'admin.management.deviceState.pending',
+    LICENSED: 'admin.management.deviceState.licensed',
+    EXPIRED: 'admin.management.deviceState.expired',
+    REVOKED: 'admin.management.deviceState.revoked',
+  };
+
   return (
-    <div className="border-ink-800 bg-ink-950/30 mt-4 rounded-lg border p-4">
+    <div className="surface-inset mt-4 p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="text-ink-100 font-semibold">{device.activationCode}</h3>
-          <p className="text-ink-300 mt-1 text-sm">{device.clientLabel ?? 'Unlabelled device'}</p>
+          <h3 className="text-content-primary font-bold">{device.activationCode}</h3>
+          <p className="body-secondary mt-1 text-sm">
+            {device.clientLabel ?? t('admin.management.unlabelledDevice')}
+          </p>
         </div>
         <Badge tone={device.state === 'LICENSED' ? 'accent' : device.state === 'PENDING' ? 'muted' : 'high'}>
-          {device.state}
+          {t(stateKey[device.state])}
         </Badge>
       </div>
-      <dl className="text-ink-300 mt-4 grid gap-3 text-sm sm:grid-cols-2">
+      <dl className="body-secondary mt-4 grid gap-3 text-sm sm:grid-cols-2">
         <div>
-          <dt className="text-ink-400 text-xs uppercase">Created</dt>
-          <dd className="text-ink-100 mt-1">{formatDate(device.createdAt)}</dd>
+          <dt className="body-muted text-xs font-bold tracking-wide uppercase">
+            {t('admin.management.created')}
+          </dt>
+          <dd className="text-content-primary mt-1">{formatDate(device.createdAt, locale)}</dd>
         </div>
         <div>
-          <dt className="text-ink-400 text-xs uppercase">License</dt>
-          <dd className="text-ink-100 mt-1">{device.licenseId ?? 'Not assigned'}</dd>
+          <dt className="body-muted text-xs font-bold tracking-wide uppercase">
+            {t('admin.management.license')}
+          </dt>
+          <dd className="text-content-primary mt-1">
+            {device.licenseId ?? t('admin.management.notAssigned')}
+          </dd>
         </div>
       </dl>
       <button
         type="button"
         onClick={onRevoke}
         disabled={isRevoking || device.licenseId === null}
-        className="mt-4 rounded-lg border border-rose-700/60 bg-rose-950/30 px-4 py-2 text-sm font-medium text-rose-300 disabled:cursor-not-allowed disabled:opacity-50"
+        className="ui-button mt-4 border-rose-700/60 bg-rose-50 text-rose-700 dark:bg-rose-950/30 dark:text-rose-300"
       >
-        {isRevoking ? 'Revoking…' : device.licenseId === null ? 'No active assignment' : 'Revoke device'}
+        {isRevoking
+          ? t('admin.management.revoking')
+          : device.licenseId === null
+            ? t('admin.management.noAssignment')
+            : t('admin.management.revokeDevice')}
       </button>
     </div>
   );
 }
 
 function dateToInstant(value: string): string | null {
-  return value === '' ? null : `${value}T23:59:59Z`;
+  return value === '' ? null : value + 'T23:59:59Z';
 }
 
 function toDateInputValue(value: string | null): string {
@@ -606,18 +621,23 @@ function toDateInputValue(value: string | null): string {
   return Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10);
 }
 
-function formatExpiry(value: string | null): string {
-  return value === null ? 'No expiry' : `Expires ${formatDate(value)}`;
+function formatExpiry(value: string | null, locale: 'en' | 'vi', t: Translate): string {
+  return value === null
+    ? t('common.noExpiry')
+    : t('admin.management.expires', { date: formatDate(value, locale) });
 }
 
-function formatDate(value: string): string {
+function formatDate(value: string, locale: 'en' | 'vi'): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return 'Date unavailable';
+    return locale === 'vi' ? 'Không có ngày' : 'Date unavailable';
   }
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+  return new Intl.DateTimeFormat(locale === 'vi' ? 'vi-VN' : 'en-US', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date);
 }
 
-function safeErrorMessage(error: unknown): string {
-  return normalizeApiError(error).message;
+function safeErrorMessage(error: unknown, t: Translate): string {
+  return localizeApiError(t, normalizeApiError(error));
 }
