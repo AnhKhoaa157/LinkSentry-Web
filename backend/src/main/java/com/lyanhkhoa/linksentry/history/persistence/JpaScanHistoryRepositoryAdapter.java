@@ -1,9 +1,13 @@
 package com.lyanhkhoa.linksentry.history.persistence;
 
+import com.lyanhkhoa.linksentry.analysis.domain.RiskLevel;
 import com.lyanhkhoa.linksentry.history.domain.ScanHistory;
+import com.lyanhkhoa.linksentry.history.domain.ScanHistoryCursor;
 import com.lyanhkhoa.linksentry.history.domain.ScanHistoryRepository;
+import com.lyanhkhoa.linksentry.history.domain.ScanHistorySummary;
 import com.lyanhkhoa.linksentry.history.domain.StoredFinding;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import jakarta.persistence.EntityManager;
@@ -39,7 +43,36 @@ public class JpaScanHistoryRepositoryAdapter implements ScanHistoryRepository {
     }
 
     @Override
+    public List<ScanHistorySummary> findRetainedPage(
+            UUID ownerLicenseId,
+            Instant retainedSince,
+            Optional<ScanHistoryCursor> cursor,
+            int maxResults) {
+        List<SpringDataScanHistoryRepository.ScanHistorySummaryProjection> rows = cursor
+                .map(position -> repository.findRetainedPageAfter(
+                        ownerLicenseId,
+                        retainedSince,
+                        position.analyzedAt(),
+                        position.scanId(),
+                        maxResults))
+                .orElseGet(() -> repository.findRetainedFirstPage(ownerLicenseId, retainedSince, maxResults));
+        return rows.stream().map(JpaScanHistoryRepositoryAdapter::toSummary).toList();
+    }
+
+    @Override
     public long deleteOlderThan(Instant cutoff) {
         return repository.deleteOlderThan(cutoff);
+    }
+
+    private static ScanHistorySummary toSummary(
+            SpringDataScanHistoryRepository.ScanHistorySummaryProjection row) {
+        return new ScanHistorySummary(
+                row.getScanId(),
+                row.getRedactedDisplayValue(),
+                row.getRegistrableDomain(),
+                row.getScore(),
+                RiskLevel.valueOf(row.getRiskLevel()),
+                Math.toIntExact(row.getFindingCount()),
+                row.getAnalyzedAt());
     }
 }

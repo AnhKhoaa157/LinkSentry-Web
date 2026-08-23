@@ -120,6 +120,8 @@ class SecurityConfig {
                         .authenticationEntryPoint(new ApiAuthenticationEntryPoint())
                         .accessDeniedHandler(new ApiAccessDeniedHandler()))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.GET, "/api/v1/scans")
+                        .hasAuthority(DeviceAuthenticationFilter.LICENSED_DEVICE_AUTHORITY)
                         .requestMatchers(HttpMethod.GET, "/api/v1/scans/*")
                         .hasAuthority(DeviceAuthenticationFilter.LICENSED_DEVICE_AUTHORITY)
                         .requestMatchers(HttpMethod.POST, "/api/v1/scans/*/explanation")

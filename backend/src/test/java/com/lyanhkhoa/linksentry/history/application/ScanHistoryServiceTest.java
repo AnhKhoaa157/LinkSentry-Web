@@ -1,16 +1,20 @@
 package com.lyanhkhoa.linksentry.history.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.lyanhkhoa.linksentry.analysis.domain.RiskLevel;
 import com.lyanhkhoa.linksentry.common.config.HistoryProperties;
 import com.lyanhkhoa.linksentry.history.domain.ScanHistory;
+import com.lyanhkhoa.linksentry.history.domain.ScanHistoryCursor;
 import com.lyanhkhoa.linksentry.history.domain.ScanHistoryRepository;
+import com.lyanhkhoa.linksentry.history.domain.ScanHistorySummary;
 import com.lyanhkhoa.linksentry.history.domain.StoredNormalizedUrl;
 import java.time.Clock;
 import java.time.Instant;
@@ -77,11 +81,98 @@ class ScanHistoryServiceTest {
         assertThat(service.findRetained(scanId, OWNER_ID)).isEmpty();
     }
 
+    @Test
+    @DisplayName("listRetained requests one extra row and emits a cursor for the last visible item")
+    void listRetainedBuildsStableNextCursor() {
+        ScanHistoryRepository repository = mock(ScanHistoryRepository.class);
+        ScanHistoryService service = new ScanHistoryService(repository, new HistoryProperties(30), fixedClock);
+        ScanHistorySummary newest = summary(
+                "ffffffff-ffff-4fff-8fff-ffffffffffff", FIXED_NOW.minusSeconds(60));
+        ScanHistorySummary second = summary(
+                "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", FIXED_NOW.minusSeconds(120));
+        ScanHistorySummary extra = summary(
+                "dddddddd-dddd-4ddd-8ddd-dddddddddddd", FIXED_NOW.minusSeconds(180));
+        when(repository.findRetainedPage(
+                        OWNER_ID,
+                        Instant.parse("2026-07-17T12:00:00Z"),
+                        Optional.empty(),
+                        3))
+                .thenReturn(List.of(newest, second, extra));
+
+        ScanHistoryPage page = service.listRetained(OWNER_ID, 2, null);
+
+        assertThat(page.items()).containsExactly(newest, second);
+        assertThat(page.retentionDays()).isEqualTo(30);
+        assertThat(ScanHistoryCursorCodec.decode(page.nextCursor()))
+                .isEqualTo(new ScanHistoryCursor(second.analyzedAt(), second.scanId()));
+    }
+
+    @Test
+    @DisplayName("listRetained decodes and forwards an opaque cursor without exposing its internals")
+    void listRetainedForwardsDecodedCursor() {
+        ScanHistoryRepository repository = mock(ScanHistoryRepository.class);
+        ScanHistoryService service = new ScanHistoryService(repository, new HistoryProperties(30), fixedClock);
+        ScanHistoryCursor cursor = new ScanHistoryCursor(
+                FIXED_NOW.minusSeconds(120),
+                UUID.fromString("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"));
+        String encoded = ScanHistoryCursorCodec.encode(cursor);
+        when(repository.findRetainedPage(
+                        OWNER_ID,
+                        Instant.parse("2026-07-17T12:00:00Z"),
+                        Optional.of(cursor),
+                        21))
+                .thenReturn(List.of());
+
+        ScanHistoryPage page = service.listRetained(OWNER_ID, null, encoded);
+
+        assertThat(page.items()).isEmpty();
+        assertThat(page.nextCursor()).isNull();
+    }
+
+    @Test
+    @DisplayName("invalid page limits and cursors fail before the repository is called")
+    void invalidListParametersFailBeforeRepositoryCall() {
+        ScanHistoryRepository repository = mock(ScanHistoryRepository.class);
+        ScanHistoryService service = new ScanHistoryService(repository, new HistoryProperties(30), fixedClock);
+
+        assertThatThrownBy(() -> service.listRetained(OWNER_ID, 0, null))
+                .isInstanceOf(InvalidScanHistoryRequestException.class);
+        assertThatThrownBy(() -> service.listRetained(OWNER_ID, 51, null))
+                .isInstanceOf(InvalidScanHistoryRequestException.class);
+        assertThatThrownBy(() -> service.listRetained(OWNER_ID, 20, "not-a-cursor"))
+                .isInstanceOf(InvalidScanHistoryRequestException.class);
+        verifyNoInteractions(repository);
+    }
+
+    @Test
+    @DisplayName("a missing owner returns an empty page without touching persistence")
+    void missingOwnerReturnsEmptyPage() {
+        ScanHistoryRepository repository = mock(ScanHistoryRepository.class);
+        ScanHistoryService service = new ScanHistoryService(repository, new HistoryProperties(30), fixedClock);
+
+        ScanHistoryPage page = service.listRetained(null, null, null);
+
+        assertThat(page.items()).isEmpty();
+        assertThat(page.nextCursor()).isNull();
+        verifyNoInteractions(repository);
+    }
+
     private ScanHistory sampleHistory(Instant analyzedAt) {
         StoredNormalizedUrl normalized = new StoredNormalizedUrl(
                 "https", "example.com", "example.com", "example.com", null, "/", true, false);
         return new ScanHistory(
                 UUID.randomUUID(), "https://example.com/", normalized, 0, RiskLevel.LOW, List.of(), "0.1.0",
                 analyzedAt, OWNER_ID);
+    }
+
+    private ScanHistorySummary summary(String scanId, Instant analyzedAt) {
+        return new ScanHistorySummary(
+                UUID.fromString(scanId),
+                "https://example.com/account",
+                "example.com",
+                40,
+                RiskLevel.HIGH,
+                2,
+                analyzedAt);
     }
 }

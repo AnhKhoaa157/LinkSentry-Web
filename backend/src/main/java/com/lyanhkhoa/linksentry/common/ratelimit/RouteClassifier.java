@@ -21,6 +21,9 @@ public class RouteClassifier {
     private final RequestMatcher scanCreate =
             PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, "/api/v1/scans");
 
+    private final RequestMatcher scanList =
+            PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.GET, "/api/v1/scans");
+
     // A single "*" segment matches exactly one path element (no "/"), mirroring the
     // controller's one-segment {scanId} path variable — it does not match the bare
     // collection path or a deeper path.
@@ -55,6 +58,9 @@ public class RouteClassifier {
     Optional<RateLimitedRoute> classify(HttpServletRequest request) {
         if (scanCreate.matches(request)) {
             return Optional.of(RateLimitedRoute.SCAN_CREATE);
+        }
+        if (scanList.matches(request)) {
+            return Optional.of(RateLimitedRoute.SCAN_LOOKUP);
         }
         if (scanLookup.matches(request)) {
             return Optional.of(RateLimitedRoute.SCAN_LOOKUP);

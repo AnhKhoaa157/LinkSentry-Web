@@ -29,6 +29,13 @@ class RouteClassifierTest {
     }
 
     @Test
+    @DisplayName("GET /api/v1/scans classifies as SCAN_LOOKUP")
+    void classifiesScanHistoryList() {
+        assertThat(classifier.classify(request("GET", "/api/v1/scans")))
+                .contains(RateLimitedRoute.SCAN_LOOKUP);
+    }
+
+    @Test
     @DisplayName("POST /api/v1/scans/{scanId}/explanation classifies as EXPLANATION, its own strict bucket")
     void classifiesExplanation() {
         assertThat(classifier.classify(
@@ -86,12 +93,6 @@ class RouteClassifierTest {
         assertThat(classifier.classify(request("GET", "/api/v1/admin-auth/session"))).isEmpty();
         assertThat(classifier.classify(request("POST", "/api/v1/admin-auth/logout"))).isEmpty();
         assertThat(classifier.classify(request("GET", "/api/v1/admin-auth/login"))).isEmpty();
-    }
-
-    @Test
-    @DisplayName("the bare collection path is not classified as a lookup")
-    void bareCollectionPathIsNotLookup() {
-        assertThat(classifier.classify(request("GET", "/api/v1/scans"))).isEmpty();
     }
 
     @Test

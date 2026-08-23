@@ -10,6 +10,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -49,6 +50,16 @@ public class ScanController {
         LicensedDeviceContext device = optionalLicensedDevice(authentication);
         ResponseLocale locale = ResponseLocale.negotiate(acceptLanguage);
         return scanService.scan(request.url(), device == null ? null : device.licenseId(), locale);
+    }
+
+    @GetMapping
+    @Operation(summary = "List retained scan summaries for the caller's license")
+    public ScanHistoryListResponse list(
+            @RequestParam(required = false) Integer limit,
+            @RequestParam(required = false) String cursor,
+            Authentication authentication) {
+        LicensedDeviceContext device = requireLicensedDeviceForLookup(authentication);
+        return scanService.list(device == null ? null : device.licenseId(), limit, cursor);
     }
 
     @GetMapping("/{scanId}")

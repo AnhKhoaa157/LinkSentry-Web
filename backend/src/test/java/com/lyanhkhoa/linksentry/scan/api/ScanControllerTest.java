@@ -21,6 +21,7 @@ import com.lyanhkhoa.linksentry.analysis.domain.RuleExecutionException;
 import com.lyanhkhoa.linksentry.analysis.domain.Severity;
 import com.lyanhkhoa.linksentry.common.api.ResponseLocale;
 import com.lyanhkhoa.linksentry.common.exception.GlobalExceptionHandler;
+import com.lyanhkhoa.linksentry.history.application.InvalidScanHistoryRequestException;
 import com.lyanhkhoa.linksentry.history.application.ScanNotFoundException;
 import com.lyanhkhoa.linksentry.scan.application.ScanService;
 import java.time.Instant;
@@ -218,6 +219,76 @@ class ScanControllerTest {
     }
 
     @Test
+    @DisplayName("the history collection returns only the approved privacy-safe summary shape")
+    void historyCollectionReturnsSafeSummaryShape() throws Exception {
+        given(scanService.list(isNull(), eq(2), isNull())).willReturn(sampleHistoryList());
+
+        String body = mockMvc.perform(get("/api/v1/scans").param("limit", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[0].displayValue").value("https://example.com/account"))
+                .andExpect(jsonPath("$.data.items[0].findingCount").value(1))
+                .andExpect(jsonPath("$.data.nextCursor").value("opaque-cursor"))
+                .andExpect(jsonPath("$.meta.retentionDays").value(30))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        JsonNode root = objectMapper.readTree(body);
+        JsonNode item = root.path("data").path("items").get(0);
+        assertThat(fieldNames(root)).containsExactlyInAnyOrder("data", "meta");
+        assertThat(fieldNames(root.path("data"))).containsExactlyInAnyOrder("items", "nextCursor");
+        assertThat(fieldNames(item))
+                .containsExactlyInAnyOrder(
+                        "scanId",
+                        "displayValue",
+                        "registrableDomain",
+                        "score",
+                        "riskLevel",
+                        "findingCount",
+                        "analyzedAt");
+        assertThat(body).doesNotContain("query-secret", "fragment-secret", "credential");
+    }
+
+    @Test
+    @DisplayName("invalid history parameters use the existing validation envelope")
+    void invalidHistoryParametersReturnValidationEnvelope() throws Exception {
+        given(scanService.list(isNull(), eq(0), isNull()))
+                .willThrow(InvalidScanHistoryRequestException.invalidLimit());
+
+        mockMvc.perform(get("/api/v1/scans").param("limit", "0"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.fieldErrors.limit").value("Enter a value from 1 to 50."));
+    }
+
+    @Test
+    @DisplayName("a non-numeric history limit is a safe validation error, never an internal error")
+    void nonNumericHistoryLimitReturnsValidationEnvelope() throws Exception {
+        mockMvc.perform(get("/api/v1/scans").param("limit", "not-a-number"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.fieldErrors.limit").value("Enter a value in the expected format."))
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("not-a-number"))));
+
+        verifyNoInteractions(scanService);
+    }
+
+    @Test
+    @DisplayName("an administrator principal cannot list licensed-device scan history")
+    void adminPrincipalCannotListHistory() throws Exception {
+        AdminIdentity admin = new AdminIdentity(UUID.randomUUID(), "ops", UUID.randomUUID(), Instant.MAX);
+
+        mockMvc.perform(get("/api/v1/scans")
+                        .principal(new UsernamePasswordAuthenticationToken(admin, null)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("ops"))));
+
+        verifyNoInteractions(scanService);
+    }
+
+    @Test
     @DisplayName("a retained scan is returned with the existing response shape")
     void retainedScanReturnsExistingResponseShape() throws Exception {
         UUID scanId = UUID.fromString("2ce16fb9-d52d-4310-8d45-a4e48f31889e");
@@ -280,5 +351,19 @@ class ScanControllerTest {
                 List.of(finding),
                 Instant.parse("2026-08-12T00:00:00Z"));
         return new ScanResponse(data, new ScanResponse.ScanMeta("0.1.0"));
+    }
+
+    private static ScanHistoryListResponse sampleHistoryList() {
+        ScanHistoryListResponse.Item item = new ScanHistoryListResponse.Item(
+                UUID.fromString("2ce16fb9-d52d-4310-8d45-a4e48f31889e"),
+                "https://example.com/account",
+                "example.com",
+                20,
+                RiskLevel.MODERATE,
+                1,
+                Instant.parse("2026-08-12T00:00:00Z"));
+        return new ScanHistoryListResponse(
+                new ScanHistoryListResponse.Data(List.of(item), "opaque-cursor"),
+                new ScanHistoryListResponse.Meta(30));
     }
 }

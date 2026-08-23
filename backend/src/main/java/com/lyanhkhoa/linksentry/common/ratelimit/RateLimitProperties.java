@@ -16,7 +16,7 @@ import org.springframework.validation.annotation.Validated;
  * @param enabled    turns rate limiting on or off entirely; when {@code false} no
  *                   request is classified, consumed, or delayed
  * @param scan        bucket applied to {@code POST /api/v1/scans}
- * @param scanLookup  bucket applied to {@code GET /api/v1/scans/{scanId}}
+ * @param scanLookup  bucket applied to licensed scan-history list and lookup routes
  * @param device      stricter bucket applied to device bootstrap/status routes
  * @param explanation strictest bucket, applied to
  *                    {@code POST /api/v1/scans/{scanId}/explanation}
