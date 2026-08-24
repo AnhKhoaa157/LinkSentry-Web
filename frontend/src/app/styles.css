@@ -537,6 +537,103 @@ html.dark {
     box-shadow: none;
   }
 
+  .history-rule-select {
+    position: relative;
+  }
+
+  .history-rule-select__trigger {
+    display: flex;
+    width: 100%;
+    min-height: 2.75rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    border: 1px solid var(--border-strong);
+    border-radius: 0.7rem;
+    padding: 0.65rem 0.8rem 0.65rem 0.9rem;
+    color: var(--content-primary);
+    background: var(--surface-inset);
+    font-size: 0.875rem;
+    text-align: left;
+    transition:
+      border-color var(--motion-fast) ease,
+      box-shadow var(--motion-fast) ease,
+      background-color var(--motion-fast) ease;
+  }
+
+  .history-rule-select__trigger:hover {
+    border-color: color-mix(in srgb, var(--accent) 55%, var(--border-strong));
+  }
+
+  .history-rule-select__trigger:focus-visible,
+  .history-rule-select__option:focus-visible {
+    border-color: var(--focus);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 22%, transparent);
+    outline: none;
+  }
+
+  .history-rule-select__chevron,
+  .history-rule-select__check {
+    width: 1rem;
+    height: 1rem;
+    flex: none;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 2;
+  }
+
+  .history-rule-select__chevron {
+    color: var(--content-muted);
+  }
+
+  .history-rule-select__menu {
+    position: absolute;
+    z-index: 20;
+    top: calc(100% + 0.45rem);
+    right: 0;
+    left: 0;
+    max-height: min(21rem, calc(100vh - 10rem));
+    overflow-y: auto;
+    border: 1px solid var(--border-default);
+    border-radius: 0.85rem;
+    padding: 0.35rem;
+    background: var(--surface-raised);
+    box-shadow: 0 18px 42px color-mix(in srgb, var(--ink-100) 18%, transparent);
+  }
+
+  .history-rule-select__option {
+    display: flex;
+    width: 100%;
+    min-height: 2.6rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    border: 1px solid transparent;
+    border-radius: 0.55rem;
+    padding: 0.55rem 0.65rem;
+    color: var(--content-secondary);
+    background: transparent;
+    font-size: 0.875rem;
+    line-height: 1.35;
+    text-align: left;
+  }
+
+  .history-rule-select__option:hover,
+  .history-rule-select__option[aria-selected='true'] {
+    color: var(--content-primary);
+    background: var(--accent-soft);
+  }
+
+  .history-rule-select__option[aria-selected='true'] {
+    border-color: color-mix(in srgb, var(--accent) 35%, var(--border-default));
+  }
+
+  .history-rule-select__check {
+    color: var(--accent-strong);
+  }
+
   .insights-risk-track {
     height: 0.65rem;
     overflow: hidden;

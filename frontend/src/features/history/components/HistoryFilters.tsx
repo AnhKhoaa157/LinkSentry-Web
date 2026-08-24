@@ -1,9 +1,12 @@
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
+
 import {
   DEFAULT_SCAN_HISTORY_FILTERS,
   historyRuleIdSchema,
   historyRuleLabelKeys,
   historyRuleIds,
   scanHistoryFiltersSchema,
+  type HistoryRuleId,
   type ScanHistoryFilters,
 } from '@/features/history/schemas/scanHistoryResponse';
 import { riskLevelSchema, type RiskLevel } from '@/features/scanner/schemas/scanResponse';
@@ -64,21 +67,7 @@ export function HistoryFilters({ filters, onChange, t }: HistoryFiltersProps) {
             </select>
           </label>
 
-          <label className="space-y-2">
-            <span className="ui-label">{t('history.filters.ruleLabel')}</span>
-            <select
-              className="ui-input min-h-11 px-3 text-sm"
-              value={filters.ruleId ?? ''}
-              onChange={(event) => handleRuleChange(event.target.value)}
-            >
-              <option value="">{t('history.filters.ruleAll')}</option>
-              {historyRuleIds.map((ruleId) => (
-                <option key={ruleId} value={ruleId}>
-                  {t(historyRuleLabelKeys[ruleId])}
-                </option>
-              ))}
-            </select>
-          </label>
+          <RuleFilterDropdown value={filters.ruleId} onChange={handleRuleChange} t={t} />
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -97,5 +86,147 @@ export function HistoryFilters({ filters, onChange, t }: HistoryFiltersProps) {
         </div>
       </fieldset>
     </form>
+  );
+}
+
+interface RuleFilterDropdownProps {
+  readonly value: HistoryRuleId | null;
+  readonly onChange: (value: string) => void;
+  readonly t: Translate;
+}
+
+const RULE_FILTER_OPTIONS: readonly (HistoryRuleId | null)[] = [null, ...historyRuleIds];
+
+function RuleFilterDropdown({ value, onChange, t }: RuleFilterDropdownProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const labelId = useId();
+  const menuId = useId();
+  const selectedIndex = RULE_FILTER_OPTIONS.indexOf(value);
+  const selectedLabel = value === null ? t('history.filters.ruleAll') : t(historyRuleLabelKeys[value]);
+
+  useEffect(() => {
+    function handlePointerDown(event: PointerEvent) {
+      if (rootRef.current?.contains(event.target as Node) !== true) {
+        setIsOpen(false);
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, []);
+
+  useEffect(() => {
+    if (isOpen && focusedIndex !== null) {
+      optionRefs.current[focusedIndex]?.focus();
+    }
+  }, [focusedIndex, isOpen]);
+
+  function openAt(index: number) {
+    setFocusedIndex(index);
+    setIsOpen(true);
+  }
+
+  function selectOption(option: HistoryRuleId | null) {
+    onChange(option ?? '');
+    setIsOpen(false);
+    triggerRef.current?.focus();
+  }
+
+  function handleTriggerKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      openAt(Math.min(selectedIndex + 1, RULE_FILTER_OPTIONS.length - 1));
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      openAt(Math.max(selectedIndex - 1, 0));
+    }
+  }
+
+  function handleOptionKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setFocusedIndex(Math.min(index + 1, RULE_FILTER_OPTIONS.length - 1));
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setFocusedIndex(Math.max(index - 1, 0));
+    } else if (event.key === 'Home') {
+      event.preventDefault();
+      setFocusedIndex(0);
+    } else if (event.key === 'End') {
+      event.preventDefault();
+      setFocusedIndex(RULE_FILTER_OPTIONS.length - 1);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      setIsOpen(false);
+      triggerRef.current?.focus();
+    }
+  }
+
+  return (
+    <div ref={rootRef} className="history-rule-select space-y-2">
+      <span id={labelId} className="ui-label">
+        {t('history.filters.ruleLabel')}
+      </span>
+      <button
+        ref={triggerRef}
+        type="button"
+        className="history-rule-select__trigger"
+        aria-labelledby={labelId}
+        aria-controls={menuId}
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
+        onClick={() => (isOpen ? setIsOpen(false) : openAt(selectedIndex))}
+        onKeyDown={handleTriggerKeyDown}
+      >
+        <span>{selectedLabel}</span>
+        <ChevronIcon expanded={isOpen} />
+      </button>
+
+      {isOpen ? (
+        <div id={menuId} className="history-rule-select__menu" role="listbox" aria-labelledby={labelId}>
+          {RULE_FILTER_OPTIONS.map((option, index) => {
+            const isSelected = option === value;
+            const label = option === null ? t('history.filters.ruleAll') : t(historyRuleLabelKeys[option]);
+            return (
+              <button
+                key={option ?? 'all'}
+                ref={(element) => {
+                  optionRefs.current[index] = element;
+                }}
+                type="button"
+                role="option"
+                aria-selected={isSelected}
+                className="history-rule-select__option"
+                onClick={() => selectOption(option)}
+                onKeyDown={(event) => handleOptionKeyDown(event, index)}
+              >
+                <span>{label}</span>
+                {isSelected ? <CheckIcon /> : null}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ChevronIcon({ expanded }: { readonly expanded: boolean }) {
+  return (
+    <svg className="history-rule-select__chevron" aria-hidden="true" viewBox="0 0 16 16">
+      <path d={expanded ? 'm4 10 4-4 4 4' : 'm4 6 4 4 4-4'} />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg className="history-rule-select__check" aria-hidden="true" viewBox="0 0 16 16">
+      <path d="m3.5 8.5 2.7 2.7 6.3-6.4" />
+    </svg>
   );
 }

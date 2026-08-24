@@ -279,9 +279,8 @@ describe('HistoryPage', () => {
     renderWithProviders(<HistoryPage />);
 
     const riskSelect = await screen.findByLabelText('Risk level');
-    const ruleSelect = screen.getByLabelText('Detected rule');
-    expect(within(ruleSelect).getByRole('option', { name: 'Missing HTTPS' })).toHaveValue('MISSING_HTTPS');
-    expect(within(ruleSelect).queryByText('MISSING_HTTPS')).not.toBeInTheDocument();
+    const ruleSelect = screen.getByRole('button', { name: 'Detected rule' });
+    expect(ruleSelect).toHaveAttribute('aria-expanded', 'false');
     await user.selectOptions(riskSelect, 'HIGH');
     expect(riskSelect).toHaveValue('HIGH');
     await waitFor(() => {
@@ -291,8 +290,12 @@ describe('HistoryPage', () => {
       );
     });
 
-    await user.selectOptions(ruleSelect, 'MISSING_HTTPS');
-    expect(ruleSelect).toHaveValue('MISSING_HTTPS');
+    await user.click(ruleSelect);
+    expect(screen.getByRole('option', { name: 'Missing HTTPS' })).toBeInTheDocument();
+    expect(screen.queryByText('MISSING_HTTPS')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('option', { name: 'Missing HTTPS' }));
+    expect(ruleSelect).toHaveTextContent('Missing HTTPS');
+    expect(ruleSelect).toHaveAttribute('aria-expanded', 'false');
     await waitFor(() => {
       expect(getSpy).toHaveBeenCalledWith(
         '/api/v1/scans',
@@ -305,13 +308,34 @@ describe('HistoryPage', () => {
 
     await user.click(screen.getByRole('button', { name: 'Clear filters' }));
     expect(riskSelect).toHaveValue('');
-    expect(ruleSelect).toHaveValue('');
+    expect(ruleSelect).toHaveTextContent('All rules');
     await waitFor(() => {
       expect(getSpy).toHaveBeenCalledWith(
         '/api/v1/scans',
         expect.objectContaining({ params: { limit: 20 }, signal: expect.anything() }),
       );
     });
+  });
+
+  it('supports keyboard navigation and dismissal for the detected-rule menu', async () => {
+    mockHistoryAndInsights([historyResponse([])]);
+    const user = userEvent.setup();
+
+    renderWithProviders(<HistoryPage />);
+
+    const trigger = await screen.findByRole('button', { name: 'Detected rule' });
+    trigger.focus();
+    await user.keyboard('{ArrowDown}');
+
+    const firstRule = screen.getByRole('option', { name: 'Brand name does not match the registered domain' });
+    expect(firstRule).toHaveFocus();
+
+    await user.keyboard('{End}');
+    expect(screen.getByRole('option', { name: 'Sensitive-looking subdomain words' })).toHaveFocus();
+
+    await user.keyboard('{Escape}');
+    expect(trigger).toHaveFocus();
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('renders backend-owned personal insights without turning submitted values into links', async () => {
@@ -335,12 +359,14 @@ describe('HistoryPage', () => {
   it('omits unknown rule IDs from selectable and visible history copy', async () => {
     const unknownRuleId = 'FUTURE_RULE';
     mockHistoryAndInsights([historyResponse([])]);
+    const user = userEvent.setup();
 
     renderWithProviders(<HistoryPage />);
 
-    const ruleSelect = await screen.findByLabelText('Detected rule');
-    expect(within(ruleSelect).queryByRole('option', { name: unknownRuleId })).not.toBeInTheDocument();
-    expect(within(ruleSelect).queryByText(unknownRuleId)).not.toBeInTheDocument();
+    const ruleSelect = await screen.findByRole('button', { name: 'Detected rule' });
+    await user.click(ruleSelect);
+    expect(screen.queryByRole('option', { name: unknownRuleId })).not.toBeInTheDocument();
+    expect(screen.queryByText(unknownRuleId)).not.toBeInTheDocument();
     expect(screen.queryByText(unknownRuleId)).not.toBeInTheDocument();
   });
 
@@ -367,12 +393,14 @@ describe('HistoryPage', () => {
   it('renders localized Vietnamese detected-rule labels while preserving raw values', async () => {
     localStorage.setItem('linksentry.locale', 'vi');
     mockHistoryAndInsights([historyResponse([])]);
+    const user = userEvent.setup();
 
     renderWithProviders(<HistoryPage />);
 
-    const ruleSelect = await screen.findByLabelText('Quy tắc đã phát hiện');
-    expect(within(ruleSelect).getByRole('option', { name: 'Thiếu HTTPS' })).toHaveValue('MISSING_HTTPS');
-    expect(within(ruleSelect).queryByText('MISSING_HTTPS')).not.toBeInTheDocument();
+    const ruleSelect = await screen.findByRole('button', { name: 'Quy tắc đã phát hiện' });
+    await user.click(ruleSelect);
+    expect(screen.getByRole('option', { name: 'Thiếu HTTPS' })).toBeInTheDocument();
+    expect(screen.queryByText('MISSING_HTTPS')).not.toBeInTheDocument();
   });
 
   it('renders complete Vietnamese history copy', async () => {
