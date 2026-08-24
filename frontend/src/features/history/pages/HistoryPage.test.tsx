@@ -332,6 +332,18 @@ describe('HistoryPage', () => {
     expect(screen.getByText(firstItem.displayValue).closest('a')).toBeNull();
   });
 
+  it('omits unknown rule IDs from selectable and visible history copy', async () => {
+    const unknownRuleId = 'FUTURE_RULE';
+    mockHistoryAndInsights([historyResponse([])]);
+
+    renderWithProviders(<HistoryPage />);
+
+    const ruleSelect = await screen.findByLabelText('Detected rule');
+    expect(within(ruleSelect).queryByRole('option', { name: unknownRuleId })).not.toBeInTheDocument();
+    expect(within(ruleSelect).queryByText(unknownRuleId)).not.toBeInTheDocument();
+    expect(screen.queryByText(unknownRuleId)).not.toBeInTheDocument();
+  });
+
   it('keeps personal insight errors fixed and free of server response details', async () => {
     const rawServerMessage = 'insight query failed with access_token=secret';
     mockHistoryAndInsights(
