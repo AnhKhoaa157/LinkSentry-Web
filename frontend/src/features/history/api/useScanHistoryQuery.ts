@@ -1,17 +1,26 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 
 import { getScanHistory, SCAN_HISTORY_PAGE_SIZE } from '@/features/history/api/getScanHistory';
+import {
+  DEFAULT_SCAN_HISTORY_FILTERS,
+  scanHistoryFiltersSchema,
+  type ScanHistoryFilters,
+} from '@/features/history/schemas/scanHistoryResponse';
 
 export const scanHistoryQueryKey = ['scan-history'] as const;
 
 /** Loads private history using the backend's opaque cursor without interpreting it. */
-export function useScanHistoryQuery() {
+export function useScanHistoryQuery(filters: ScanHistoryFilters = DEFAULT_SCAN_HISTORY_FILTERS) {
+  const validatedFilters = scanHistoryFiltersSchema.parse(filters);
+
   return useInfiniteQuery({
-    queryKey: scanHistoryQueryKey,
+    queryKey: [...scanHistoryQueryKey, validatedFilters],
     queryFn: ({ pageParam, signal }) =>
       getScanHistory({
         limit: SCAN_HISTORY_PAGE_SIZE,
         cursor: pageParam,
+        riskLevel: validatedFilters.riskLevel,
+        ruleId: validatedFilters.ruleId,
         signal,
       }),
     initialPageParam: null as string | null,

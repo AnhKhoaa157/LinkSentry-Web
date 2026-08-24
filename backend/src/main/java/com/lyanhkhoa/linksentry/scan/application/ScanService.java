@@ -10,17 +10,21 @@ import com.lyanhkhoa.linksentry.history.application.ScanHistoryPage;
 import com.lyanhkhoa.linksentry.history.application.ScanIdParser;
 import com.lyanhkhoa.linksentry.history.application.ScanNotFoundException;
 import com.lyanhkhoa.linksentry.history.domain.ScanHistory;
+import com.lyanhkhoa.linksentry.history.domain.ScanHistoryFindingCount;
+import com.lyanhkhoa.linksentry.history.domain.ScanHistoryInsightsAggregate;
 import com.lyanhkhoa.linksentry.history.domain.StoredFinding;
 import com.lyanhkhoa.linksentry.history.domain.StoredNormalizedUrl;
 import com.lyanhkhoa.linksentry.scan.api.FindingResponse;
 import com.lyanhkhoa.linksentry.scan.api.NormalizedUrlResponse;
 import com.lyanhkhoa.linksentry.scan.api.ScanDataResponse;
 import com.lyanhkhoa.linksentry.scan.api.ScanHistoryListResponse;
+import com.lyanhkhoa.linksentry.scan.api.ScanInsightsResponse;
 import com.lyanhkhoa.linksentry.scan.api.ScanResponse;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -126,7 +130,15 @@ public class ScanService {
 
     /** Lists private retained scan summaries for one licensed caller. */
     public ScanHistoryListResponse list(UUID ownerLicenseId, Integer limit, String cursor) {
-        ScanHistoryPage page = historyService.listRetained(ownerLicenseId, limit, cursor);
+        return list(ownerLicenseId, limit, cursor, null, null);
+    }
+
+    /** Lists private retained scan summaries with bounded server-owned filters. */
+    public ScanHistoryListResponse list(
+            UUID ownerLicenseId, Integer limit, String cursor, String riskLevel, String ruleId) {
+        ScanHistoryPage page = riskLevel == null && ruleId == null
+                ? historyService.listRetained(ownerLicenseId, limit, cursor)
+                : historyService.listRetained(ownerLicenseId, limit, cursor, riskLevel, ruleId);
         List<ScanHistoryListResponse.Item> items = page.items().stream()
                 .map(summary -> new ScanHistoryListResponse.Item(
                         summary.scanId(),
@@ -140,6 +152,31 @@ public class ScanService {
         return new ScanHistoryListResponse(
                 new ScanHistoryListResponse.Data(items, page.nextCursor()),
                 new ScanHistoryListResponse.Meta(page.retentionDays()));
+    }
+
+    /** Maps private aggregate data to a response with backend-owned localized rule titles. */
+    public ScanInsightsResponse insights(UUID ownerLicenseId, Integer windowDays, ResponseLocale locale) {
+        ScanHistoryInsightsAggregate insights = historyService.insights(ownerLicenseId, windowDays);
+        List<ScanInsightsResponse.TopFinding> topFindings = insights.topFindings().stream()
+                .map(finding -> toTopFinding(finding, locale))
+                .flatMap(Optional::stream)
+                .toList();
+        int resolvedWindowDays = windowDays == null ? ScanHistoryService.DEFAULT_INSIGHTS_WINDOW_DAYS : windowDays;
+        return new ScanInsightsResponse(
+                new ScanInsightsResponse.Data(
+                        resolvedWindowDays,
+                        insights.totalScans(),
+                        insights.scansLast7Days(),
+                        insights.previous7Days(),
+                        insights.riskDistribution(),
+                        topFindings),
+                new ScanInsightsResponse.Meta(historyService.retentionDays()));
+    }
+
+    private static Optional<ScanInsightsResponse.TopFinding> toTopFinding(
+            ScanHistoryFindingCount finding, ResponseLocale locale) {
+        return FindingCopyLocalizer.localizedTitle(finding.ruleId(), locale)
+                .map(title -> new ScanInsightsResponse.TopFinding(finding.ruleId(), title, finding.count()));
     }
 
     private ScanHistory toHistory(UUID scanId, UUID ownerLicenseId, AnalysisResult result, Instant analyzedAt) {

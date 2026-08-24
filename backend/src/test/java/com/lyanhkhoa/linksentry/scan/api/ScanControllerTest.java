@@ -262,6 +262,66 @@ class ScanControllerTest {
     }
 
     @Test
+    @DisplayName("history filters stay in the private collection contract")
+    void historyFiltersAreForwarded() throws Exception {
+        given(scanService.list(isNull(), eq(20), isNull(), eq("HIGH"), eq("MISSING_HTTPS")))
+                .willReturn(sampleHistoryList());
+
+        mockMvc.perform(get("/api/v1/scans")
+                        .param("limit", "20")
+                        .param("riskLevel", "HIGH")
+                        .param("ruleId", "MISSING_HTTPS"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[0].riskLevel").value("MODERATE"));
+    }
+
+    @Test
+    @DisplayName("invalid history filters use the fixed validation envelope without echoing input")
+    void invalidHistoryFilterReturnsValidationEnvelope() throws Exception {
+        String invalidRule = "query-secret-rule";
+        given(scanService.list(isNull(), isNull(), isNull(), eq("SAFE"), eq(invalidRule)))
+                .willThrow(InvalidScanHistoryRequestException.invalidRiskLevel());
+
+        mockMvc.perform(get("/api/v1/scans")
+                        .param("riskLevel", "SAFE")
+                        .param("ruleId", invalidRule))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.fieldErrors.riskLevel").exists())
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString(invalidRule))));
+    }
+
+    @Test
+    @DisplayName("insights return only aggregate data and localized backend-owned titles")
+    void insightsResponseUsesSafeAggregateShape() throws Exception {
+        given(scanService.insights(isNull(), eq(7), eq(ResponseLocale.VIETNAMESE)))
+                .willReturn(sampleInsights());
+
+        String body = mockMvc.perform(get("/api/v1/scans/insights")
+                        .param("windowDays", "7")
+                        .header("Accept-Language", "vi-VN"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.windowDays").value(7))
+                .andExpect(jsonPath("$.data.totalScans").value(4))
+                .andExpect(jsonPath("$.data.riskDistribution.LOW").value(1))
+                .andExpect(jsonPath("$.data.topFindings[0].ruleId").value("MISSING_HTTPS"))
+                .andExpect(jsonPath("$.data.topFindings[0].title").value("Kết nối không được mã hóa"))
+                .andExpect(jsonPath("$.meta.retentionDays").value(30))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        JsonNode root = objectMapper.readTree(body);
+        assertThat(fieldNames(root)).containsExactlyInAnyOrder("data", "meta");
+        assertThat(fieldNames(root.path("data"))).containsExactlyInAnyOrder(
+                "windowDays", "totalScans", "scansLast7Days", "previous7Days", "riskDistribution", "topFindings");
+        assertThat(fieldNames(root.path("data").path("topFindings").get(0)))
+                .containsExactlyInAnyOrder("ruleId", "title", "count");
+        assertThat(body).doesNotContain("query-secret", "fragment-secret", "credential", "evidence");
+    }
+
+    @Test
     @DisplayName("a non-numeric history limit is a safe validation error, never an internal error")
     void nonNumericHistoryLimitReturnsValidationEnvelope() throws Exception {
         mockMvc.perform(get("/api/v1/scans").param("limit", "not-a-number"))
@@ -365,5 +425,22 @@ class ScanControllerTest {
         return new ScanHistoryListResponse(
                 new ScanHistoryListResponse.Data(List.of(item), "opaque-cursor"),
                 new ScanHistoryListResponse.Meta(30));
+    }
+
+    private static ScanInsightsResponse sampleInsights() {
+        return new ScanInsightsResponse(
+                new ScanInsightsResponse.Data(
+                        7,
+                        4,
+                        2,
+                        1,
+                        java.util.Map.of(
+                                RiskLevel.LOW, 1L,
+                                RiskLevel.MODERATE, 1L,
+                                RiskLevel.HIGH, 1L,
+                                RiskLevel.CRITICAL, 1L),
+                        List.of(new ScanInsightsResponse.TopFinding(
+                                "MISSING_HTTPS", "Kết nối không được mã hóa", 2))),
+                new ScanInsightsResponse.Meta(30));
     }
 }

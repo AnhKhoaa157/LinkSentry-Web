@@ -24,6 +24,18 @@ public final class InvalidScanHistoryRequestException extends RuntimeException {
         return new InvalidScanHistoryRequestException("cursor", "Enter a valid scan history cursor.");
     }
 
+    public static InvalidScanHistoryRequestException invalidRiskLevel() {
+        return new InvalidScanHistoryRequestException("riskLevel", "Enter one of the supported risk levels.");
+    }
+
+    public static InvalidScanHistoryRequestException invalidRuleId() {
+        return new InvalidScanHistoryRequestException("ruleId", "Enter a supported analysis rule.");
+    }
+
+    public static InvalidScanHistoryRequestException invalidWindowDays() {
+        return new InvalidScanHistoryRequestException("windowDays", "Enter 7 or 30 days.");
+    }
+
     public Map<String, String> fieldErrors() {
         return Map.of(field, fieldMessage);
     }

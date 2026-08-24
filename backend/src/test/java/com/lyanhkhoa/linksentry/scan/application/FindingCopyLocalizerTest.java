@@ -52,4 +52,14 @@ class FindingCopyLocalizerTest {
                         "FUTURE_RULE", ENGLISH_TITLE, ENGLISH_EXPLANATION, ResponseLocale.VIETNAMESE))
                 .isEqualTo(new FindingCopyLocalizer.FindingCopy(ENGLISH_TITLE, ENGLISH_EXPLANATION));
     }
+
+    @Test
+    @DisplayName("aggregate titles come only from the backend-owned rule catalog")
+    void aggregateTitlesAreBackendOwned() {
+        assertThat(FindingCopyLocalizer.localizedTitle("MISSING_HTTPS", ResponseLocale.ENGLISH))
+                .contains("Connection is not encrypted");
+        assertThat(FindingCopyLocalizer.localizedTitle("MISSING_HTTPS", ResponseLocale.VIETNAMESE))
+                .contains("Kết nối không được mã hóa");
+        assertThat(FindingCopyLocalizer.localizedTitle("FUTURE_RULE", ResponseLocale.ENGLISH)).isEmpty();
+    }
 }

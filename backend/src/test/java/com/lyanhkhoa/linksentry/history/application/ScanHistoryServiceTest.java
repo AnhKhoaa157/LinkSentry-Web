@@ -13,6 +13,9 @@ import com.lyanhkhoa.linksentry.analysis.domain.RiskLevel;
 import com.lyanhkhoa.linksentry.common.config.HistoryProperties;
 import com.lyanhkhoa.linksentry.history.domain.ScanHistory;
 import com.lyanhkhoa.linksentry.history.domain.ScanHistoryCursor;
+import com.lyanhkhoa.linksentry.history.domain.ScanHistoryFilter;
+import com.lyanhkhoa.linksentry.history.domain.ScanHistoryFindingCount;
+import com.lyanhkhoa.linksentry.history.domain.ScanHistoryInsightsAggregate;
 import com.lyanhkhoa.linksentry.history.domain.ScanHistoryRepository;
 import com.lyanhkhoa.linksentry.history.domain.ScanHistorySummary;
 import com.lyanhkhoa.linksentry.history.domain.StoredNormalizedUrl;
@@ -20,7 +23,9 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -141,7 +146,59 @@ class ScanHistoryServiceTest {
                 .isInstanceOf(InvalidScanHistoryRequestException.class);
         assertThatThrownBy(() -> service.listRetained(OWNER_ID, 20, "not-a-cursor"))
                 .isInstanceOf(InvalidScanHistoryRequestException.class);
+        assertThatThrownBy(() -> service.listRetained(OWNER_ID, 20, null, "SAFE", null))
+                .isInstanceOf(InvalidScanHistoryRequestException.class);
+        assertThatThrownBy(() -> service.listRetained(OWNER_ID, 20, null, null, "not-a-rule"))
+                .isInstanceOf(InvalidScanHistoryRequestException.class);
+        assertThatThrownBy(() -> service.insights(OWNER_ID, 14))
+                .isInstanceOf(InvalidScanHistoryRequestException.class);
         verifyNoInteractions(repository);
+    }
+
+    @Test
+    @DisplayName("bounded filters are validated and forwarded without changing the opaque cursor")
+    void boundedFiltersAreForwarded() {
+        ScanHistoryRepository repository = mock(ScanHistoryRepository.class);
+        ScanHistoryService service = new ScanHistoryService(repository, new HistoryProperties(30), fixedClock);
+        ScanHistoryFilter filter = new ScanHistoryFilter(
+                Optional.of(RiskLevel.HIGH), Optional.of("MISSING_HTTPS"));
+        when(repository.findRetainedPage(
+                        OWNER_ID,
+                        Instant.parse("2026-07-17T12:00:00Z"),
+                        filter,
+                        Optional.empty(),
+                        21))
+                .thenReturn(List.of());
+
+        assertThat(service.listRetained(OWNER_ID, 20, null, "HIGH", "MISSING_HTTPS").items()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("insights return aggregate invariants and the retention window from the injected clock")
+    void insightsUseRetainedAggregateProjection() {
+        ScanHistoryRepository repository = mock(ScanHistoryRepository.class);
+        ScanHistoryService service = new ScanHistoryService(repository, new HistoryProperties(30), fixedClock);
+        ScanHistoryInsightsAggregate aggregate = new ScanHistoryInsightsAggregate(
+                4,
+                2,
+                1,
+                Map.of(
+                        RiskLevel.LOW, 1L,
+                        RiskLevel.MODERATE, 1L,
+                        RiskLevel.HIGH, 1L,
+                        RiskLevel.CRITICAL, 1L),
+                List.of(new ScanHistoryFindingCount("MISSING_HTTPS", 2)));
+        when(repository.findRetainedInsights(
+                        eq(OWNER_ID),
+                        eq(Instant.parse("2026-07-17T12:00:00Z")),
+                        eq(FIXED_NOW),
+                        eq(Instant.parse("2026-07-17T12:00:00Z")),
+                        eq(Instant.parse("2026-08-09T12:00:00Z")),
+                        eq(Instant.parse("2026-08-02T12:00:00Z")),
+                        any(Set.class)))
+                .thenReturn(aggregate);
+
+        assertThat(service.insights(OWNER_ID, 30)).isEqualTo(aggregate);
     }
 
     @Test

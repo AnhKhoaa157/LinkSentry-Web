@@ -40,4 +40,22 @@ describe('getScanHistory', () => {
       signal: controller.signal,
     });
   });
+
+  it('sends only validated enum filters and keeps the request private', async () => {
+    const getSpy = vi.spyOn(apiClient, 'get').mockResolvedValue({ data: response });
+
+    await getScanHistory({ riskLevel: 'HIGH', ruleId: 'MISSING_HTTPS' });
+
+    expect(getSpy).toHaveBeenCalledWith(SCAN_HISTORY_ENDPOINT, {
+      params: { limit: SCAN_HISTORY_PAGE_SIZE, riskLevel: 'HIGH', ruleId: 'MISSING_HTTPS' },
+    });
+  });
+
+  it('rejects an unsafe filter before making a request', async () => {
+    const getSpy = vi.spyOn(apiClient, 'get');
+
+    await expect(getScanHistory({ ruleId: 'free-text-search' as never })).rejects.toThrow();
+
+    expect(getSpy).not.toHaveBeenCalled();
+  });
 });
