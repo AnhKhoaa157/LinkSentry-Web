@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { riskLevelSchema } from '@/features/scanner/schemas/scanResponse';
+import type { TranslationKey } from '@/lib/i18n/translations';
 
 /**
  * Exact response of the licensed `GET /api/v1/scans` collection.
@@ -53,6 +54,22 @@ export const historyRuleIds = [
 ] as const;
 
 export const historyRuleIdSchema = z.enum(historyRuleIds);
+
+/** Typed UI labels for the exact server-owned values sent by history filters. */
+export const historyRuleLabelKeys = {
+  BRAND_DOMAIN_MISMATCH: 'history.rule.brandDomainMismatch',
+  BRAND_LOOKALIKE_HOSTNAME: 'history.rule.brandLookalikeHostname',
+  BRAND_IMPERSONATION_APK: 'history.rule.brandImpersonationApk',
+  ENCODED_CHARACTERS: 'history.rule.encodedCharacters',
+  EXCESSIVE_SUBDOMAINS: 'history.rule.excessiveSubdomains',
+  EXCESSIVE_URL_LENGTH: 'history.rule.excessiveUrlLength',
+  IP_LITERAL_HOST: 'history.rule.ipLiteralHost',
+  KNOWN_URL_SHORTENER: 'history.rule.knownUrlShortener',
+  MISSING_HTTPS: 'history.rule.missingHttps',
+  PUNYCODE_HOST: 'history.rule.punycodeHost',
+  SPECIAL_USE_OR_PRIVATE_HOST: 'history.rule.specialUseOrPrivateHost',
+  SUSPICIOUS_KEYWORDS: 'history.rule.suspiciousKeywords',
+} as const satisfies Record<(typeof historyRuleIds)[number], TranslationKey>;
 
 export const scanHistoryFiltersSchema = z
   .object({

@@ -208,8 +208,9 @@ function InsightsContent({
                   className="surface-inset flex items-start justify-between gap-3 p-3 text-sm"
                 >
                   <div className="min-w-0">
-                    <p className="text-content-primary font-semibold">{finding.title}</p>
-                    <p className="text-content-muted mt-1 font-mono text-xs break-all">{finding.ruleId}</p>
+                    <p className="text-content-primary font-semibold">
+                      {finding.title.trim() || t('history.insights.unknownRule')}
+                    </p>
                   </div>
                   <span className="text-accent-strong shrink-0 font-bold tabular-nums">
                     {t(

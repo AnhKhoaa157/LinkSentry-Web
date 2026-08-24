@@ -1,6 +1,7 @@
 import {
   DEFAULT_SCAN_HISTORY_FILTERS,
   historyRuleIdSchema,
+  historyRuleLabelKeys,
   historyRuleIds,
   scanHistoryFiltersSchema,
   type ScanHistoryFilters,
@@ -66,14 +67,14 @@ export function HistoryFilters({ filters, onChange, t }: HistoryFiltersProps) {
           <label className="space-y-2">
             <span className="ui-label">{t('history.filters.ruleLabel')}</span>
             <select
-              className="ui-input min-h-11 px-3 font-mono text-sm"
+              className="ui-input min-h-11 px-3 text-sm"
               value={filters.ruleId ?? ''}
               onChange={(event) => handleRuleChange(event.target.value)}
             >
               <option value="">{t('history.filters.ruleAll')}</option>
               {historyRuleIds.map((ruleId) => (
                 <option key={ruleId} value={ruleId}>
-                  {ruleId}
+                  {t(historyRuleLabelKeys[ruleId])}
                 </option>
               ))}
             </select>
