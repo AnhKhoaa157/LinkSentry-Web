@@ -280,6 +280,8 @@ describe('HistoryPage', () => {
 
     const riskSelect = await screen.findByLabelText('Risk level');
     const ruleSelect = screen.getByLabelText('Detected rule');
+    expect(within(ruleSelect).getByRole('option', { name: 'Missing HTTPS' })).toHaveValue('MISSING_HTTPS');
+    expect(within(ruleSelect).queryByText('MISSING_HTTPS')).not.toBeInTheDocument();
     await user.selectOptions(riskSelect, 'HIGH');
     expect(riskSelect).toHaveValue('HIGH');
     await waitFor(() => {
@@ -319,6 +321,8 @@ describe('HistoryPage', () => {
 
     expect(await screen.findByRole('heading', { name: 'Your scan insights' })).toBeInTheDocument();
     expect(await screen.findByText('Missing HTTPS')).toBeInTheDocument();
+    expect(screen.queryByText('MISSING_HTTPS')).not.toBeInTheDocument();
+    expect(screen.queryByText('SUSPICIOUS_KEYWORDS')).not.toBeInTheDocument();
     expect(screen.getByText('3 scans')).toBeInTheDocument();
     expect(screen.getByText('2 scans (40%)')).toBeInTheDocument();
     expect(getSpy).toHaveBeenCalledWith(
@@ -326,6 +330,18 @@ describe('HistoryPage', () => {
       expect.objectContaining({ params: { windowDays: 30 }, signal: expect.anything() }),
     );
     expect(screen.getByText(firstItem.displayValue).closest('a')).toBeNull();
+  });
+
+  it('omits unknown rule IDs from selectable and visible history copy', async () => {
+    const unknownRuleId = 'FUTURE_RULE';
+    mockHistoryAndInsights([historyResponse([])]);
+
+    renderWithProviders(<HistoryPage />);
+
+    const ruleSelect = await screen.findByLabelText('Detected rule');
+    expect(within(ruleSelect).queryByRole('option', { name: unknownRuleId })).not.toBeInTheDocument();
+    expect(within(ruleSelect).queryByText(unknownRuleId)).not.toBeInTheDocument();
+    expect(screen.queryByText(unknownRuleId)).not.toBeInTheDocument();
   });
 
   it('keeps personal insight errors fixed and free of server response details', async () => {
@@ -346,6 +362,17 @@ describe('HistoryPage', () => {
     ).toBeInTheDocument();
     expect(document.body).not.toHaveTextContent(rawServerMessage);
     expect(document.body).not.toHaveTextContent('trace-secret');
+  });
+
+  it('renders localized Vietnamese detected-rule labels while preserving raw values', async () => {
+    localStorage.setItem('linksentry.locale', 'vi');
+    mockHistoryAndInsights([historyResponse([])]);
+
+    renderWithProviders(<HistoryPage />);
+
+    const ruleSelect = await screen.findByLabelText('Quy tắc đã phát hiện');
+    expect(within(ruleSelect).getByRole('option', { name: 'Thiếu HTTPS' })).toHaveValue('MISSING_HTTPS');
+    expect(within(ruleSelect).queryByText('MISSING_HTTPS')).not.toBeInTheDocument();
   });
 
   it('renders complete Vietnamese history copy', async () => {
