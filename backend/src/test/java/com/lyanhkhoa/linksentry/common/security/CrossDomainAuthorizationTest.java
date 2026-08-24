@@ -63,6 +63,14 @@ class CrossDomainAuthorizationTest {
     }
 
     @Test
+    @DisplayName("an administrator's session never satisfies the licensed-only insights route")
+    void adminIdentityCannotReadScanInsights() throws Exception {
+        mockMvc.perform(get("/api/v1/scans/insights").with(authentication(adminAuthentication())))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+    }
+
+    @Test
     @DisplayName("an administrator's session never satisfies the licensed-device-only AI explanation route")
     void adminIdentityCannotRequestExplanation() throws Exception {
         mockMvc.perform(post("/api/v1/scans/{scanId}/explanation", "some-scan-id")
@@ -96,6 +104,9 @@ class CrossDomainAuthorizationTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
         mockMvc.perform(get("/api/v1/scans/{scanId}", "some-scan-id"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+        mockMvc.perform(get("/api/v1/scans/insights"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
         mockMvc.perform(get("/api/v1/admin-auth/session"))

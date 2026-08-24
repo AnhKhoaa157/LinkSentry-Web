@@ -23,15 +23,19 @@ import com.lyanhkhoa.linksentry.history.application.ScanHistoryPage;
 import com.lyanhkhoa.linksentry.history.application.ScanNotFoundException;
 import com.lyanhkhoa.linksentry.history.domain.ScanHistory;
 import com.lyanhkhoa.linksentry.history.domain.ScanHistorySummary;
+import com.lyanhkhoa.linksentry.history.domain.ScanHistoryFindingCount;
+import com.lyanhkhoa.linksentry.history.domain.ScanHistoryInsightsAggregate;
 import com.lyanhkhoa.linksentry.history.domain.StoredFinding;
 import com.lyanhkhoa.linksentry.history.domain.StoredNormalizedUrl;
 import com.lyanhkhoa.linksentry.scan.api.FindingResponse;
 import com.lyanhkhoa.linksentry.scan.api.ScanHistoryListResponse;
+import com.lyanhkhoa.linksentry.scan.api.ScanInsightsResponse;
 import com.lyanhkhoa.linksentry.scan.api.ScanResponse;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -259,6 +263,33 @@ class ScanServiceTest {
                         summary.findingCount(),
                         summary.analyzedAt()));
         assertThat(response.data().nextCursor()).isEqualTo("opaque-cursor");
+        assertThat(response.meta().retentionDays()).isEqualTo(30);
+    }
+
+    @Test
+    @DisplayName("insights map aggregate counts and localized rule titles without persisted finding copy")
+    void insightsMapSafeAggregates() {
+        ScanHistoryService historyService = mock(ScanHistoryService.class);
+        when(historyService.insights(OWNER_ID, 30)).thenReturn(new ScanHistoryInsightsAggregate(
+                4,
+                2,
+                1,
+                Map.of(
+                        RiskLevel.LOW, 1L,
+                        RiskLevel.MODERATE, 1L,
+                        RiskLevel.HIGH, 1L,
+                        RiskLevel.CRITICAL, 1L),
+                List.of(new ScanHistoryFindingCount("MISSING_HTTPS", 2))));
+        when(historyService.retentionDays()).thenReturn(30);
+        ScanService service = new ScanService(
+                fixedAnalyzer(), new EngineProperties("0.1.0"), fixedClock, historyService);
+
+        ScanInsightsResponse response = service.insights(OWNER_ID, 30, ResponseLocale.VIETNAMESE);
+
+        assertThat(response.data().totalScans()).isEqualTo(4);
+        assertThat(response.data().riskDistribution().values()).containsExactlyInAnyOrder(1L, 1L, 1L, 1L);
+        assertThat(response.data().topFindings()).containsExactly(
+                new ScanInsightsResponse.TopFinding("MISSING_HTTPS", "Kết nối không được mã hóa", 2));
         assertThat(response.meta().retentionDays()).isEqualTo(30);
     }
 

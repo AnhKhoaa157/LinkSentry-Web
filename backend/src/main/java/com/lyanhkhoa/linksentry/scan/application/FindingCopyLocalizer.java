@@ -3,6 +3,8 @@ package com.lyanhkhoa.linksentry.scan.application;
 import com.lyanhkhoa.linksentry.common.api.ResponseLocale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 
 /**
  * Localizes only the static title and explanation copy owned by the server.
@@ -13,6 +15,20 @@ import java.util.Objects;
  * URL components.
  */
 public final class FindingCopyLocalizer {
+
+    private static final Map<String, String> ENGLISH_TITLES = Map.ofEntries(
+            Map.entry("BRAND_DOMAIN_MISMATCH", "Hostname names a brand it is not registered to"),
+            Map.entry("BRAND_LOOKALIKE_HOSTNAME", "Hostname closely resembles a known brand"),
+            Map.entry("BRAND_IMPERSONATION_APK", "Brand impersonation paired with an Android package"),
+            Map.entry("ENCODED_CHARACTERS", "Link path contains encoded characters"),
+            Map.entry("EXCESSIVE_SUBDOMAINS", "Unusually deep subdomain structure"),
+            Map.entry("EXCESSIVE_URL_LENGTH", "Link is unusually long"),
+            Map.entry("IP_LITERAL_HOST", "Address uses a raw IP instead of a domain name"),
+            Map.entry("KNOWN_URL_SHORTENER", "Link uses a URL-shortening service"),
+            Map.entry("MISSING_HTTPS", "Connection is not encrypted"),
+            Map.entry("PUNYCODE_HOST", "Domain name uses internationalised (Punycode) encoding"),
+            Map.entry("SPECIAL_USE_OR_PRIVATE_HOST", "Address uses a private or special-use IP range"),
+            Map.entry("SUSPICIOUS_KEYWORDS", "Subdomain uses a sensitive-sounding word"));
 
     private static final Map<String, FindingCopy> VIETNAMESE_COPY = Map.ofEntries(
             Map.entry(
@@ -77,6 +93,27 @@ public final class FindingCopyLocalizer {
                             "Tên miền con của địa chỉ này chứa một từ thường được dùng để giả mạo trang đăng nhập hoặc xác minh tài khoản. Dịch vụ hợp pháp hiếm khi cần những từ như vậy bên ngoài tên miền đã đăng ký của mình.")));
 
     private FindingCopyLocalizer() {}
+
+    /** Returns the stable rule catalog used for bounded history filters and insight titles. */
+    public static Set<String> knownRuleIds() {
+        return ENGLISH_TITLES.keySet();
+    }
+
+    /** Returns only backend-owned, non-interpolated title copy for an aggregate rule ID. */
+    public static Optional<String> localizedTitle(String ruleId, ResponseLocale locale) {
+        Objects.requireNonNull(ruleId, "ruleId");
+        Objects.requireNonNull(locale, "locale");
+        String englishTitle = ENGLISH_TITLES.get(ruleId);
+        if (englishTitle == null) {
+            return Optional.empty();
+        }
+        if (locale == ResponseLocale.VIETNAMESE) {
+            return Optional.ofNullable(VIETNAMESE_COPY.get(ruleId))
+                    .map(FindingCopy::title)
+                    .or(() -> Optional.of(englishTitle));
+        }
+        return Optional.of(englishTitle);
+    }
 
     /** Returns localized copy, falling back to the canonical English finding copy. */
     public static FindingCopy localize(

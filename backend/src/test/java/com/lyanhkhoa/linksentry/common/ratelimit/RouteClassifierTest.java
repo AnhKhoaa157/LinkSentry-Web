@@ -36,6 +36,13 @@ class RouteClassifierTest {
     }
 
     @Test
+    @DisplayName("GET /api/v1/scans/insights reuses the licensed scan-lookup bucket")
+    void classifiesScanInsights() {
+        assertThat(classifier.classify(request("GET", "/api/v1/scans/insights")))
+                .contains(RateLimitedRoute.SCAN_LOOKUP);
+    }
+
+    @Test
     @DisplayName("POST /api/v1/scans/{scanId}/explanation classifies as EXPLANATION, its own strict bucket")
     void classifiesExplanation() {
         assertThat(classifier.classify(

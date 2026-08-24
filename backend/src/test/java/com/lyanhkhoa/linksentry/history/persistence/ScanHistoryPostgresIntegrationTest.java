@@ -11,6 +11,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import com.lyanhkhoa.linksentry.analysis.domain.InvalidUrlException;
+import com.lyanhkhoa.linksentry.analysis.domain.RiskLevel;
+import com.lyanhkhoa.linksentry.analysis.domain.Severity;
 import com.lyanhkhoa.linksentry.history.application.ScanHistoryRetentionService;
 import com.lyanhkhoa.linksentry.history.application.ScanHistoryService;
 import com.lyanhkhoa.linksentry.history.domain.ScanHistory;
@@ -19,6 +21,7 @@ import com.lyanhkhoa.linksentry.history.domain.StoredNormalizedUrl;
 import com.lyanhkhoa.linksentry.license.api.CreateLicenseRequest;
 import com.lyanhkhoa.linksentry.license.application.LicenseAdminService;
 import com.lyanhkhoa.linksentry.scan.application.ScanService;
+import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -127,6 +130,8 @@ class ScanHistoryPostgresIntegrationTest {
         jdbcTemplate.update("DELETE FROM device_license_assignment");
         jdbcTemplate.update("DELETE FROM license");
         jdbcTemplate.update("DELETE FROM device_installation");
+        jdbcTemplate.update("DELETE FROM auth_session");
+        jdbcTemplate.update("DELETE FROM user_account");
     }
 
     @Test
@@ -425,6 +430,122 @@ class ScanHistoryPostgresIntegrationTest {
                         org.hamcrest.Matchers.containsString("not-a-cursor"))));
     }
 
+    @Test
+    @DisplayName("filters and insights share license, retention, legacy, and deterministic aggregate boundaries")
+    void filtersAndInsightsArePrivateRetainedAndDeterministic() throws Exception {
+        TestDevice ownerDevice = licensedDevice();
+        TestDevice otherLicenseDevice = licensedDevice();
+        Instant now = clock.instant();
+        UUID newestLow = UUID.fromString("f1111111-1111-4111-8111-111111111111");
+        UUID newestHigh = UUID.fromString("f2222222-2222-4222-8222-222222222222");
+        UUID previousHigh = UUID.fromString("f3333333-3333-4333-8333-333333333333");
+        UUID olderModerate = UUID.fromString("f4444444-4444-4444-8444-444444444444");
+        UUID expiredHigh = UUID.fromString("f5555555-5555-4555-8555-555555555555");
+        UUID ownerlessId = UUID.fromString("f6666666-6666-4666-8666-666666666666");
+        UUID legacyId = UUID.fromString("f7777777-7777-4777-8777-777777777777");
+        UUID crossLicenseId = UUID.fromString("f8888888-8888-4888-8888-888888888888");
+        UUID legacyUserId = UUID.fromString("f9999999-9999-4999-8999-999999999999");
+
+        historyService.save(snapshotWith(
+                newestLow, now.minusSeconds(60), ownerDevice.licenseId(), RiskLevel.LOW,
+                List.of("MISSING_HTTPS"), "query-secret-insight"));
+        historyService.save(snapshotWith(
+                newestHigh, now.minusSeconds(120), ownerDevice.licenseId(), RiskLevel.HIGH,
+                List.of("MISSING_HTTPS"), "fragment-secret-insight"));
+        historyService.save(snapshotWith(
+                previousHigh, now.minusSeconds(8 * 24 * 60 * 60L), ownerDevice.licenseId(), RiskLevel.HIGH,
+                List.of("SUSPICIOUS_KEYWORDS"), "credential-secret-insight"));
+        historyService.save(snapshotWith(
+                olderModerate, now.minusSeconds(15 * 24 * 60 * 60L), ownerDevice.licenseId(), RiskLevel.MODERATE,
+                List.of("SUSPICIOUS_KEYWORDS"), "evidence-secret-insight"));
+        historyService.save(snapshotWith(
+                expiredHigh, now.minusSeconds(31 * 24 * 60 * 60L), ownerDevice.licenseId(), RiskLevel.HIGH,
+                List.of("MISSING_HTTPS"), "expired-secret"));
+        historyService.save(snapshotWith(
+                ownerlessId, now.minusSeconds(90), ownerDevice.licenseId(), RiskLevel.CRITICAL,
+                List.of("MISSING_HTTPS"), "ownerless-secret"));
+        historyService.save(snapshotWith(
+                legacyId, now.minusSeconds(90), ownerDevice.licenseId(), RiskLevel.CRITICAL,
+                List.of("MISSING_HTTPS"), "legacy-secret"));
+        historyService.save(snapshotWith(
+                crossLicenseId, now.minusSeconds(30), otherLicenseDevice.licenseId(), RiskLevel.CRITICAL,
+                List.of("MISSING_HTTPS"), "cross-license-secret"));
+        jdbcTemplate.update(
+                "INSERT INTO user_account (user_id, email, password_hash, created_at) VALUES (?, ?, ?, ?)",
+                legacyUserId,
+                legacyUserId + "@example.test",
+                "legacy-hash",
+                Timestamp.from(now));
+        jdbcTemplate.update("UPDATE scan_history SET owner_license_id = NULL WHERE scan_id = ?", ownerlessId);
+        jdbcTemplate.update(
+                "UPDATE scan_history SET owner_license_id = NULL, owner_user_id = ? WHERE scan_id = ?",
+                legacyUserId,
+                legacyId);
+
+        mockMvc.perform(get("/api/v1/scans")
+                        .param("riskLevel", "HIGH")
+                        .param("ruleId", "MISSING_HTTPS")
+                        .header(HttpHeaders.AUTHORIZATION, ownerDevice.authorizationHeader()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items.length()").value(1))
+                .andExpect(jsonPath("$.data.items[0].scanId").value(newestHigh.toString()));
+
+        String listBody = mockMvc.perform(get("/api/v1/scans")
+                        .header(HttpHeaders.AUTHORIZATION, ownerDevice.authorizationHeader()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items.length()").value(4))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        assertThat(listBody).doesNotContain(
+                expiredHigh.toString(),
+                ownerlessId.toString(),
+                legacyId.toString(),
+                crossLicenseId.toString());
+
+        String insightsBody = mockMvc.perform(get("/api/v1/scans/insights")
+                        .param("windowDays", "30")
+                        .header(HttpHeaders.AUTHORIZATION, ownerDevice.authorizationHeader()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.windowDays").value(30))
+                .andExpect(jsonPath("$.data.totalScans").value(4))
+                .andExpect(jsonPath("$.data.scansLast7Days").value(2))
+                .andExpect(jsonPath("$.data.previous7Days").value(1))
+                .andExpect(jsonPath("$.data.riskDistribution.LOW").value(1))
+                .andExpect(jsonPath("$.data.riskDistribution.MODERATE").value(1))
+                .andExpect(jsonPath("$.data.riskDistribution.HIGH").value(2))
+                .andExpect(jsonPath("$.data.riskDistribution.CRITICAL").value(0))
+                .andExpect(jsonPath("$.data.topFindings[0].ruleId").value("MISSING_HTTPS"))
+                .andExpect(jsonPath("$.data.topFindings[0].count").value(2))
+                .andExpect(jsonPath("$.data.topFindings[1].ruleId").value("SUSPICIOUS_KEYWORDS"))
+                .andExpect(jsonPath("$.data.topFindings[1].count").value(2))
+                .andExpect(jsonPath("$.meta.retentionDays").value(30))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        assertThat(insightsBody)
+                .doesNotContain(
+                        "query-secret-insight",
+                        "fragment-secret-insight",
+                        "credential-secret-insight",
+                        "evidence-secret-insight",
+                        "ownerless-secret",
+                        "legacy-secret",
+                        "cross-license-secret",
+                        "ownerLicenseId",
+                        "deviceId");
+
+        mockMvc.perform(get("/api/v1/scans/insights")
+                        .param("windowDays", "14")
+                        .header(HttpHeaders.AUTHORIZATION, ownerDevice.authorizationHeader()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.fieldErrors.windowDays").exists())
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("14"))));
+    }
+
     private ScanHistory snapshot(UUID scanId, Instant analyzedAt, UUID ownerLicenseId) {
         StoredNormalizedUrl normalized = new StoredNormalizedUrl(
                 "https",
@@ -448,6 +569,37 @@ class ScanHistoryPostgresIntegrationTest {
                 normalized,
                 40,
                 com.lyanhkhoa.linksentry.analysis.domain.RiskLevel.HIGH,
+                findings,
+                "0.1.0",
+                analyzedAt,
+                ownerLicenseId);
+    }
+
+    private ScanHistory snapshotWith(
+            UUID scanId,
+            Instant analyzedAt,
+            UUID ownerLicenseId,
+            RiskLevel riskLevel,
+            List<String> ruleIds,
+            String evidence) {
+        StoredNormalizedUrl normalized = new StoredNormalizedUrl(
+                "https", "login.example.com", "login.example.com", "example.com", 443,
+                "/Account/Reset", true, true);
+        List<StoredFinding> findings = ruleIds.stream()
+                .map(ruleId -> new StoredFinding(
+                        ruleId,
+                        Severity.MEDIUM,
+                        15,
+                        "Backend-owned title",
+                        "Backend-owned explanation.",
+                        evidence))
+                .toList();
+        return new ScanHistory(
+                scanId,
+                "https://login.example.com:443/Account/Reset",
+                normalized,
+                40,
+                riskLevel,
                 findings,
                 "0.1.0",
                 analyzedAt,
