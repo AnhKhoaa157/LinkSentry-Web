@@ -46,7 +46,7 @@ export function applyTheme(theme: Theme, { syncBrowserChrome = true }: ApplyThem
   }
 
   const themeColor = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
-  themeColor?.setAttribute('content', theme === 'dark' ? '#05080f' : '#f4f7fb');
+  themeColor?.setAttribute('content', theme === 'dark' ? '#05080f' : '#f3f5f8');
 
   let favicon = document.querySelector<HTMLLinkElement>('link[data-app-favicon]');
   if (favicon === null) {

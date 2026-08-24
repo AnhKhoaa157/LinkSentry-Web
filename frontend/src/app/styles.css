@@ -12,24 +12,24 @@
 :root {
   color-scheme: light;
 
-  --ink-950: #f4f7fb;
+  --ink-950: #f3f5f8;
   --ink-900: #ffffff;
-  --ink-850: #eef3f9;
-  --ink-800: #d9e3ef;
-  --ink-700: #c0cfdf;
-  --ink-500: #60718a;
-  --ink-300: #40536d;
+  --ink-850: #e4e9ef;
+  --ink-800: #d7dee6;
+  --ink-700: #b9c4d1;
+  --ink-500: #5b6b81;
+  --ink-300: #3c4c63;
   --ink-100: #14243b;
 
-  --surface-canvas: #f4f7fb;
+  --surface-canvas: #f3f5f8;
   --surface-panel: #ffffff;
   --surface-raised: #ffffff;
-  --surface-inset: #eef3f9;
+  --surface-inset: #e4e9ef;
   --content-primary: #14243b;
-  --content-secondary: #40536d;
-  --content-muted: #60718a;
-  --border-default: #d9e3ef;
-  --border-strong: #c0cfdf;
+  --content-secondary: #3c4c63;
+  --content-muted: #5b6b81;
+  --border-default: #d7dee6;
+  --border-strong: #b9c4d1;
   --accent: #0369a1;
   --accent-strong: #075985;
   --accent-soft: #e0f2fe;
