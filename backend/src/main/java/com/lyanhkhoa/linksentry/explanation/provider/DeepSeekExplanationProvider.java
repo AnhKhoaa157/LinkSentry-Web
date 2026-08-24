@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lyanhkhoa.linksentry.common.config.AiExplanationProperties;
 import com.lyanhkhoa.linksentry.explanation.domain.AiAdvisory;
+import com.lyanhkhoa.linksentry.explanation.domain.ExplanationLanguage;
 import com.lyanhkhoa.linksentry.explanation.domain.ExplanationProvider;
 import com.lyanhkhoa.linksentry.explanation.domain.ExplanationProviderException;
 import com.lyanhkhoa.linksentry.explanation.domain.ScanSummary;
@@ -23,6 +24,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -110,6 +112,23 @@ public class DeepSeekExplanationProvider implements ExplanationProvider {
               plain sentences only.
             """;
 
+    // Bounded, fixed per-language instruction text, keyed only by
+    // ExplanationLanguage — never built from raw Accept-Language header text, so
+    // the outbound system message can only ever carry one of these two exact
+    // strings. explanation.application.ExplanationService is the only place that
+    // maps a negotiated locale to ExplanationLanguage before this class ever sees it.
+    private static final Map<ExplanationLanguage, String> LANGUAGE_INSTRUCTIONS = Map.of(
+            ExplanationLanguage.ENGLISH,
+                    "Output language: English. Write the \"summary\" value and every "
+                            + "\"recommendedActions\" entry entirely in English.",
+            ExplanationLanguage.VIETNAMESE,
+                    "Output language: Vietnamese. Write the \"summary\" value and every "
+                            + "\"recommendedActions\" entry entirely in Vietnamese (Tiếng Việt) only "
+                            + "— use no English words. Do not translate, alter, or restate the rule "
+                            + "ids, JSON keys, score, severities, or risk level given to you in the "
+                            + "summary below; those are machine values and stay exactly as provided, "
+                            + "outside your output.");
+
     private final AiExplanationProperties properties;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
@@ -143,14 +162,15 @@ public class DeepSeekExplanationProvider implements ExplanationProvider {
     }
 
     @Override
-    public AiAdvisory explain(ScanSummary summary) {
+    public AiAdvisory explain(ScanSummary summary, ExplanationLanguage language) {
+        Objects.requireNonNull(language, "language");
         if (httpClient == null) {
             // Defensive only: ExplanationService checks properties.enabled() before
             // ever reaching this call, so a real deployment never hits this branch.
             throw new ExplanationProviderException("AI explanation provider is disabled");
         }
 
-        String requestBody = buildRequestBody(summary);
+        String requestBody = buildRequestBody(summary, language);
         HttpRequest request = HttpRequest.newBuilder(endpoint)
                 .timeout(requestTimeout)
                 .header("Content-Type", "application/json")
@@ -302,10 +322,10 @@ public class DeepSeekExplanationProvider implements ExplanationProvider {
         }
     }
 
-    private String buildRequestBody(ScanSummary summary) {
+    private String buildRequestBody(ScanSummary summary, ExplanationLanguage language) {
         Map<String, Object> systemMessage = new LinkedHashMap<>();
         systemMessage.put("role", "system");
-        systemMessage.put("content", SYSTEM_PROMPT);
+        systemMessage.put("content", SYSTEM_PROMPT + "\n\n" + buildLanguageInstruction(language));
 
         Map<String, Object> userMessage = new LinkedHashMap<>();
         userMessage.put("role", "user");
@@ -338,6 +358,18 @@ public class DeepSeekExplanationProvider implements ExplanationProvider {
             // realistic runtime failure.
             throw new ExplanationProviderException("Failed to build the DeepSeek request body");
         }
+    }
+
+    /**
+     * Returns the fixed, bounded instruction text for one {@link ExplanationLanguage}.
+     * Pure and deterministic: the same {@link ExplanationLanguage} always produces
+     * the exact same instruction, and there is no code path from raw {@code
+     * Accept-Language} header text to this method — only {@code
+     * explanation.application.ExplanationService}'s locale-to-language mapping
+     * reaches it.
+     */
+    static String buildLanguageInstruction(ExplanationLanguage language) {
+        return LANGUAGE_INSTRUCTIONS.get(Objects.requireNonNull(language, "language"));
     }
 
     /**

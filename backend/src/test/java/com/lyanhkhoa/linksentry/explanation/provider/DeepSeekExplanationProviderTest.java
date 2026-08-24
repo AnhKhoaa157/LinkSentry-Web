@@ -9,6 +9,7 @@ import com.lyanhkhoa.linksentry.analysis.domain.RiskLevel;
 import com.lyanhkhoa.linksentry.analysis.domain.Severity;
 import com.lyanhkhoa.linksentry.common.config.AiExplanationProperties;
 import com.lyanhkhoa.linksentry.explanation.domain.AiAdvisory;
+import com.lyanhkhoa.linksentry.explanation.domain.ExplanationLanguage;
 import com.lyanhkhoa.linksentry.explanation.domain.ExplanationProviderException;
 import com.lyanhkhoa.linksentry.explanation.domain.ScanSummary;
 import com.sun.net.httpserver.HttpExchange;
@@ -33,7 +34,7 @@ import org.junit.jupiter.api.Test;
  * API or uses a real key: a local {@link HttpServer} (JDK built-in, no new test
  * dependency) stands in for DeepSeek so the endpoint path, the {@code
  * Authorization} header, and the exact request payload can be asserted against
- * the real {@link DeepSeekExplanationProvider#explain(ScanSummary)}, and so every
+ * the real {@link DeepSeekExplanationProvider#explain(ScanSummary, ExplanationLanguage)}, and so every
  * documented failure mode (timeout, non-2xx, malformed body, empty body,
  * oversized body, invalid structured output) can be produced deterministically.
  * The package-private test constructor injects an {@link HttpClient}, the mock
@@ -85,7 +86,7 @@ class DeepSeekExplanationProviderTest {
         server.start();
         DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
 
-        AiAdvisory result = provider.explain(sampleSummary());
+        AiAdvisory result = provider.explain(sampleSummary(), ExplanationLanguage.ENGLISH);
 
         assertThat(result.summary()).isEqualTo("This link shows several risk signals.");
         assertThat(result.recommendedActions())
@@ -104,6 +105,8 @@ class DeepSeekExplanationProviderTest {
         assertThat(body.get("messages")).hasSize(2);
         assertThat(body.get("messages").get(0).get("role").asText()).isEqualTo("system");
         assertThat(body.get("messages").get(1).get("role").asText()).isEqualTo("user");
+        String systemContent = body.get("messages").get(0).get("content").asText();
+        assertThat(systemContent).contains("Output language: English").doesNotContain("Output language: Vietnamese");
         String userContent = body.get("messages").get(1).get("content").asText();
         assertThat(userContent)
                 .contains("score: 75/100")
@@ -121,6 +124,54 @@ class DeepSeekExplanationProviderTest {
     }
 
     @Test
+    @DisplayName("a Vietnamese-language call sends the Vietnamese output-language instruction, "
+            + "keeps strict JSON mode, and the request never carries raw Accept-Language header text")
+    void vietnameseLanguageCallSendsVietnameseInstructionAndKeepsJsonMode() throws IOException {
+        AtomicReference<String> capturedBody = new AtomicReference<>();
+        String structuredContent = "{\"summary\":\"Liên kết này có một vài dấu hiệu rủi ro.\","
+                + "\"recommendedActions\":[\"Xác minh trước khi tin tưởng liên kết này.\"]}";
+        server.createContext("/chat/completions", exchange -> {
+            capturedBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            respond(exchange, 200, choiceResponse(structuredContent));
+        });
+        server.start();
+        DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
+
+        AiAdvisory result = provider.explain(sampleSummary(), ExplanationLanguage.VIETNAMESE);
+
+        assertThat(result.summary()).isEqualTo("Liên kết này có một vài dấu hiệu rủi ro.");
+
+        JsonNode body = objectMapper.readTree(capturedBody.get());
+        // Strict JSON mode and the single-call shape are unaffected by locale.
+        assertThat(body.get("response_format").get("type").asText()).isEqualTo("json_object");
+        assertThat(body.get("stream").asBoolean()).isFalse();
+        assertThat(body.get("messages")).hasSize(2);
+        String systemContent = body.get("messages").get(0).get("content").asText();
+        assertThat(systemContent)
+                .contains("Output language: Vietnamese")
+                .contains("Tiếng Việt")
+                .doesNotContain("Output language: English");
+        // The captured request never contains raw Accept-Language header syntax
+        // (quality values, language-range wildcards) — only the two fixed,
+        // server-owned instruction strings ever reach the outbound payload.
+        assertThat(capturedBody.get()).doesNotContain("q=").doesNotContain("Accept-Language");
+    }
+
+    @Test
+    @DisplayName("buildLanguageInstruction maps ENGLISH and VIETNAMESE to their own fixed, distinct instruction text")
+    void buildLanguageInstructionMapsEachLanguageToFixedDistinctText() {
+        String english = DeepSeekExplanationProvider.buildLanguageInstruction(ExplanationLanguage.ENGLISH);
+        String vietnamese = DeepSeekExplanationProvider.buildLanguageInstruction(ExplanationLanguage.VIETNAMESE);
+
+        assertThat(english).contains("English").doesNotContain("Vietnamese");
+        assertThat(vietnamese).contains("Vietnamese").contains("Tiếng Việt");
+        assertThat(english).isNotEqualTo(vietnamese);
+        // Deterministic: the same language always yields the exact same instruction.
+        assertThat(DeepSeekExplanationProvider.buildLanguageInstruction(ExplanationLanguage.ENGLISH))
+                .isEqualTo(english);
+    }
+
+    @Test
     @DisplayName("a single recommended action is accepted (the lower bound of 1-2)")
     void singleRecommendedActionIsAccepted() throws IOException {
         String structuredContent = "{\"summary\":\"Some risk signals were detected.\","
@@ -130,7 +181,7 @@ class DeepSeekExplanationProviderTest {
         server.start();
         DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
 
-        AiAdvisory result = provider.explain(sampleSummary());
+        AiAdvisory result = provider.explain(sampleSummary(), ExplanationLanguage.ENGLISH);
 
         assertThat(result.recommendedActions()).containsExactly("Verify before trusting this link.");
     }
@@ -144,7 +195,7 @@ class DeepSeekExplanationProviderTest {
         server.start();
         DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
 
-        assertThatThrownBy(() -> provider.explain(sampleSummary()))
+        assertThatThrownBy(() -> provider.explain(sampleSummary(), ExplanationLanguage.ENGLISH))
                 .isInstanceOf(ExplanationProviderException.class)
                 .hasMessageNotContaining("a secret internal detail");
     }
@@ -156,7 +207,7 @@ class DeepSeekExplanationProviderTest {
         server.start();
         DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
 
-        assertThatThrownBy(() -> provider.explain(sampleSummary())).isInstanceOf(ExplanationProviderException.class);
+        assertThatThrownBy(() -> provider.explain(sampleSummary(), ExplanationLanguage.ENGLISH)).isInstanceOf(ExplanationProviderException.class);
     }
 
     @Test
@@ -166,7 +217,7 @@ class DeepSeekExplanationProviderTest {
         server.start();
         DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
 
-        assertThatThrownBy(() -> provider.explain(sampleSummary())).isInstanceOf(ExplanationProviderException.class);
+        assertThatThrownBy(() -> provider.explain(sampleSummary(), ExplanationLanguage.ENGLISH)).isInstanceOf(ExplanationProviderException.class);
     }
 
     @Test
@@ -178,7 +229,7 @@ class DeepSeekExplanationProviderTest {
         server.start();
         DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
 
-        assertThatThrownBy(() -> provider.explain(sampleSummary())).isInstanceOf(ExplanationProviderException.class);
+        assertThatThrownBy(() -> provider.explain(sampleSummary(), ExplanationLanguage.ENGLISH)).isInstanceOf(ExplanationProviderException.class);
     }
 
     @Test
@@ -191,7 +242,7 @@ class DeepSeekExplanationProviderTest {
         server.start();
         DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
 
-        assertThatThrownBy(() -> provider.explain(sampleSummary())).isInstanceOf(ExplanationProviderException.class);
+        assertThatThrownBy(() -> provider.explain(sampleSummary(), ExplanationLanguage.ENGLISH)).isInstanceOf(ExplanationProviderException.class);
     }
 
     @Test
@@ -202,7 +253,7 @@ class DeepSeekExplanationProviderTest {
         server.start();
         DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
 
-        assertThatThrownBy(() -> provider.explain(sampleSummary())).isInstanceOf(ExplanationProviderException.class);
+        assertThatThrownBy(() -> provider.explain(sampleSummary(), ExplanationLanguage.ENGLISH)).isInstanceOf(ExplanationProviderException.class);
     }
 
     @Test
@@ -214,7 +265,7 @@ class DeepSeekExplanationProviderTest {
         server.start();
         DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
 
-        assertThatThrownBy(() -> provider.explain(sampleSummary())).isInstanceOf(ExplanationProviderException.class);
+        assertThatThrownBy(() -> provider.explain(sampleSummary(), ExplanationLanguage.ENGLISH)).isInstanceOf(ExplanationProviderException.class);
     }
 
     @Test
@@ -226,7 +277,7 @@ class DeepSeekExplanationProviderTest {
         server.start();
         DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
 
-        assertThatThrownBy(() -> provider.explain(sampleSummary())).isInstanceOf(ExplanationProviderException.class);
+        assertThatThrownBy(() -> provider.explain(sampleSummary(), ExplanationLanguage.ENGLISH)).isInstanceOf(ExplanationProviderException.class);
     }
 
     @Test
@@ -238,7 +289,7 @@ class DeepSeekExplanationProviderTest {
         server.start();
         DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
 
-        assertThatThrownBy(() -> provider.explain(sampleSummary())).isInstanceOf(ExplanationProviderException.class);
+        assertThatThrownBy(() -> provider.explain(sampleSummary(), ExplanationLanguage.ENGLISH)).isInstanceOf(ExplanationProviderException.class);
     }
 
     @Test
@@ -249,7 +300,7 @@ class DeepSeekExplanationProviderTest {
         server.start();
         DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
 
-        assertThatThrownBy(() -> provider.explain(sampleSummary())).isInstanceOf(ExplanationProviderException.class);
+        assertThatThrownBy(() -> provider.explain(sampleSummary(), ExplanationLanguage.ENGLISH)).isInstanceOf(ExplanationProviderException.class);
     }
 
     @Test
@@ -264,7 +315,7 @@ class DeepSeekExplanationProviderTest {
         server.start();
         DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
 
-        assertThatThrownBy(() -> provider.explain(sampleSummary())).isInstanceOf(ExplanationProviderException.class);
+        assertThatThrownBy(() -> provider.explain(sampleSummary(), ExplanationLanguage.ENGLISH)).isInstanceOf(ExplanationProviderException.class);
     }
 
     @Test
@@ -276,7 +327,7 @@ class DeepSeekExplanationProviderTest {
         server.start();
         DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
 
-        assertThatThrownBy(() -> provider.explain(sampleSummary())).isInstanceOf(ExplanationProviderException.class);
+        assertThatThrownBy(() -> provider.explain(sampleSummary(), ExplanationLanguage.ENGLISH)).isInstanceOf(ExplanationProviderException.class);
     }
 
     @Test
@@ -287,7 +338,7 @@ class DeepSeekExplanationProviderTest {
         server.start();
         DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
 
-        assertThatThrownBy(() -> provider.explain(sampleSummary())).isInstanceOf(ExplanationProviderException.class);
+        assertThatThrownBy(() -> provider.explain(sampleSummary(), ExplanationLanguage.ENGLISH)).isInstanceOf(ExplanationProviderException.class);
     }
 
     @Test
@@ -299,7 +350,7 @@ class DeepSeekExplanationProviderTest {
         server.start();
         DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
 
-        assertThatThrownBy(() -> provider.explain(sampleSummary())).isInstanceOf(ExplanationProviderException.class);
+        assertThatThrownBy(() -> provider.explain(sampleSummary(), ExplanationLanguage.ENGLISH)).isInstanceOf(ExplanationProviderException.class);
     }
 
     @Test
@@ -310,7 +361,7 @@ class DeepSeekExplanationProviderTest {
         server.start();
         DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
 
-        AiAdvisory result = provider.explain(sampleSummary());
+        AiAdvisory result = provider.explain(sampleSummary(), ExplanationLanguage.ENGLISH);
 
         assertThat(result.summary()).isEqualTo("Some risk signals.");
         assertThat(result.recommendedActions()).containsExactly("Verify the link.");
@@ -328,7 +379,7 @@ class DeepSeekExplanationProviderTest {
         server.start();
         DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
 
-        assertThatThrownBy(() -> provider.explain(sampleSummary())).isInstanceOf(ExplanationProviderException.class);
+        assertThatThrownBy(() -> provider.explain(sampleSummary(), ExplanationLanguage.ENGLISH)).isInstanceOf(ExplanationProviderException.class);
     }
 
     @Test
@@ -340,7 +391,7 @@ class DeepSeekExplanationProviderTest {
         server.start();
         DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
 
-        assertThatThrownBy(() -> provider.explain(sampleSummary())).isInstanceOf(ExplanationProviderException.class);
+        assertThatThrownBy(() -> provider.explain(sampleSummary(), ExplanationLanguage.ENGLISH)).isInstanceOf(ExplanationProviderException.class);
     }
 
     @Test
@@ -353,7 +404,7 @@ class DeepSeekExplanationProviderTest {
         server.start();
         DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
 
-        assertThatThrownBy(() -> provider.explain(sampleSummary())).isInstanceOf(ExplanationProviderException.class);
+        assertThatThrownBy(() -> provider.explain(sampleSummary(), ExplanationLanguage.ENGLISH)).isInstanceOf(ExplanationProviderException.class);
     }
 
     @Test
@@ -365,7 +416,7 @@ class DeepSeekExplanationProviderTest {
         server.start();
         DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
 
-        assertThatThrownBy(() -> provider.explain(sampleSummary())).isInstanceOf(ExplanationProviderException.class);
+        assertThatThrownBy(() -> provider.explain(sampleSummary(), ExplanationLanguage.ENGLISH)).isInstanceOf(ExplanationProviderException.class);
     }
 
     @Test
@@ -376,7 +427,7 @@ class DeepSeekExplanationProviderTest {
         server.start();
         DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
 
-        assertThatThrownBy(() -> provider.explain(sampleSummary())).isInstanceOf(ExplanationProviderException.class);
+        assertThatThrownBy(() -> provider.explain(sampleSummary(), ExplanationLanguage.ENGLISH)).isInstanceOf(ExplanationProviderException.class);
     }
 
     @Test
@@ -388,7 +439,7 @@ class DeepSeekExplanationProviderTest {
         server.start();
         DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
 
-        assertThatThrownBy(() -> provider.explain(sampleSummary())).isInstanceOf(ExplanationProviderException.class);
+        assertThatThrownBy(() -> provider.explain(sampleSummary(), ExplanationLanguage.ENGLISH)).isInstanceOf(ExplanationProviderException.class);
     }
 
     @Test
@@ -399,7 +450,7 @@ class DeepSeekExplanationProviderTest {
         server.start();
         DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", DEFAULT_TEST_TIMEOUT);
 
-        assertThatThrownBy(() -> provider.explain(sampleSummary())).isInstanceOf(ExplanationProviderException.class);
+        assertThatThrownBy(() -> provider.explain(sampleSummary(), ExplanationLanguage.ENGLISH)).isInstanceOf(ExplanationProviderException.class);
     }
 
     @Test
@@ -417,7 +468,7 @@ class DeepSeekExplanationProviderTest {
         server.start();
         DeepSeekExplanationProvider provider = providerWith("test-key", "test-model", Duration.ofMillis(200));
 
-        assertThatThrownBy(() -> provider.explain(sampleSummary()))
+        assertThatThrownBy(() -> provider.explain(sampleSummary(), ExplanationLanguage.ENGLISH))
                 .isInstanceOf(ExplanationProviderException.class)
                 .hasMessageNotContaining("localhost")
                 .hasMessageNotContaining("too late");
@@ -429,7 +480,7 @@ class DeepSeekExplanationProviderTest {
         AiExplanationProperties disabled = new AiExplanationProperties(false, null);
         DeepSeekExplanationProvider provider = new DeepSeekExplanationProvider(disabled, null, objectMapper);
 
-        assertThatThrownBy(() -> provider.explain(sampleSummary())).isInstanceOf(ExplanationProviderException.class);
+        assertThatThrownBy(() -> provider.explain(sampleSummary(), ExplanationLanguage.ENGLISH)).isInstanceOf(ExplanationProviderException.class);
     }
 
     @Test

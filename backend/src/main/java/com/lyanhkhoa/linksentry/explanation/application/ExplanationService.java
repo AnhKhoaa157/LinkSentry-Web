@@ -3,6 +3,7 @@ package com.lyanhkhoa.linksentry.explanation.application;
 import com.lyanhkhoa.linksentry.common.api.ResponseLocale;
 import com.lyanhkhoa.linksentry.common.config.AiExplanationProperties;
 import com.lyanhkhoa.linksentry.explanation.domain.AiAdvisory;
+import com.lyanhkhoa.linksentry.explanation.domain.ExplanationLanguage;
 import com.lyanhkhoa.linksentry.explanation.domain.ExplanationProvider;
 import com.lyanhkhoa.linksentry.explanation.domain.ExplanationProviderException;
 import com.lyanhkhoa.linksentry.explanation.domain.ExplanationResult;
@@ -93,7 +94,7 @@ public class ExplanationService {
 
         ScanSummary summary = toSummary(history);
         try {
-            AiAdvisory advisory = provider.explain(summary);
+            AiAdvisory advisory = provider.explain(summary, toExplanationLanguage(locale));
             return new ExplanationResult(
                     history.riskLevel(), toKeyFindings(history, locale), advisory.summary(), advisory.recommendedActions());
         } catch (ExplanationProviderException exception) {
@@ -101,6 +102,17 @@ public class ExplanationService {
             log.warn("AI explanation provider could not produce a result");
             throw new ExplanationUnavailableException();
         }
+    }
+
+    /**
+     * Maps the negotiated, HTTP-layer {@link ResponseLocale} to the explanation
+     * domain's own bounded {@link ExplanationLanguage}, so {@code
+     * explanation.domain} and {@link ExplanationProvider} never depend on an
+     * API-layer type. This is the one place that mapping happens; a provider only
+     * ever receives the mapped enum, never raw {@code Accept-Language} text.
+     */
+    private static ExplanationLanguage toExplanationLanguage(ResponseLocale locale) {
+        return locale == ResponseLocale.VIETNAMESE ? ExplanationLanguage.VIETNAMESE : ExplanationLanguage.ENGLISH;
     }
 
     static ScanSummary toSummary(ScanHistory history) {

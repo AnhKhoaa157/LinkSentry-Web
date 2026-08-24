@@ -13,6 +13,7 @@ import com.lyanhkhoa.linksentry.common.api.ResponseLocale;
 import com.lyanhkhoa.linksentry.common.config.AiExplanationProperties;
 import com.lyanhkhoa.linksentry.common.config.HistoryProperties;
 import com.lyanhkhoa.linksentry.explanation.domain.AiAdvisory;
+import com.lyanhkhoa.linksentry.explanation.domain.ExplanationLanguage;
 import com.lyanhkhoa.linksentry.explanation.domain.ExplanationProvider;
 import com.lyanhkhoa.linksentry.explanation.domain.ExplanationProviderException;
 import com.lyanhkhoa.linksentry.explanation.domain.ExplanationResult;
@@ -113,6 +114,52 @@ class ExplanationServiceTest {
         assertThat(provider.lastSummary().findings().get(0).title())
                 .isEqualTo("Hostname names a brand it is not registered to");
         assertThat(result.riskLevel()).isEqualTo(RiskLevel.CRITICAL);
+    }
+
+    @Test
+    @DisplayName("a Vietnamese request locale maps to the Vietnamese explanation output language for the provider")
+    void vietnameseLocaleMapsToVietnameseExplanationLanguage() {
+        ScanHistoryRepository repository = mock(ScanHistoryRepository.class);
+        when(repository.findRetained(eq(SCAN_ID), eq(OWNER_ID), any(Instant.class)))
+                .thenReturn(Optional.of(sensitiveHistory()));
+        FakeExplanationProvider provider =
+                FakeExplanationProvider.returning(new AiAdvisory("explanation text", List.of("action")));
+        ExplanationService service = newService(true, repository, provider);
+
+        service.explain(SCAN_ID.toString(), OWNER_ID, ResponseLocale.VIETNAMESE);
+
+        assertThat(provider.lastLanguage()).isEqualTo(ExplanationLanguage.VIETNAMESE);
+    }
+
+    @Test
+    @DisplayName("an English request locale maps to the English explanation output language for the provider")
+    void englishLocaleMapsToEnglishExplanationLanguage() {
+        ScanHistoryRepository repository = mock(ScanHistoryRepository.class);
+        when(repository.findRetained(eq(SCAN_ID), eq(OWNER_ID), any(Instant.class)))
+                .thenReturn(Optional.of(sensitiveHistory()));
+        FakeExplanationProvider provider =
+                FakeExplanationProvider.returning(new AiAdvisory("explanation text", List.of("action")));
+        ExplanationService service = newService(true, repository, provider);
+
+        service.explain(SCAN_ID.toString(), OWNER_ID, ResponseLocale.ENGLISH);
+
+        assertThat(provider.lastLanguage()).isEqualTo(ExplanationLanguage.ENGLISH);
+    }
+
+    @Test
+    @DisplayName("the locale-less overload (missing/unsupported Accept-Language) defaults to the English "
+            + "explanation output language, same as the fallback ResponseLocale.negotiate already returns")
+    void missingOrUnsupportedLocaleDefaultsToEnglishExplanationLanguage() {
+        ScanHistoryRepository repository = mock(ScanHistoryRepository.class);
+        when(repository.findRetained(eq(SCAN_ID), eq(OWNER_ID), any(Instant.class)))
+                .thenReturn(Optional.of(sensitiveHistory()));
+        FakeExplanationProvider provider =
+                FakeExplanationProvider.returning(new AiAdvisory("explanation text", List.of("action")));
+        ExplanationService service = newService(true, repository, provider);
+
+        service.explain(SCAN_ID.toString(), OWNER_ID);
+
+        assertThat(provider.lastLanguage()).isEqualTo(ExplanationLanguage.ENGLISH);
     }
 
     @Test
@@ -326,6 +373,7 @@ class ExplanationServiceTest {
         private final boolean shouldThrow;
         private final boolean mustNotBeCalled;
         private final List<ScanSummary> calls = new ArrayList<>();
+        private final List<ExplanationLanguage> languageCalls = new ArrayList<>();
 
         private FakeExplanationProvider(AiAdvisory result, boolean shouldThrow, boolean mustNotBeCalled) {
             this.result = result;
@@ -346,11 +394,12 @@ class ExplanationServiceTest {
         }
 
         @Override
-        public AiAdvisory explain(ScanSummary summary) {
+        public AiAdvisory explain(ScanSummary summary, ExplanationLanguage language) {
             if (mustNotBeCalled) {
                 throw new AssertionError("ExplanationProvider must not be called in this scenario");
             }
             calls.add(summary);
+            languageCalls.add(language);
             if (shouldThrow) {
                 // Represents timeout, provider failure, and malformed response alike:
                 // DeepSeekExplanationProvider unifies all three into this one type.
@@ -365,6 +414,10 @@ class ExplanationServiceTest {
 
         ScanSummary lastSummary() {
             return calls.get(calls.size() - 1);
+        }
+
+        ExplanationLanguage lastLanguage() {
+            return languageCalls.get(languageCalls.size() - 1);
         }
     }
 }

@@ -13,10 +13,12 @@ package com.lyanhkhoa.linksentry.explanation.domain;
 public interface ExplanationProvider {
 
     /**
-     * @param summary the safe summary to explain
+     * @param summary  the safe summary to explain
+     * @param language the bounded, server-owned language {@link AiAdvisory#summary()}
+     *                 and {@link AiAdvisory#recommendedActions()} must be written in
      * @return a short, risk-oriented advisory summary and 1-2 recommended actions
      * @throws ExplanationProviderException when the provider is unavailable, times
      *                                       out, fails, or returns an unusable response
      */
-    AiAdvisory explain(ScanSummary summary);
+    AiAdvisory explain(ScanSummary summary, ExplanationLanguage language);
 }
