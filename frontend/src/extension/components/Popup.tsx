@@ -11,7 +11,7 @@ import { FindingsList } from '@/features/scanner/components/FindingsList';
 import { NextSteps } from '@/features/scanner/components/NextSteps';
 import { RiskBadge } from '@/features/scanner/components/RiskBadge';
 import { normalizeApiError, type NormalizedApiError } from '@/lib/api/errors';
-import { env } from '@/lib/config/env';
+import { buildOfficialWebAppUrl, env } from '@/lib/config/env';
 import type { Translate } from '@/lib/i18n/LocaleContext';
 import { useLocale } from '@/lib/i18n/useLocale';
 
@@ -48,6 +48,7 @@ export function Popup() {
   const [isPending, setIsPending] = useState(false);
   const [scanResponse, setScanResponse] = useState<ScanResponse | null>(null);
   const [apiError, setApiError] = useState<NormalizedApiError | null>(null);
+  const [webAppConfigError, setWebAppConfigError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -105,8 +106,15 @@ export function Popup() {
     }
   }
 
-  function openWebApp() {
-    void chrome.tabs.create({ url: env.webAppUrl });
+  function openWebApp(pathname: '' | '/history') {
+    const url = buildOfficialWebAppUrl(env.webAppUrl, pathname);
+    if (url === null) {
+      setWebAppConfigError(true);
+      return;
+    }
+
+    setWebAppConfigError(false);
+    void chrome.tabs.create({ url });
   }
 
   const canScan = tabPhase === 'ready' && !isPending;
@@ -160,15 +168,29 @@ export function Popup() {
           </span>
         </button>
 
-        <button type="button" onClick={openWebApp} className="popup-web-action">
+        <button type="button" onClick={() => openWebApp('')} className="popup-web-action">
           <span>{t('popup.web.open')}</span>
           <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
             <path d="M14 5h5v5M19 5l-8 8M19 13v5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5" />
           </svg>
         </button>
+
+        <button type="button" onClick={() => openWebApp('/history')} className="popup-web-action">
+          <span>{t('popup.history.open')}</span>
+          <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+            <circle cx="12" cy="12" r="8" />
+            <path d="M12 7v5l3 2" />
+          </svg>
+        </button>
+
+        <p className="body-secondary text-xs leading-5">{t('popup.history.description')}</p>
       </div>
 
-      {apiError ? (
+      {webAppConfigError ? (
+        <div role="alert" className="popup-error">
+          <p>{t('popup.web.configError')}</p>
+        </div>
+      ) : apiError ? (
         <div role="alert" className="popup-error">
           <p>{displayMessage(t, apiError)}</p>
         </div>

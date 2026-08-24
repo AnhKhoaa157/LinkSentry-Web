@@ -8,6 +8,7 @@ import { Popup } from '@/extension/components/Popup';
 import { LicenseProvider } from '@/features/license/context/LicenseProvider';
 import { apiClient } from '@/lib/api/client';
 import { createQueryClient } from '@/lib/api/queryClient';
+import { env } from '@/lib/config/env';
 import { LocaleProvider } from '@/lib/i18n/LocaleProvider';
 import { ThemeProvider } from '@/lib/theme/ThemeProvider';
 import { renderWithProviders } from '@/test/renderWithProviders';
@@ -104,6 +105,11 @@ const validScanResponse = {
 };
 
 const scanButton = () => screen.getByRole('button', { name: /scan this tab|scan again|scanning/i });
+const configuredWebAppUrl = 'https://link-sentry-web.vercel.app';
+
+function setConfiguredWebAppUrl(value: string | null) {
+  (env as unknown as { webAppUrl: string | null }).webAppUrl = value;
+}
 
 function renderPopupWithQueryClient() {
   const queryClient = createQueryClient();
@@ -126,6 +132,7 @@ describe('Popup', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     localStorage.clear();
+    setConfiguredWebAppUrl(configuredWebAppUrl);
   });
 
   it('shows a ready state and enables scanning for a normal https tab, without revealing the URL', async () => {
@@ -166,6 +173,64 @@ describe('Popup', () => {
 
     expect(chrome.tabs.create).toHaveBeenCalledOnce();
     expect(chrome.tabs.create).toHaveBeenCalledWith({ url: 'https://link-sentry-web.vercel.app' });
+  });
+
+  it('renders the history shortcut and same-license explanation in English and Vietnamese', async () => {
+    stubActiveTab(SCAN_URL);
+    const user = userEvent.setup();
+
+    renderWithProviders(<Popup />);
+
+    expect(screen.getByRole('button', { name: 'View scan history' })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'The web and extension must use devices assigned to the same license to share scan history.',
+      ),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'VI' }));
+
+    expect(screen.getByRole('button', { name: 'Xem lịch sử quét' })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Web và extension phải dùng các thiết bị được gán cùng giấy phép để chia sẻ lịch sử quét.',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('opens exactly the configured history URL without transferring scan data', async () => {
+    stubActiveTab(SCAN_URL);
+    const user = userEvent.setup();
+
+    renderWithProviders(<Popup />);
+    await user.click(screen.getByRole('button', { name: 'View scan history' }));
+
+    expect(chrome.tabs.create).toHaveBeenCalledOnce();
+    expect(chrome.tabs.create).toHaveBeenCalledWith({ url: `${configuredWebAppUrl}/history` });
+
+    const openedUrl = (chrome.tabs.create as ReturnType<typeof vi.fn>).mock.calls[0]?.[0]?.url;
+    expect(openedUrl).toBe(`${configuredWebAppUrl}/history`);
+    for (const sentinel of RAW_URL_SENTINELS) {
+      expect(openedUrl).not.toContain(sentinel);
+    }
+    expect(openedUrl).not.toMatch(/scanId|device|activation|credential|license/i);
+  });
+
+  it('shows a safe localized error and does not open a tab when the web URL is missing', async () => {
+    setConfiguredWebAppUrl(null);
+    stubActiveTab(SCAN_URL);
+    const user = userEvent.setup();
+
+    renderWithProviders(<Popup />);
+    await user.click(screen.getByRole('button', { name: 'View scan history' }));
+
+    expect(chrome.tabs.create).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'The official LinkSentry Web address is not configured, so this action is unavailable.',
+    );
+    for (const sentinel of RAW_URL_SENTINELS) {
+      expect(document.body.innerHTML).not.toContain(sentinel);
+    }
   });
 
   it.each([

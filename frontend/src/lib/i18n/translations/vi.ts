@@ -451,6 +451,11 @@ export const vi: Record<TranslationKey, string> = {
   'popup.scan.button.scanning': 'Đang phân tích…',
   'popup.scan.button.scanAgain': 'Phân tích lại',
   'popup.web.open': 'Mở LinkSentry Web',
+  'popup.history.open': 'Xem lịch sử quét',
+  'popup.history.description':
+    'Web và extension phải dùng các thiết bị được gán cùng giấy phép để chia sẻ lịch sử quét.',
+  'popup.web.configError':
+    'Địa chỉ web chính thức của LinkSentry chưa được cấu hình nên thao tác này không khả dụng.',
   'popup.result.label': 'Kết quả phân tích',
   'popup.result.findingsHeading': 'Tín hiệu đã phát hiện',
   'popup.result.empty': 'Không phát hiện tín hiệu. Điều này không có nghĩa là liên kết an toàn.',

@@ -455,6 +455,11 @@ export const en = {
   'popup.scan.button.scanning': 'Scanning…',
   'popup.scan.button.scanAgain': 'Scan again',
   'popup.web.open': 'Open LinkSentry Web',
+  'popup.history.open': 'View scan history',
+  'popup.history.description':
+    'The web and extension must use devices assigned to the same license to share scan history.',
+  'popup.web.configError':
+    'The official LinkSentry Web address is not configured, so this action is unavailable.',
   'popup.result.label': 'Analysis result',
   'popup.result.findingsHeading': 'Signals detected',
   'popup.result.empty': 'No signals detected. This does not mean the link is safe.',
