@@ -1,7 +1,13 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 
 import { HistoryList } from '@/features/history/components/HistoryList';
+import { HistoryFilters } from '@/features/history/components/HistoryFilters';
+import { PersonalInsights } from '@/features/history/components/PersonalInsights';
 import { useScanHistoryQuery } from '@/features/history/api/useScanHistoryQuery';
+import {
+  DEFAULT_SCAN_HISTORY_FILTERS,
+  type ScanHistoryFilters,
+} from '@/features/history/schemas/scanHistoryResponse';
 import { LicenseStatusCard } from '@/features/license/components/LicenseStatusCard';
 import { useLicense } from '@/features/license/context/useLicense';
 import { normalizeApiError } from '@/lib/api/errors';
@@ -46,33 +52,48 @@ export function HistoryPage() {
 
 /** Mounted only after LicenseProvider reports LICENSED, so the query cannot run before then. */
 function LicensedHistory() {
-  const query = useScanHistoryQuery();
+  const [filters, setFilters] = useState<ScanHistoryFilters>(DEFAULT_SCAN_HISTORY_FILTERS);
+  const query = useScanHistoryQuery(filters);
   const { t } = useLocale();
 
-  if (query.isPending) {
-    return (
-      <p role="status" aria-live="polite" className="surface-inset body-secondary p-5 text-sm">
-        {t('history.loading')}
-      </p>
-    );
-  }
+  return (
+    <div className="space-y-8">
+      <HistoryFilters filters={filters} onChange={setFilters} t={t} />
 
-  if (query.isError && query.data === undefined) {
-    return (
-      <HistoryError title={historyErrorTitle(t, query.error)}>
-        <p>{historyErrorBody(t, query.error)}</p>
-        <button
-          type="button"
-          onClick={() => void query.refetch()}
-          disabled={query.isFetching}
-          className="ui-button ui-button-secondary mt-5"
-        >
-          {query.isFetching ? t('common.retrying') : t('common.retry')}
-        </button>
-      </HistoryError>
-    );
-  }
+      {query.isPending ? (
+        <p role="status" aria-live="polite" className="surface-inset body-secondary p-5 text-sm">
+          {t('history.loading')}
+        </p>
+      ) : null}
 
+      {query.isError && query.data === undefined ? (
+        <HistoryError title={historyErrorTitle(t, query.error)}>
+          <p>{historyErrorBody(t, query.error)}</p>
+          <button
+            type="button"
+            onClick={() => void query.refetch()}
+            disabled={query.isFetching}
+            className="ui-button ui-button-secondary mt-5"
+          >
+            {query.isFetching ? t('common.retrying') : t('common.retry')}
+          </button>
+        </HistoryError>
+      ) : null}
+
+      {query.data !== undefined ? <HistoryResults query={query} t={t} /> : null}
+
+      <PersonalInsights />
+    </div>
+  );
+}
+
+function HistoryResults({
+  query,
+  t,
+}: {
+  readonly query: ReturnType<typeof useScanHistoryQuery>;
+  readonly t: Translate;
+}) {
   const pages = query.data?.pages ?? [];
   const items = pages.flatMap((page) => page.data.items);
   const retentionDays = pages[0]?.meta.retentionDays;

@@ -532,6 +532,38 @@ html.dark {
   .history-cell-label {
     display: none;
   }
+
+  .history-filters {
+    box-shadow: none;
+  }
+
+  .insights-risk-track {
+    height: 0.65rem;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--surface-inset);
+  }
+
+  .insights-risk-fill {
+    display: block;
+    height: 100%;
+    min-width: 0;
+    border-radius: inherit;
+    transition: width var(--motion-standard) ease;
+  }
+
+  .insights-risk-fill--low {
+    background: var(--success);
+  }
+
+  .insights-risk-fill--moderate {
+    background: var(--warning);
+  }
+
+  .insights-risk-fill--high,
+  .insights-risk-fill--critical {
+    background: var(--danger);
+  }
 }
 
 @media (max-width: 680px) {
