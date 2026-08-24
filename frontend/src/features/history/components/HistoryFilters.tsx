@@ -6,7 +6,6 @@ import {
   historyRuleLabelKeys,
   historyRuleIds,
   scanHistoryFiltersSchema,
-  type HistoryRuleId,
   type ScanHistoryFilters,
 } from '@/features/history/schemas/scanHistoryResponse';
 import { riskLevelSchema, type RiskLevel } from '@/features/scanner/schemas/scanResponse';
@@ -51,23 +50,25 @@ export function HistoryFilters({ filters, onChange, t }: HistoryFiltersProps) {
       <fieldset className="space-y-4">
         <legend className="text-content-primary text-sm font-bold">{t('history.filters.legend')}</legend>
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="space-y-2">
-            <span className="ui-label">{t('history.filters.riskLabel')}</span>
-            <select
-              className="ui-input min-h-11 px-3 text-sm"
-              value={filters.riskLevel ?? ''}
-              onChange={(event) => handleRiskChange(event.target.value)}
-            >
-              <option value="">{t('history.filters.riskAll')}</option>
-              {RISK_LEVELS.map((riskLevel) => (
-                <option key={riskLevel} value={riskLevel}>
-                  {t(`riskBadge.${riskLevel.toLowerCase() as 'low' | 'moderate' | 'high' | 'critical'}`)}
-                </option>
-              ))}
-            </select>
-          </label>
+          <FilterDropdown
+            label={t('history.filters.riskLabel')}
+            allLabel={t('history.filters.riskAll')}
+            options={RISK_LEVELS}
+            value={filters.riskLevel}
+            optionLabel={(riskLevel) =>
+              t(`riskBadge.${riskLevel.toLowerCase() as 'low' | 'moderate' | 'high' | 'critical'}`)
+            }
+            onChange={(riskLevel) => handleRiskChange(riskLevel ?? '')}
+          />
 
-          <RuleFilterDropdown value={filters.ruleId} onChange={handleRuleChange} t={t} />
+          <FilterDropdown
+            label={t('history.filters.ruleLabel')}
+            allLabel={t('history.filters.ruleAll')}
+            options={historyRuleIds}
+            value={filters.ruleId}
+            optionLabel={(ruleId) => t(historyRuleLabelKeys[ruleId])}
+            onChange={(ruleId) => handleRuleChange(ruleId ?? '')}
+          />
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -89,15 +90,23 @@ export function HistoryFilters({ filters, onChange, t }: HistoryFiltersProps) {
   );
 }
 
-interface RuleFilterDropdownProps {
-  readonly value: HistoryRuleId | null;
-  readonly onChange: (value: string) => void;
-  readonly t: Translate;
+interface FilterDropdownProps<T extends string> {
+  readonly label: string;
+  readonly allLabel: string;
+  readonly options: readonly T[];
+  readonly value: T | null;
+  readonly optionLabel: (option: T) => string;
+  readonly onChange: (value: T | null) => void;
 }
 
-const RULE_FILTER_OPTIONS: readonly (HistoryRuleId | null)[] = [null, ...historyRuleIds];
-
-function RuleFilterDropdown({ value, onChange, t }: RuleFilterDropdownProps) {
+function FilterDropdown<T extends string>({
+  label,
+  allLabel,
+  options,
+  value,
+  optionLabel,
+  onChange,
+}: FilterDropdownProps<T>) {
   const [isOpen, setIsOpen] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -105,8 +114,9 @@ function RuleFilterDropdown({ value, onChange, t }: RuleFilterDropdownProps) {
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const labelId = useId();
   const menuId = useId();
-  const selectedIndex = RULE_FILTER_OPTIONS.indexOf(value);
-  const selectedLabel = value === null ? t('history.filters.ruleAll') : t(historyRuleLabelKeys[value]);
+  const filterOptions: readonly (T | null)[] = [null, ...options];
+  const selectedIndex = filterOptions.indexOf(value);
+  const selectedLabel = value === null ? allLabel : optionLabel(value);
 
   useEffect(() => {
     function handlePointerDown(event: PointerEvent) {
@@ -130,8 +140,8 @@ function RuleFilterDropdown({ value, onChange, t }: RuleFilterDropdownProps) {
     setIsOpen(true);
   }
 
-  function selectOption(option: HistoryRuleId | null) {
-    onChange(option ?? '');
+  function selectOption(option: T | null) {
+    onChange(option);
     setIsOpen(false);
     triggerRef.current?.focus();
   }
@@ -139,7 +149,7 @@ function RuleFilterDropdown({ value, onChange, t }: RuleFilterDropdownProps) {
   function handleTriggerKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
     if (event.key === 'ArrowDown') {
       event.preventDefault();
-      openAt(Math.min(selectedIndex + 1, RULE_FILTER_OPTIONS.length - 1));
+      openAt(Math.min(selectedIndex + 1, filterOptions.length - 1));
     } else if (event.key === 'ArrowUp') {
       event.preventDefault();
       openAt(Math.max(selectedIndex - 1, 0));
@@ -149,7 +159,7 @@ function RuleFilterDropdown({ value, onChange, t }: RuleFilterDropdownProps) {
   function handleOptionKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
     if (event.key === 'ArrowDown') {
       event.preventDefault();
-      setFocusedIndex(Math.min(index + 1, RULE_FILTER_OPTIONS.length - 1));
+      setFocusedIndex(Math.min(index + 1, filterOptions.length - 1));
     } else if (event.key === 'ArrowUp') {
       event.preventDefault();
       setFocusedIndex(Math.max(index - 1, 0));
@@ -158,7 +168,7 @@ function RuleFilterDropdown({ value, onChange, t }: RuleFilterDropdownProps) {
       setFocusedIndex(0);
     } else if (event.key === 'End') {
       event.preventDefault();
-      setFocusedIndex(RULE_FILTER_OPTIONS.length - 1);
+      setFocusedIndex(filterOptions.length - 1);
     } else if (event.key === 'Escape') {
       event.preventDefault();
       setIsOpen(false);
@@ -167,14 +177,14 @@ function RuleFilterDropdown({ value, onChange, t }: RuleFilterDropdownProps) {
   }
 
   return (
-    <div ref={rootRef} className="history-rule-select space-y-2">
+    <div ref={rootRef} className="history-filter-select space-y-2">
       <span id={labelId} className="ui-label">
-        {t('history.filters.ruleLabel')}
+        {label}
       </span>
       <button
         ref={triggerRef}
         type="button"
-        className="history-rule-select__trigger"
+        className="history-filter-select__trigger"
         aria-labelledby={labelId}
         aria-controls={menuId}
         aria-expanded={isOpen}
@@ -187,10 +197,10 @@ function RuleFilterDropdown({ value, onChange, t }: RuleFilterDropdownProps) {
       </button>
 
       {isOpen ? (
-        <div id={menuId} className="history-rule-select__menu" role="listbox" aria-labelledby={labelId}>
-          {RULE_FILTER_OPTIONS.map((option, index) => {
+        <div id={menuId} className="history-filter-select__menu" role="listbox" aria-labelledby={labelId}>
+          {filterOptions.map((option, index) => {
             const isSelected = option === value;
-            const label = option === null ? t('history.filters.ruleAll') : t(historyRuleLabelKeys[option]);
+            const optionText = option === null ? allLabel : optionLabel(option);
             return (
               <button
                 key={option ?? 'all'}
@@ -200,11 +210,11 @@ function RuleFilterDropdown({ value, onChange, t }: RuleFilterDropdownProps) {
                 type="button"
                 role="option"
                 aria-selected={isSelected}
-                className="history-rule-select__option"
+                className="history-filter-select__option"
                 onClick={() => selectOption(option)}
                 onKeyDown={(event) => handleOptionKeyDown(event, index)}
               >
-                <span>{label}</span>
+                <span>{optionText}</span>
                 {isSelected ? <CheckIcon /> : null}
               </button>
             );
@@ -217,7 +227,7 @@ function RuleFilterDropdown({ value, onChange, t }: RuleFilterDropdownProps) {
 
 function ChevronIcon({ expanded }: { readonly expanded: boolean }) {
   return (
-    <svg className="history-rule-select__chevron" aria-hidden="true" viewBox="0 0 16 16">
+    <svg className="history-filter-select__chevron" aria-hidden="true" viewBox="0 0 16 16">
       <path d={expanded ? 'm4 10 4-4 4 4' : 'm4 6 4 4 4-4'} />
     </svg>
   );
@@ -225,7 +235,7 @@ function ChevronIcon({ expanded }: { readonly expanded: boolean }) {
 
 function CheckIcon() {
   return (
-    <svg className="history-rule-select__check" aria-hidden="true" viewBox="0 0 16 16">
+    <svg className="history-filter-select__check" aria-hidden="true" viewBox="0 0 16 16">
       <path d="m3.5 8.5 2.7 2.7 6.3-6.4" />
     </svg>
   );

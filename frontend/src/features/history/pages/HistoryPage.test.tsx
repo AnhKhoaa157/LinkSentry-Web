@@ -278,11 +278,13 @@ describe('HistoryPage', () => {
 
     renderWithProviders(<HistoryPage />);
 
-    const riskSelect = await screen.findByLabelText('Risk level');
+    const riskSelect = await screen.findByRole('button', { name: 'Risk level' });
     const ruleSelect = screen.getByRole('button', { name: 'Detected rule' });
     expect(ruleSelect).toHaveAttribute('aria-expanded', 'false');
-    await user.selectOptions(riskSelect, 'HIGH');
-    expect(riskSelect).toHaveValue('HIGH');
+    await user.click(riskSelect);
+    expect(screen.getByRole('option', { name: 'High risk' })).toBeInTheDocument();
+    await user.click(screen.getByRole('option', { name: 'High risk' }));
+    expect(riskSelect).toHaveTextContent('High risk');
     await waitFor(() => {
       expect(getSpy).toHaveBeenCalledWith(
         '/api/v1/scans',
@@ -307,7 +309,7 @@ describe('HistoryPage', () => {
     });
 
     await user.click(screen.getByRole('button', { name: 'Clear filters' }));
-    expect(riskSelect).toHaveValue('');
+    expect(riskSelect).toHaveTextContent('All risk levels');
     expect(ruleSelect).toHaveTextContent('All rules');
     await waitFor(() => {
       expect(getSpy).toHaveBeenCalledWith(
