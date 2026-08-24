@@ -1,10 +1,10 @@
 import { useState } from 'react';
 
 import { Badge } from '@/components/ui/Badge';
-import { postExplanation } from '@/features/explanation/api/postExplanation';
-import type { ExplanationData } from '@/features/explanation/schemas/explanationResponse';
+import { useExplanationQuery } from '@/features/explanation/api/useExplanationQuery';
+import { useLicense } from '@/features/license/context/useLicense';
 import type { RiskLevel, Severity } from '@/features/scanner/schemas/scanResponse';
-import { normalizeApiError, type NormalizedApiError } from '@/lib/api/errors';
+import { normalizeApiError } from '@/lib/api/errors';
 import { localizeApiError } from '@/lib/i18n/messages';
 import { useLocale } from '@/lib/i18n/useLocale';
 
@@ -16,8 +16,6 @@ interface Props {
    */
   readonly scanId: string | null;
 }
-
-type Status = 'idle' | 'loading' | 'success' | 'error';
 
 const RISK_TONE: Record<RiskLevel, 'low' | 'moderate' | 'high' | 'critical'> = {
   LOW: 'low',
@@ -49,59 +47,58 @@ const SEVERITY_TONE: Record<Severity, 'low' | 'moderate' | 'high' | 'critical'> 
  */
 export function ExplainResult({ scanId }: Props) {
   const { locale, t } = useLocale();
-  const [status, setStatus] = useState<Status>('idle');
-  const [data, setData] = useState<ExplanationData | null>(null);
-  const [error, setError] = useState<NormalizedApiError | null>(null);
+  const { isLicensed } = useLicense();
+  const [requested, setRequested] = useState(false);
+
+  const query = useExplanationQuery({ scanId, locale, requested, isLicensed });
 
   if (scanId === null) {
     return null;
   }
 
-  // Narrowed once into a stable local: `scanId`'s outer-scope type is still
-  // `string | null`, and TypeScript does not carry the guard above into a
-  // nested function declaration's closure.
-  const ownedScanId: string = scanId;
-
   function handleExplain() {
-    setStatus('loading');
-    setError(null);
-    void postExplanation(ownedScanId, { locale })
-      .then((response) => {
-        setData(response.data);
-        setStatus('success');
-      })
-      .catch((caught: unknown) => {
-        setError(normalizeApiError(caught));
-        setStatus('error');
-      });
+    setRequested(true);
   }
+
+  function handleRetry() {
+    // An explicit retry after a failure always calls the backend again —
+    // there is no valid cached success to preserve in that state, and
+    // `refetch` (unlike enabling the query) never reuses a stale result.
+    void query.refetch();
+  }
+
+  const isLoading = requested && query.isFetching;
+  const isError = requested && query.isError && !isLoading;
+  const isSuccess = requested && query.isSuccess && !isLoading;
+  const data = query.data?.data ?? null;
+  const error = query.error ? normalizeApiError(query.error) : null;
 
   return (
     <div className="border-border-default mt-7 border-t pt-6">
-      {status === 'idle' || status === 'loading' ? (
+      {!requested || isLoading ? (
         <button
           type="button"
           onClick={handleExplain}
-          disabled={status === 'loading'}
-          aria-busy={status === 'loading'}
+          disabled={isLoading}
+          aria-busy={isLoading}
           className="ui-button ui-button-secondary disabled:opacity-50"
         >
-          {status === 'loading' ? t('explain.button.loading') : t('explain.button.idle')}
+          {isLoading ? t('explain.button.loading') : t('explain.button.idle')}
         </button>
       ) : null}
 
-      {status === 'loading' ? (
+      {isLoading ? (
         <p role="status" className="body-muted mt-2 text-sm">
           {t('explain.button.loading')}
         </p>
       ) : null}
 
-      {status === 'error' && error ? (
+      {isError && error ? (
         <div role="alert" className="mt-2">
           <p className="text-danger text-sm">{localizeApiError(t, error)}</p>
           <button
             type="button"
-            onClick={handleExplain}
+            onClick={handleRetry}
             className="text-accent-strong mt-2 text-sm font-bold underline underline-offset-4"
           >
             {t('explain.tryAgain')}
@@ -109,7 +106,7 @@ export function ExplainResult({ scanId }: Props) {
         </div>
       ) : null}
 
-      {status === 'success' && data ? (
+      {isSuccess && data ? (
         <div aria-live="polite" className="space-y-4">
           <Badge tone={RISK_TONE[data.riskLevel]}>
             {t('explain.riskBadgeLabel', { level: data.riskLevel })}

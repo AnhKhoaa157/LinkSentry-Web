@@ -4,7 +4,9 @@ import { AxiosError, AxiosHeaders } from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ExplainResult } from '@/features/explanation/components/ExplainResult';
+import { getDeviceStatus } from '@/features/license/api/device';
 import { apiClient } from '@/lib/api/client';
+import { deviceCredentialStorage } from '@/lib/device/deviceCredentialStorage';
 import { renderWithProviders } from '@/test/renderWithProviders';
 
 const SCAN_ID = '2ce16fb9-d52d-4310-8d45-a4e48f31889e';
@@ -49,8 +51,18 @@ function structuredResponse(overrides?: {
 }
 
 describe('ExplainResult', () => {
-  beforeEach(() => {
+  // The AI advisory control is only ever meaningfully exercised for a currently
+  // LICENSED device (see useExplanationQuery's license-cache-invalidation
+  // contract) — mirrors the same LICENSED setup HistoryPage.test.tsx uses for
+  // its own license-gated feature.
+  beforeEach(async () => {
     vi.restoreAllMocks();
+    await deviceCredentialStorage.set('existing-device-credential');
+    vi.mocked(getDeviceStatus).mockResolvedValue({
+      state: 'LICENSED',
+      activationCode: 'AAAA-BBBB',
+      licenseExpiresAt: null,
+    });
   });
 
   it('renders nothing for a result with no persisted scan ID (an anonymous result)', () => {
@@ -212,5 +224,26 @@ describe('ExplainResult', () => {
 
     expect(await screen.findByText('A short advisory sentence.')).toBeInTheDocument();
     await waitFor(() => expect(postSpy).toHaveBeenCalledTimes(2));
+  });
+
+  it('never calls the backend or shows a result while the device is not LICENSED', async () => {
+    vi.mocked(getDeviceStatus).mockResolvedValue({
+      state: 'EXPIRED',
+      activationCode: 'AAAA-BBBB',
+      licenseExpiresAt: '2026-01-01T00:00:00Z',
+    });
+    const postSpy = vi.spyOn(apiClient, 'post').mockResolvedValue(structuredResponse());
+    const user = userEvent.setup();
+    renderWithProviders(<ExplainResult scanId={SCAN_ID} />);
+
+    await waitFor(() => expect(getDeviceStatus).toHaveBeenCalled());
+    await user.click(screen.getByRole('button', { name: 'Explain this result' }));
+
+    // Give any (unwanted) fetch a chance to fire before asserting it never did.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(postSpy).not.toHaveBeenCalled();
+    expect(
+      screen.queryByText('This link shows several risk signals worth a second look.'),
+    ).not.toBeInTheDocument();
   });
 });
