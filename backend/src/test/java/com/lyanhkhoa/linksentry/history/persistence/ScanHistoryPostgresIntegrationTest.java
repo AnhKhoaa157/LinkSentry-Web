@@ -541,9 +541,8 @@ class ScanHistoryPostgresIntegrationTest {
                         .header(HttpHeaders.AUTHORIZATION, ownerDevice.authorizationHeader()))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
-                .andExpect(jsonPath("$.fieldErrors.windowDays").exists())
-                .andExpect(content().string(org.hamcrest.Matchers.not(
-                        org.hamcrest.Matchers.containsString("14"))));
+                .andExpect(jsonPath("$.message").value("The request contains invalid values."))
+                .andExpect(jsonPath("$.fieldErrors.windowDays").value("Enter 7 or 30 days."));
     }
 
     private ScanHistory snapshot(UUID scanId, Instant analyzedAt, UUID ownerLicenseId) {
