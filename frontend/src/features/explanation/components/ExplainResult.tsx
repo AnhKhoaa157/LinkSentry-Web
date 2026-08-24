@@ -61,6 +61,14 @@ export function ExplainResult({ scanId }: Props) {
   }
 
   function handleRetry() {
+    if (!isLicensed) {
+      // Defensive: the "Try again" control only ever renders while isError is
+      // true, which already requires isLicensed — but refetch() ignores the
+      // query's own `enabled` option, so nothing else stops an in-flight call
+      // from reaching the backend if this were ever invoked in a race where
+      // license was just lost. An explicit retry never bypasses that.
+      return;
+    }
     // An explicit retry after a failure always calls the backend again —
     // there is no valid cached success to preserve in that state, and
     // `refetch` (unlike enabling the query) never reuses a stale result.
@@ -68,8 +76,12 @@ export function ExplainResult({ scanId }: Props) {
   }
 
   const isLoading = requested && query.isFetching;
-  const isError = requested && query.isError && !isLoading;
-  const isSuccess = requested && query.isSuccess && !isLoading;
+  // isLicensed gates both branches below directly, at render time, so a
+  // cached advisory or a stale error/retry state can never appear even in the
+  // single render right after a LICENSED → non-LICENSED transition — this
+  // does not depend on useExplanationQuery's own purge effect having run yet.
+  const isError = requested && query.isError && !isLoading && isLicensed;
+  const isSuccess = requested && query.isSuccess && !isLoading && isLicensed;
   const data = query.data?.data ?? null;
   const error = query.error ? normalizeApiError(query.error) : null;
 

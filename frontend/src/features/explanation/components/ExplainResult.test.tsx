@@ -1,12 +1,20 @@
-import { screen, waitFor } from '@testing-library/react';
+import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError, AxiosHeaders } from 'axios';
+import type { ReactElement, ReactNode } from 'react';
+import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ExplainResult } from '@/features/explanation/components/ExplainResult';
 import { getDeviceStatus } from '@/features/license/api/device';
+import { LicenseContext, type LicenseContextValue } from '@/features/license/context/LicenseContext';
+import type { DeviceState } from '@/features/license/schemas/deviceResponse';
 import { apiClient } from '@/lib/api/client';
+import { createQueryClient } from '@/lib/api/queryClient';
 import { deviceCredentialStorage } from '@/lib/device/deviceCredentialStorage';
+import { LocaleProvider } from '@/lib/i18n/LocaleProvider';
+import { ThemeProvider } from '@/lib/theme/ThemeProvider';
 import { renderWithProviders } from '@/test/renderWithProviders';
 
 const SCAN_ID = '2ce16fb9-d52d-4310-8d45-a4e48f31889e';
@@ -48,6 +56,43 @@ function structuredResponse(overrides?: {
       },
     },
   };
+}
+
+/**
+ * A hand-built {@link LicenseContextValue}, so a test can force an exact
+ * license transition synchronously via `rerender` — the real `LicenseProvider`
+ * resolves its status asynchronously and cannot be flipped mid-test on demand.
+ */
+function licenseValue(state: DeviceState | null, isLicensed: boolean): LicenseContextValue {
+  return {
+    state,
+    activationCode: 'AAAA-BBBB',
+    licenseExpiresAt: null,
+    isLoading: false,
+    isLicensed,
+    refresh: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
+/**
+ * Mirrors `renderWithProviders`'s stack minus the real `LicenseProvider` (the
+ * caller supplies its own `LicenseContext.Provider` inside `ui` instead) and
+ * exposes the `QueryClient` it renders with, so a test can inspect or spy on
+ * the exact cache instance the component reads from.
+ */
+function renderWithControlledLicense(ui: ReactElement, queryClient: QueryClient) {
+  function Wrapper({ children }: { children: ReactNode }) {
+    return (
+      <ThemeProvider>
+        <LocaleProvider>
+          <QueryClientProvider client={queryClient}>
+            <MemoryRouter>{children}</MemoryRouter>
+          </QueryClientProvider>
+        </LocaleProvider>
+      </ThemeProvider>
+    );
+  }
+  return render(ui, { wrapper: Wrapper });
 }
 
 describe('ExplainResult', () => {
@@ -245,5 +290,104 @@ describe('ExplainResult', () => {
     expect(
       screen.queryByText('This link shows several risk signals worth a second look.'),
     ).not.toBeInTheDocument();
+  });
+
+  it.each<DeviceState>(['PENDING', 'EXPIRED', 'REVOKED'])(
+    'hides a cached advisory synchronously the instant license drops to %s — a render-level guard, not the cache purge effect',
+    async (nextState) => {
+      const queryClient = createQueryClient();
+      // Neutered: if hiding the advisory depended on this effect actually
+      // removing the cache entry, this test would fail. It must not — the
+      // guard has to live in the render itself, evaluated before any effect
+      // gets a chance to run.
+      const removeQueriesSpy = vi.spyOn(queryClient, 'removeQueries').mockImplementation(() => undefined);
+      vi.spyOn(apiClient, 'post').mockResolvedValue(structuredResponse());
+      const user = userEvent.setup();
+
+      const { rerender } = renderWithControlledLicense(
+        <LicenseContext.Provider value={licenseValue('LICENSED', true)}>
+          <ExplainResult scanId={SCAN_ID} />
+        </LicenseContext.Provider>,
+        queryClient,
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Explain this result' }));
+      expect(
+        await screen.findByText('This link shows several risk signals worth a second look.'),
+      ).toBeInTheDocument();
+
+      // Synchronous re-render through the same tree with a fresh, non-memoized
+      // license value — no act()/await between this and the assertion below.
+      rerender(
+        <LicenseContext.Provider value={licenseValue(nextState, false)}>
+          <ExplainResult scanId={SCAN_ID} />
+        </LicenseContext.Provider>,
+      );
+
+      // No waitFor: the very next paint after the transition must already hide it.
+      expect(
+        screen.queryByText('This link shows several risk signals worth a second look.'),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(removeQueriesSpy).toHaveBeenCalled();
+    },
+  );
+
+  it('hides an error/retry state synchronously the instant license drops, and issues no further POST', async () => {
+    const queryClient = createQueryClient();
+    vi.spyOn(queryClient, 'removeQueries').mockImplementation(() => undefined);
+    const postSpy = vi.spyOn(apiClient, 'post').mockRejectedValue(
+      axiosErrorWithResponse(503, {
+        code: 'AI_EXPLANATION_UNAVAILABLE',
+        message: 'AI explanation is not available right now.',
+      }),
+    );
+    const user = userEvent.setup();
+
+    const { rerender } = renderWithControlledLicense(
+      <LicenseContext.Provider value={licenseValue('LICENSED', true)}>
+        <ExplainResult scanId={SCAN_ID} />
+      </LicenseContext.Provider>,
+      queryClient,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Explain this result' }));
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(postSpy).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <LicenseContext.Provider value={licenseValue('REVOKED', false)}>
+        <ExplainResult scanId={SCAN_ID} />
+      </LicenseContext.Provider>,
+    );
+
+    // No waitFor: the error/retry UI must already be gone.
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
+
+    // The retry control is unreachable, so nothing can trigger a second call.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(postSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('retry still issues exactly one POST and succeeds while the device remains LICENSED', async () => {
+    const postSpy = vi
+      .spyOn(apiClient, 'post')
+      .mockRejectedValueOnce(
+        axiosErrorWithResponse(503, {
+          code: 'AI_EXPLANATION_UNAVAILABLE',
+          message: 'AI explanation is not available right now.',
+        }),
+      )
+      .mockResolvedValueOnce(structuredResponse({ summary: 'Retried while licensed.' }));
+    const user = userEvent.setup();
+    renderWithProviders(<ExplainResult scanId={SCAN_ID} />);
+
+    await user.click(screen.getByRole('button', { name: 'Explain this result' }));
+    await screen.findByRole('alert');
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+
+    expect(await screen.findByText('Retried while licensed.')).toBeInTheDocument();
+    expect(postSpy).toHaveBeenCalledTimes(2);
   });
 });
