@@ -1,0 +1,18 @@
+# Production profile: the Docker image runs it unless SPRING_PROFILES_ACTIVE
+# says otherwise (see backend/Dockerfile). Docker Compose keeps using `local`.
+#
+# Environment-specific values still come from environment variables in
+# application.yml. This file only pins production policy.
+
+springdoc:
+  # API docs and Swagger UI never ship to production. The base configuration
+  # already turns them off; repeating it here keeps production safe even if
+  # that default changes.
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+logging:
+  level:
+    com.lyanhkhoa.linksentry: INFO

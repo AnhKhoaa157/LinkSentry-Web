@@ -33,6 +33,8 @@ USER linksentry
 EXPOSE 8080
 
 ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75.0 -Djava.security.egd=file:/dev/./urandom"
-ENV SPRING_PROFILES_ACTIVE=local
+# The image is what Render deploys, so it defaults to the production profile.
+# Docker Compose overrides this with `local` for development.
+ENV SPRING_PROFILES_ACTIVE=prod
 
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]
