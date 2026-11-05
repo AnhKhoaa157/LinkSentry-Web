@@ -7,5 +7,5 @@
 #                      dependency; pinned directly since we import it too)
 numpy>=2.5.4
 pandas>=3.1.0
-scikit-learn>=1.4
+scikit-learn>=1.9.1
 joblib>=1.3
