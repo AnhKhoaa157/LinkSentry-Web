@@ -10,29 +10,8 @@
     <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#f3f5f8" />
     <link rel="icon" data-app-favicon href="/brand/linksentry-mark.png" />
-    <script>
-      try {
-        const storedTheme = localStorage.getItem('linksentry.theme');
-        const theme =
-          storedTheme === 'light' || storedTheme === 'dark'
-            ? storedTheme
-            : matchMedia('(prefers-color-scheme: dark)').matches
-              ? 'dark'
-              : 'light';
-        document.documentElement.classList.add(theme);
-        document
-          .querySelector('meta[name="theme-color"]')
-          ?.setAttribute('content', theme === 'dark' ? '#05080f' : '#f3f5f8');
-        document
-          .querySelector('link[data-app-favicon]')
-          ?.setAttribute(
-            'href',
-            theme === 'dark' ? '/brand/linksentry-mark-white.png' : '/brand/linksentry-mark.png',
-          );
-      } catch {
-        document.documentElement.classList.add('light');
-      }
-    </script>
+    <!-- Sets the theme before first paint. A file, not inline, because the CSP forbids inline script. -->
+    <script src="/theme-init.js"></script>
     <title>LinkSentry — Explainable phishing URL analysis</title>
   </head>
   <body>
