@@ -9,10 +9,10 @@ version = "0.1.0"
 description = "LinkSentry — explainable phishing URL analysis API"
 
 java {
-    // Java 26 is the JDK configured for this repository and CI. Keep the
-    // toolchain version here aligned with docs/ARCHITECTURE.md section 7.
+    // Java 25 (LTS) is the JDK for this repository, CI, and the Docker image.
+    // Keep this toolchain, backend/Dockerfile, and backend-ci.yml aligned.
     toolchain {
-        languageVersion = JavaLanguageVersion.of(26)
+        languageVersion = JavaLanguageVersion.of(25)
     }
 }
 

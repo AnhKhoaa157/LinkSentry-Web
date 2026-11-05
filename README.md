@@ -622,7 +622,7 @@ The trial extension has core scanning only. A licensed extension can request an 
 
 | Tool | Version |
 | --- | --- |
-| JDK | **26** |
+| JDK | **25** (LTS) |
 | Node.js | **20.19+**; Node 24 is recommended |
 | npm | 10+ |
 | Docker | Compose v2+ |
@@ -843,7 +843,7 @@ The backend package-by-feature structure and frontend feature-first structure ar
 
 | Component | Version |
 | --- | ---: |
-| Java toolchain | 26 |
+| Java toolchain | 25 (LTS) |
 | Gradle wrapper | 9.4.0 |
 | Spring Boot | 4.1.0 |
 | springdoc-openapi | 3.1.0 |
