@@ -88,3 +88,15 @@ tasks.withType<Test>().configureEach {
         events("passed", "skipped", "failed")
     }
 }
+
+// Offline accuracy check: scores a labeled url,label CSV (the ml/ dataset schema)
+// with the production rules from application.yml and prints precision, recall,
+// and per-rule firing rates. Never prints a URL. Test-only tooling, so it is not
+// part of the boot jar. Pass your own dataset with --args="path/to/file.csv".
+tasks.register<JavaExec>("evaluateRules") {
+    group = "verification"
+    description = "Measures the production rule engine against a labeled URL dataset."
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass = "com.lyanhkhoa.linksentry.common.config.RuleEngineEvaluation"
+    args("../ml/data/sample_dataset.csv")
+}
