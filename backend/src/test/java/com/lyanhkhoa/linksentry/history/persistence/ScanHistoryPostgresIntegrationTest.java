@@ -21,7 +21,6 @@ import com.lyanhkhoa.linksentry.history.domain.StoredNormalizedUrl;
 import com.lyanhkhoa.linksentry.license.api.CreateLicenseRequest;
 import com.lyanhkhoa.linksentry.license.application.LicenseAdminService;
 import com.lyanhkhoa.linksentry.scan.application.ScanService;
-import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -130,8 +129,6 @@ class ScanHistoryPostgresIntegrationTest {
         jdbcTemplate.update("DELETE FROM device_license_assignment");
         jdbcTemplate.update("DELETE FROM license");
         jdbcTemplate.update("DELETE FROM device_installation");
-        jdbcTemplate.update("DELETE FROM auth_session");
-        jdbcTemplate.update("DELETE FROM user_account");
     }
 
     @Test
@@ -155,13 +152,18 @@ class ScanHistoryPostgresIntegrationTest {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT to_regclass('public.device_license_assignment')", String.class))
                 .isEqualTo("device_license_assignment");
-        // V2/V3 auth tables are retired in place, not dropped — see V4's migration comment.
+        // V7 drops the retired V2/V3 account model: its tables and scan_history's old owner column.
+        for (String retiredTable : List.of("user_account", "auth_session", "auth_registration_verification")) {
+            assertThat(jdbcTemplate.queryForObject(
+                    "SELECT to_regclass('public." + retiredTable + "')", String.class))
+                    .as(retiredTable)
+                    .isNull();
+        }
         assertThat(jdbcTemplate.queryForObject(
-                "SELECT to_regclass('public.user_account')", String.class))
-                .isEqualTo("user_account");
-        assertThat(jdbcTemplate.queryForObject(
-                "SELECT to_regclass('public.auth_session')", String.class))
-                .isEqualTo("auth_session");
+                "SELECT COUNT(*) FROM information_schema.columns "
+                        + "WHERE table_name = 'scan_history' AND column_name = 'owner_user_id'",
+                Integer.class))
+                .isZero();
     }
 
     @Test
@@ -444,7 +446,6 @@ class ScanHistoryPostgresIntegrationTest {
         UUID ownerlessId = UUID.fromString("f6666666-6666-4666-8666-666666666666");
         UUID legacyId = UUID.fromString("f7777777-7777-4777-8777-777777777777");
         UUID crossLicenseId = UUID.fromString("f8888888-8888-4888-8888-888888888888");
-        UUID legacyUserId = UUID.fromString("f9999999-9999-4999-8999-999999999999");
 
         historyService.save(snapshotWith(
                 newestLow, now.minusSeconds(60), ownerDevice.licenseId(), RiskLevel.LOW,
@@ -470,17 +471,9 @@ class ScanHistoryPostgresIntegrationTest {
         historyService.save(snapshotWith(
                 crossLicenseId, now.minusSeconds(30), otherLicenseDevice.licenseId(), RiskLevel.CRITICAL,
                 List.of("MISSING_HTTPS"), "cross-license-secret"));
-        jdbcTemplate.update(
-                "INSERT INTO user_account (user_id, email, password_hash, created_at) VALUES (?, ?, ?, ?)",
-                legacyUserId,
-                legacyUserId + "@example.test",
-                "legacy-hash",
-                Timestamp.from(now));
+        // Rows left without a license owner: ownerless V1 rows and rows from the retired account model.
         jdbcTemplate.update("UPDATE scan_history SET owner_license_id = NULL WHERE scan_id = ?", ownerlessId);
-        jdbcTemplate.update(
-                "UPDATE scan_history SET owner_license_id = NULL, owner_user_id = ? WHERE scan_id = ?",
-                legacyUserId,
-                legacyId);
+        jdbcTemplate.update("UPDATE scan_history SET owner_license_id = NULL WHERE scan_id = ?", legacyId);
 
         mockMvc.perform(get("/api/v1/scans")
                         .param("riskLevel", "HIGH")
