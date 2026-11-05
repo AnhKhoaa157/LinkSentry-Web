@@ -59,3 +59,8 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      # The MV3 extension is a separate bundle with its own entry points
+      # (popup and service worker), so the web build alone does not cover it.
+      - name: Build extension
+        run: npm run build:extension
