@@ -33,7 +33,7 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Set up JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           # Matches the Gradle toolchain in backend/build.gradle.kts.
           java-version: '25'
