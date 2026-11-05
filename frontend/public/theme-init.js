@@ -12,7 +12,7 @@ try {
   document.documentElement.classList.add(theme);
   document
     .querySelector('meta[name="theme-color"]')
-    ?.setAttribute('content', theme === 'dark' ? '#05080f' : '#f3f5f8');
+    ?.setAttribute('content', theme === 'dark' ? '#05080f' : '#f4f7fb');
   document
     .querySelector('link[data-app-favicon]')
     ?.setAttribute(

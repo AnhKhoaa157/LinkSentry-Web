@@ -9,15 +9,18 @@ import { AdminApp } from '@/features/admin/AdminApp';
 import { adminApiClient } from '@/features/admin/api/adminClient';
 import { createQueryClient } from '@/lib/api/queryClient';
 import { ADMIN_UNAUTHORIZED_EVENT } from '@/features/admin/sessionStorage';
+import { ThemeProvider } from '@/lib/theme/ThemeProvider';
 
 function renderAdminApp(route: string) {
   const queryClient = createQueryClient();
   return render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[route]}>
-        <AdminApp />
-      </MemoryRouter>
-    </QueryClientProvider>,
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={[route]}>
+          <AdminApp />
+        </MemoryRouter>
+      </QueryClientProvider>
+    </ThemeProvider>,
   );
 }
 
