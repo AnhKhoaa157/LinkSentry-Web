@@ -17,14 +17,15 @@ The registrable domain in this example is `evil-domain.xyz`. The string `vietcom
 | Component | Status | Notes |
 | --- | --- | --- |
 | Static URL analysis | Implemented | Text-only; no fetch, DNS lookup, or redirect following |
-| Explainable rule engine | Implemented | 11 rules; each finding includes its points and explanation |
+| Explainable rule engine | Implemented | 12 rules; each finding includes its points and explanation |
 | IDNA/Unicode normalization | Implemented | ICU4J UTS #46 with Unicode/UTS #46 data `17.0.0` |
 | Device licensing | Implemented | No end-user account; licenses are granted by an administrator |
 | M6 persistent trial quota | Implemented in the current code | At most 3 scans per 24 hours for each unlicensed device |
 | Private scan history | Implemented | Devices under the same license share retained history; default retention is 30 days |
-| Browser extension | Implemented | Chrome/Edge Manifest V3, local-first popup |
+| Browser extension | Implemented | Chrome/Edge Manifest V3 popup, plus a right-click "Check this link" menu item |
 | DeepSeek advisory | Optional, disabled by default | Available only for retained scans from licensed devices |
 | Local ML toolkit | Implemented independently | Offline train/evaluate/predict; does not affect production scores |
+| Rule-engine evaluation | Implemented (offline tool) | `./gradlew evaluateRules` measures precision/recall on a labeled dataset |
 
 This README describes the current source code, including the M6 V6 migration and persistent quota keyed by `device_id`. Some M6 decision-package documents still contain historical `PROPOSED` or `DECISION_REQUIRED` labels. If those documents are used as an operational runbook, their labels and wire contracts must be synchronized separately.
 
@@ -109,18 +110,18 @@ The URL is treated as **text** from beginning to end. Even when DeepSeek is enab
 - Device authentication uses `Authorization: Device <credential>`.
 - The administrator browser session uses `Authorization: Bearer <opaque-token>`; the token is not a JWT.
 - `ADMIN_API_KEY` is an operator-only fallback for `/api/v1/admin/**` and is never shipped to the frontend.
-- Rate-limit identity uses the server-observed `HttpServletRequest.getRemoteAddr()` for rate-limit buckets; the service does not trust `X-Forwarded-For`, `Forwarded`, or client-supplied headers.
+- Rate-limit identity is the server-observed `HttpServletRequest.getRemoteAddr()`. In production (Render behind Cloudflare) it is instead the single IP literal in `CF-Connecting-IP`, a header the Cloudflare edge overwrites on every request (`CLIENT_ADDRESS_HEADER`). `X-Forwarded-For` and `Forwarded` are never trusted, because clients can append to them.
 - Spring Security keeps default security headers such as `X-Frame-Options: DENY` and `nosniff`.
 
 ### 2.4 Extension and AI protocols
 
 - The extension uses Chrome/Edge Manifest V3.
-- The extension requests only `activeTab` and `storage`; it does not use `tabs`, `scripting`, `webRequest`, `cookies`, content scripts, or a background service worker.
+- The extension requests only `activeTab`, `contextMenus`, and `storage`; it does not use `tabs`, `scripting`, `webRequest`, `cookies`, or content scripts. Its small module service worker only adds the "Check this link" menu item and hands the chosen link to the popup.
 - DeepSeek is called through its HTTPS OpenAI-compatible Chat Completions API using the JDK `java.net.http.HttpClient`; no DeepSeek SDK is added.
 - The AI request is synchronous, non-streaming, single-attempt, and has a 20-second timeout with no retry.
 - DeepSeek receives JSON mode (`response_format: {"type":"json_object"}`); the backend strictly validates the response before returning it to the client.
 
-The security and architecture decisions are recorded in [ADR 0001](docs/adr/0001-static-analysis-only.md), [ADR 0002](docs/adr/0002-explainable-rule-engine.md), [ADR 0003](docs/adr/0003-deterministic-brand-lookalike-detection.md), [ADR 0005](docs/adr/0005-deepseek-scan-explanation-integration.md), [ADR 0008](docs/adr/0008-device-license-authentication.md), [ADR 0009](docs/adr/0009-idna-uts46-icu4j-decision.md), and [ADR 0010](docs/adr/0010-persistent-device-scoped-trial-quota.md).
+The security and architecture decisions are recorded in ADRs 0001–0010, which are maintained outside this repository (see [Related documentation](#15-related-documentation)).
 
 ## 3. Overall architecture
 
@@ -140,7 +141,7 @@ The security and architecture decisions are recorded in [ADR 0001](docs/adr/0001
 │                v                             │
 │  ScanService -> UrlAnalyzer                  │
 │                   │                          │
-│      Normalizer -> 11 Rules -> Scorer        │
+│      Normalizer -> 12 Rules -> Scorer        │
 │                   │                          │
 │             ScanResponse                     │
 │                │                             │
@@ -160,7 +161,7 @@ The security and architecture decisions are recorded in [ADR 0001](docs/adr/0001
 
 ```text
 backend/src/main/java/com/lyanhkhoa/linksentry/
-├── analysis/       normalization, domain objects, 11 rules, scoring
+├── analysis/       normalization, domain objects, 12 rules, scoring
 ├── scan/           POST/GET scan use case and HTTP DTOs
 ├── history/        safe snapshot, owner filtering, retention
 ├── license/        device bootstrap, license, assignment, credential
@@ -275,7 +276,7 @@ DefaultUrlNormalizer
    ├─ build DomainFeatures from asciiHost
    └─ create redacted NormalizedUrl
    v
-11 AnalysisRule
+12 AnalysisRule
    │
    ├─ each rule returns 0 or 1 RuleFinding
    ├─ no I/O, DNS, or fetching
@@ -321,7 +322,7 @@ Licensed scans create immutable snapshots in `scan_history` and `scan_history_fi
 
 Each rule is a separate class and returns at most one `RuleFinding` containing `ruleId`, `severity`, `points`, `title`, `explanation`, and optional evidence. `severity` is a descriptive label; `points` are what contribute to the score.
 
-### 5.1 The 11 current rules
+### 5.1 The 12 current rules
 
 | Rule ID | Detects | Severity | Points | Configuration/description |
 | --- | --- | ---: | ---: | --- |
@@ -333,6 +334,7 @@ Each rule is a separate class and returns at most one `RuleFinding` containing `
 | `SUSPICIOUS_KEYWORDS` | Sensitive words occur in a subdomain label | MEDIUM | 20 | `login`, `verify`, `secure`, `account`, `update`, `confirm`, `signin`, `banking`, `password`, `billing` |
 | `BRAND_DOMAIN_MISMATCH` | Brand token occurs in the host but the registrable domain is not the official domain | HIGH | 30 | Small curated registry; no live lookup |
 | `BRAND_LOOKALIKE_HOSTNAME` | Host resembles a brand through bounded obfuscation | MEDIUM | 20 | One-character typo, hyphen collapse, or Unicode confusable |
+| `BRAND_IMPERSONATION_APK` | Brand token or bounded lookalike in the host, outside the official domain, and a path ending in `.apk` | MEDIUM | 20 | Targets fake banking or government app downloads; only the literal final `.apk` suffix is read, with no decoding |
 | `PUNYCODE_HOST` | A hostname label starts with `xn--` | MEDIUM | 15 | Punycode can be legitimate; this is only a review signal |
 | `ENCODED_CHARACTERS` | Path contains `%XX` encoding | LOW | 10 | Does not decode content and ignores query/fragment |
 | `KNOWN_URL_SHORTENER` | Registrable domain belongs to the shortener list | LOW | 10 | A legitimate shortener can hide the final destination |
@@ -364,7 +366,7 @@ The current registry is manually curated local data containing:
 2. Hyphen collapse: remove hyphens from a label and compare it exactly with the token.
 3. Local Punycode decoding followed by a small explicit, hand-curated Latin/Cyrillic/Greek confusable map. Characters outside the map are ignored instead of guessed.
 
-The two brand rules do not read the path, query, fragment, credentials, DNS, or page content. Evidence names only the brand display name, official domain, and general signal type; it does not echo attacker-controlled hostnames or labels.
+`BRAND_DOMAIN_MISMATCH` and `BRAND_LOOKALIKE_HOSTNAME` do not read the path, query, fragment, credentials, DNS, or page content; `BRAND_IMPERSONATION_APK` reads only whether the path's final segment ends in `.apk`. Evidence names only the brand display name, official domain, and general signal type; it does not echo attacker-controlled hostnames or labels.
 
 ### 5.3 Score and risk level
 
@@ -456,6 +458,8 @@ When enabled, both the API key and model must be configured; missing configurati
 
 Moving ML into production scoring, or allowing a model to affect risk levels or findings, requires a new ADR and product approval. That is not the current flow.
 
+The same dataset schema also measures the production rule engine: `./gradlew evaluateRules --args="<dataset.csv>"` (from `backend/`) prints precision, recall, F1, and per-rule firing rates for the deterministic rules. See [Rule-engine evaluation](#rule-engine-evaluation).
+
 ## 7. Main API
 
 Base path: `/api/v1`.
@@ -481,6 +485,8 @@ Base path: `/api/v1`.
 | Method | Endpoint | Auth | Result |
 | --- | --- | --- | --- |
 | `POST` | `/api/v1/scans` | Public route; M6 requires a known device credential for trial | Analyze a URL; trial returns `scanId:null`, licensed scans return a UUID |
+| `GET` | `/api/v1/scans` | Licensed device | List retained scan summaries for the license; cursor pagination with optional `riskLevel` and `ruleId` filters |
+| `GET` | `/api/v1/scans/insights` | Licensed device | Private 7- or 30-day insights (`windowDays`): totals, risk distribution, top findings |
 | `GET` | `/api/v1/scans/{scanId}` | Licensed device | Read a retained snapshot in the same license |
 | `POST` | `/api/v1/scans/{scanId}/explanation` | Licensed device | Request DeepSeek advisory when enabled |
 | `GET` | `/api/v1/health` | Public | `{ "status":"UP", "service":"linksentry-api" }` |
@@ -562,13 +568,15 @@ The general rate limiter uses in-memory token buckets, independently per route a
 | Bucket | Default capacity | Refill/minute | Applies to |
 | --- | ---: | ---: | --- |
 | `scan` | 20 | 10 | `POST /api/v1/scans` |
-| `scan-lookup` | 30 | 60 | `GET /api/v1/scans/{scanId}` |
+| `scan-lookup` | 30 | 60 | `GET /api/v1/scans`, `/api/v1/scans/insights`, and `/api/v1/scans/{scanId}` |
 | `device` | 5 | 5 | Device bootstrap/status |
 | `explanation` | 5 | 2 | DeepSeek explanation; strictest bucket |
 | `admin` | 10 | 10 | `/api/v1/admin/**` |
 | `admin-auth-login` | 5 | 5 | Administrator browser login only |
 
 Every request matching a bucket consumes a token before Bean Validation or the controller; malformed bodies and invalid URLs still count against the rate limit. `429 RATE_LIMITED` includes `Retry-After`, but does not disclose quota, bucket key, remote address, or `RateLimit-*` headers.
+
+Buckets are keyed by client address. Behind Render, the connection address belongs to the proxy, so the `prod` profile keys on Cloudflare's `CF-Connecting-IP` instead. The header is used only when it appears once and holds one IP literal, parsed without DNS; otherwise the connection address is used. IPv6 addresses are grouped by /64. Each outcome is logged once per process without any address, so after a deploy the Render logs should show `Rate-limit client address header CF-Connecting-IP: present with one IP literal`. On a host without Cloudflare, set `CLIENT_ADDRESS_HEADER` to an empty value.
 
 Rate-limit state is not shared between replicas. A multi-instance deployment needs a gateway/WAF or shared/sticky strategy if global quotas are required. M6 trial events are persistent and row-locked in PostgreSQL, but M6 itself is not abuse monitoring.
 
@@ -581,6 +589,7 @@ Main routes:
 - `/` - scanner.
 - `/methodology` - explanation of registrable domains, signals, and limitations.
 - `/license` - activation code and state for the current installation.
+- `/history` - retained scans and private insights for a licensed installation.
 - `/scans/{scanId}` - private retained scan.
 - `/admin/login` and `/admin` - administrator console separate from the public app.
 
@@ -606,12 +615,15 @@ The output is `linksentry/` in the repository root. To load it locally:
 
 The extension inspects the active tab only after the popup opens and reads the raw tab URL again only after the user clicks scan. The URL is not kept in React state, stored, logged, rendered, or opened automatically.
 
+Right-clicking any `http`/`https` link offers **Check this link with LinkSentry** (localized). The service worker parks that link in `chrome.storage.session` (memory only, readable only by the extension, expires after 60 seconds) and opens the popup, which takes it exactly once and scans it. If the browser does not let the popup open by itself, a `1` badge on the toolbar icon asks the user to click it. Like the tab URL, the link never enters React state and is never rendered or logged.
+
 Permissions:
 
 | Permission | Purpose |
 | --- | --- |
 | `activeTab` | Read the current tab URL after user interaction |
-| `storage` | Store the device credential and UI language in `chrome.storage.local` |
+| `contextMenus` | Show "Check this link" when right-clicking an http(s) link; grants no access to page content |
+| `storage` | Store the device credential and UI language in `chrome.storage.local`, and hand a right-clicked link to the popup through `chrome.storage.session` |
 | Exact `host_permissions` | Call only the configured API origin; no wildcard and no `<all_urls>` |
 
 The trial extension has core scanning only. A licensed extension can request an AI explanation because the response contains a real `scanId`; the gate uses the server response, not a client-only flag.
@@ -667,7 +679,7 @@ Response:
 {"status":"UP","service":"linksentry-api"}
 ```
 
-Local Swagger/OpenAPI:
+Local Swagger/OpenAPI (only with the `local` profile; the `prod` profile and the Docker image never serve them):
 
 ```text
 http://localhost:8080/swagger-ui.html
@@ -756,6 +768,7 @@ Example files:
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
+| `SPRING_PROFILES_ACTIVE` | `local` (`prod` in the Docker image) | `local` adds Swagger UI and debug logging; deployments use `prod` |
 | `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5432/linksentry` | PostgreSQL URL |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173` | Exact browser origins |
 | `ENGINE_VERSION` | `0.1.0` | Version returned in every scan |
@@ -766,6 +779,7 @@ Example files:
 | `ANONYMOUS_TRIAL_MAX_SCANS` | `3` | Trial admissions in the rolling window |
 | `ANONYMOUS_TRIAL_WINDOW` | `24h` | Rolling quota window |
 | `RATE_LIMIT_ENABLED` | `true` | Enable general token buckets |
+| `CLIENT_ADDRESS_HEADER` | empty (`CF-Connecting-IP` in `prod`) | Edge header holding the visitor's IP for rate limiting; leave empty without Cloudflare |
 | `AI_EXPLANATIONS_ENABLED` | `false` | Enable DeepSeek explanations |
 | `DEEPSEEK_API_KEY` | empty | Provider secret key |
 | `DEEPSEEK_MODEL` | empty | Required model ID when AI is enabled |
@@ -804,8 +818,20 @@ Run from `backend/`:
 | `./gradlew test --no-daemon` | `.\gradlew.bat test --no-daemon` | Run unit, web, and integration tests |
 | `./gradlew build --no-daemon` | `.\gradlew.bat build --no-daemon` | Build, test, and assemble the boot jar |
 | `./gradlew bootJar` | `.\gradlew.bat bootJar` | Assemble the executable jar |
+| `./gradlew evaluateRules` | `.\gradlew.bat evaluateRules` | Measure the production rules on a labeled dataset (see below) |
 
 The full backend test suite requires Docker because of PostgreSQL Testcontainers. H2 is not evidence for migration, PostgreSQL type, locking, or constraint behavior.
+
+### Rule-engine evaluation
+
+`evaluateRules` scores a labeled CSV with the production rules, read from the real `application.yml`, and prints a Markdown report: a confusion matrix, precision, recall, F1, and false-positive rate for flagging at `MODERATE`, `HIGH`, and `CRITICAL`, then mean scores and each rule's firing rate on risky versus benign rows. It fetches and resolves nothing and never prints a URL.
+
+```bash
+cd backend
+./gradlew evaluateRules --args="../ml/data/sample_dataset.csv"
+```
+
+The dataset uses the `ml/` schema: a header row with `url` and `label` (`1` risky, `0` benign). The bundled sample is synthetic, so its numbers only show that the tool works. For real numbers, combine a public phishing URL feed (label `1`) with a list of popular legitimate sites (label `0`), and keep that data out of the repository.
 
 ### Local ML
 
@@ -831,13 +857,12 @@ python -m linksentry_ml predict "https://example.test/some/path" --model-dir art
 ├── backend/            Spring Boot REST API, analysis engine, Flyway migrations
 ├── frontend/           React/TypeScript web app and MV3 extension source
 ├── ml/                 Offline advisory ML toolkit, synthetic dataset, tests
-├── docs/               Architecture, API contract, security boundary, ADRs
 ├── compose.yaml        PostgreSQL and optional backend/frontend containers
-├── .github/workflows/  CI for frontend/backend
+├── .github/            CI for frontend, backend, and ml; Dependabot configuration
 └── LICENSE             MIT
 ```
 
-The backend package-by-feature structure and frontend feature-first structure are described in detail in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+The backend is organized package-by-feature (section 3.1) and the frontend feature-first.
 
 ### Main versions
 
@@ -868,7 +893,7 @@ The frontend lockfile is committed and CI uses `npm ci`. Major dependency upgrad
 - Valid Punycode does not mean phishing.
 - Brand lookalike detection covers only the three bounded techniques above; multi-character typos or confusables outside the map may not be detected.
 - Score and risk level are policy heuristics, not probabilities, and have no accuracy claim.
-- The general rate limiter is in-memory per instance; multiple replicas do not automatically create a global quota.
+- The general rate limiter is in-memory per instance; multiple replicas do not automatically create a global quota. Its per-visitor keys rely on the edge header (`CF-Connecting-IP`) in production.
 - The M6 persistent quota reduces replay after restart and provides concurrency control through PostgreSQL row locking, but it is not device attestation; copied browser storage can still clone a credential until it is revoked.
 - An ungranted trial device may be cleaned up after `LICENSE_PENDING_DEVICE_RETENTION`; devices with assignment history are retained.
 - AI explanation depends on DeepSeek availability and cost when enabled, but the deterministic scan core does not depend on AI.
@@ -879,19 +904,11 @@ The frontend lockfile is committed and CI uses `npm ci`. Major dependency upgrad
 
 | Document | Contents |
 | --- | --- |
-| [docs/SECURITY_BOUNDARY.md](docs/SECURITY_BOUNDARY.md) | Text-only URL boundary, privacy, and prohibited behavior |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Layering, package structure, domain rules, and persistence |
-| [docs/API_CONTRACT.md](docs/API_CONTRACT.md) | Wire shape, endpoints, error envelope, and contract rules |
-| [docs/MANUAL_IMPLEMENTATION_GUIDE.md](docs/MANUAL_IMPLEMENTATION_GUIDE.md) | Original analyzer exercises and decisions |
-| [ADR 0001](docs/adr/0001-static-analysis-only.md) | Why the system does not fetch, resolve DNS, or call threat intelligence |
-| [ADR 0002](docs/adr/0002-explainable-rule-engine.md) | Why scoring uses a deterministic rule engine |
-| [ADR 0003](docs/adr/0003-deterministic-brand-lookalike-detection.md) | Bounded brand lookalike detection |
-| [ADR 0005](docs/adr/0005-deepseek-scan-explanation-integration.md) | DeepSeek egress boundary and structured advisory |
-| [ADR 0008](docs/adr/0008-device-license-authentication.md) | Device installations and administrator-granted licenses |
-| [ADR 0009](docs/adr/0009-idna-uts46-icu4j-decision.md) | ICU4J, UTS #46, and Unicode policy |
-| [ADR 0010](docs/adr/0010-persistent-device-scoped-trial-quota.md) | M6 policy, schema, locking, and retention |
 | [backend/DEPLOYMENT.md](backend/DEPLOYMENT.md) | Administrator/license deployment and environment variables |
+| [backend/src/main/resources/db/migration/README.md](backend/src/main/resources/db/migration/README.md) | Migration history (V1–V7) and conventions |
 | [ml/README.md](ml/README.md) | Offline ML toolkit and limitations |
+
+The design notes (security boundary, architecture, API contract, implementation guide, and ADRs 0001–0010) are kept in a local `docs/` folder that is not published with this repository.
 
 ## License
 

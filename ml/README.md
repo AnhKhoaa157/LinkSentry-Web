@@ -10,7 +10,7 @@ backend or frontend.
 ## Boundary
 
 Same static-analysis-only boundary as the rest of LinkSentry
-(`docs/SECURITY_BOUNDARY.md`, [ADR 0001](../docs/adr/0001-static-analysis-only.md)):
+(the security boundary and ADR 0001, kept in the maintainers' design notes):
 
 - No network fetch, DNS resolution, redirect following, or third-party call —
   anywhere in feature extraction, training, evaluation, or prediction.
@@ -130,7 +130,7 @@ splitting, train/evaluate/predict round-trips, and the CLI.
 
 This model is **not** wired into the production risk engine, and doing so is
 out of scope for this package. Per `harness/AGENT_OPERATING_CONTRACT.md` and
-[ADR 0001](../docs/adr/0001-static-analysis-only.md), any future step that
+ADR 0001, any future step that
 would call this model from the backend (or otherwise let it influence a
 served score, risk level, or finding) needs its own ADR and explicit product
 approval — the same governance already required for any other change to the
