@@ -13,6 +13,14 @@ springdoc:
   swagger-ui:
     enabled: false
 
+linksentry:
+  client-address:
+    # Render serves the API through Cloudflare, which overwrites
+    # CF-Connecting-IP with the visitor's address. Without this, every visitor
+    # shares the proxy's address and therefore the same rate-limit buckets.
+    # Set CLIENT_ADDRESS_HEADER to an empty value on a host without Cloudflare.
+    trusted-header: ${CLIENT_ADDRESS_HEADER:CF-Connecting-IP}
+
 logging:
   level:
     com.lyanhkhoa.linksentry: INFO

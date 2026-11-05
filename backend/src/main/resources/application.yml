@@ -104,9 +104,17 @@ linksentry:
     # Exact origins only. A wildcard is never acceptable here.
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
     allowed-methods: GET,POST,OPTIONS
+  client-address:
+    # Header that the edge proxy overwrites with the visitor's address on every
+    # request, e.g. Cloudflare's CF-Connecting-IP. Blank (the default here) keys
+    # rate limits on the connection's remote address. Set it only where every
+    # request passes through that edge; X-Forwarded-For and Forwarded are
+    # refused at startup. The prod profile sets CF-Connecting-IP for Render.
+    # See common.ratelimit.ClientAddressResolver.
+    trusted-header: ${CLIENT_ADDRESS_HEADER:}
   ratelimit:
-    # Single-instance, in-memory token buckets keyed only by remote address. See
-    # common.ratelimit and docs/SECURITY_BOUNDARY.md.
+    # Single-instance, in-memory token buckets keyed by client address (see
+    # client-address above and common.ratelimit).
     enabled: ${RATE_LIMIT_ENABLED:true}
     scan:
       capacity: ${RATE_LIMIT_SCAN_CAPACITY:20}
