@@ -455,8 +455,13 @@ export const en = {
   'admin.confirm.revokeLicense': 'Revoke the license “{label}”? Its devices will lose access.',
   'admin.confirm.revokeDevice': 'Revoke this device assignment?',
 
+  'contextMenu.checkLink': 'Check this link with LinkSentry',
+
   'popup.eyebrow': 'Current tab',
+  'popup.eyebrow.link': 'Selected link',
   'popup.title': 'LinkSentry',
+  'popup.status.linkScanning': 'Checking the link you selected…',
+  'popup.status.linkResult': 'Showing the result for the link you selected.',
   'popup.status.checking': 'Checking this tab…',
   'popup.status.ready': 'Ready to scan the current tab.',
   'popup.status.unsupported':

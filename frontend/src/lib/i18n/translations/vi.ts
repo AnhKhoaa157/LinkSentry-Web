@@ -451,8 +451,13 @@ export const vi: Record<TranslationKey, string> = {
   'admin.confirm.revokeLicense': 'Thu hồi giấy phép “{label}”? Các thiết bị của giấy phép sẽ mất quyền.',
   'admin.confirm.revokeDevice': 'Thu hồi gán quyền của thiết bị này?',
 
+  'contextMenu.checkLink': 'Kiểm tra liên kết này bằng LinkSentry',
+
   'popup.eyebrow': 'Tab hiện tại',
+  'popup.eyebrow.link': 'Liên kết đã chọn',
   'popup.title': 'LinkSentry',
+  'popup.status.linkScanning': 'Đang kiểm tra liên kết bạn đã chọn…',
+  'popup.status.linkResult': 'Đang hiển thị kết quả cho liên kết bạn đã chọn.',
   'popup.status.checking': 'Đang kiểm tra tab này…',
   'popup.status.ready': 'Sẵn sàng phân tích tab hiện tại.',
   'popup.status.unsupported':
