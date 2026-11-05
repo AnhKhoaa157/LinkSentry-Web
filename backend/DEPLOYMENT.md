@@ -129,13 +129,37 @@ Login returns an opaque bearer token kept only in the browser's
 `/api/v1/admin/**` above, so it is never gated by `ADMIN_API_KEY`. Sessions
 expire after `ADMIN_SESSION_TTL` and can be revoked early with the
 dashboard's **Log out**. Login attempts are independently rate limited per
-server-observed address; see `docs/SECURITY_BOUNDARY.md`.
+client address (see "Render settings" below).
 
 Licenses and device activations are managed through the `/admin` dashboard,
 which uses the administrator bearer session directly against the endpoints
 above. It never receives or sends `ADMIN_API_KEY`, device credentials, or
 other operator secrets. The existing curl flow remains available for
 automation.
+
+## Render settings
+
+The Docker image runs the `prod` profile unless `SPRING_PROFILES_ACTIVE` says
+otherwise. Do not set it to `local` on Render: that profile serves Swagger UI
+and the OpenAPI document and logs at debug level.
+
+| Variable                | Value on Render                 | Notes |
+| ----------------------- | ------------------------------- | ----- |
+| `SPRING_PROFILES_ACTIVE` | unset, or `prod`               | `prod` is the image default. |
+| `CLIENT_ADDRESS_HEADER` | unset (`prod` uses `CF-Connecting-IP`) | Header the Cloudflare edge overwrites with the visitor's IP. Rate limits key on it. Set it to an empty value only on a host without Cloudflare. |
+
+After a deploy, the logs should contain `Rate-limit client address header
+CF-Connecting-IP: present with one IP literal`. If they say `absent` instead,
+every visitor still shares the proxy's buckets. Report that rather than
+switching to `X-Forwarded-For`, which clients can forge.
+
+### Database migrations
+
+Flyway runs pending migrations at startup. `V7__drop_retired_account_tables`
+permanently drops the retired email/password account tables (`user_account`,
+`auth_session`, `auth_registration_verification`) and
+`scan_history.owner_user_id`. Back the database up before the first deploy
+that includes it if that old data must be kept anywhere.
 
 ## Other required environment variables
 

@@ -1,9 +1,16 @@
 # Flyway migrations
 
-The first migration creates the privacy-safe scan-history parent and ordered
-finding tables. V2 adds accounts, opaque bearer-session metadata, and a nullable
-scan owner without backfilling legacy rows. Scan-history persistence is Exercise 10 of
-[MANUAL_IMPLEMENTATION_GUIDE.md](../../../../../../docs/MANUAL_IMPLEMENTATION_GUIDE.md).
+| Version | Change |
+| --- | --- |
+| V1 | Privacy-safe scan-history parent and ordered finding tables |
+| V2, V3 | Email/password accounts and registration codes (retired) |
+| V4 | Device installations and administrator-granted licenses; scans owned by a license |
+| V5 | Administrator login and sessions |
+| V6 | Device-scoped trial scan events (M6) |
+| V7 | Drops the retired V2/V3 account tables and `scan_history.owner_user_id` |
+
+V2 and V3 still run on a new database, because migrations are append-only, and
+V7 then removes what they created.
 
 Flyway ignores files that do not match its naming pattern, so this README is safe
 to leave in place.

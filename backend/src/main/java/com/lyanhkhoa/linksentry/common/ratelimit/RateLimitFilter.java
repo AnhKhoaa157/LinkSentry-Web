@@ -60,12 +60,17 @@ public final class RateLimitFilter extends OncePerRequestFilter {
     private final RateLimitProperties properties;
     private final RouteClassifier routeClassifier;
     private final RateLimitBucketStore bucketStore;
+    private final ClientAddressResolver clientAddressResolver;
 
     public RateLimitFilter(
-            RateLimitProperties properties, RouteClassifier routeClassifier, RateLimitBucketStore bucketStore) {
+            RateLimitProperties properties,
+            RouteClassifier routeClassifier,
+            RateLimitBucketStore bucketStore,
+            ClientAddressResolver clientAddressResolver) {
         this.properties = properties;
         this.routeClassifier = routeClassifier;
         this.bucketStore = bucketStore;
+        this.clientAddressResolver = clientAddressResolver;
     }
 
     @Override
@@ -83,7 +88,7 @@ public final class RateLimitFilter extends OncePerRequestFilter {
             return;
         }
 
-        Bucket bucket = bucketStore.bucketFor(request.getRemoteAddr(), route.get());
+        Bucket bucket = bucketStore.bucketFor(clientAddressResolver.resolve(request), route.get());
         ConsumptionProbe probe = bucket.tryConsumeAndReturnRemaining(1);
         if (probe.isConsumed()) {
             filterChain.doFilter(request, response);

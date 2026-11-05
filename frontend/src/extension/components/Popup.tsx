@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { getActiveTabUrl } from '@/extension/lib/activeTabUrl';
+import { takePendingLink } from '@/extension/lib/pendingLinkScan';
 import { LanguageSwitcher } from '@/extension/components/LanguageSwitcher';
 import { ThemeSwitcher } from '@/components/ui/ThemeSwitcher';
 import { ExplainResult } from '@/features/explanation/components/ExplainResult';
@@ -13,12 +14,17 @@ import { RiskBadge } from '@/features/scanner/components/RiskBadge';
 import { normalizeApiError, type NormalizedApiError } from '@/lib/api/errors';
 import { buildOfficialWebAppUrl, env } from '@/lib/config/env';
 import type { Translate } from '@/lib/i18n/LocaleContext';
+import { getBrowserLocale, type Locale } from '@/lib/i18n/locale';
+import { localeStorage } from '@/lib/i18n/localeStorage';
 import { useLocale } from '@/lib/i18n/useLocale';
 
 const STATUS_ID = 'popup-tab-status';
 const TITLE_ID = 'popup-title';
 
 type TabPhase = 'checking' | 'ready' | 'unsupported';
+
+/** What the shown result belongs to: the active tab, or a link chosen from the right-click menu. */
+type ScanSource = 'tab' | 'link';
 
 function displayMessage(t: Translate, error: NormalizedApiError): string {
   return error.code === 'RATE_LIMITED' ? t('popup.status.rateLimited') : error.message;
@@ -33,12 +39,15 @@ function statusText(t: Translate, phase: TabPhase): string {
 
 /**
  * The extension popup classifies the active tab on open, then re-reads and
- * submits it only after an explicit click.
+ * submits it only after an explicit click. When it was opened from the
+ * "Check this link" context-menu item instead, it takes the parked link once
+ * (see pendingLinkScan.ts) and scans it straight away, since choosing that menu
+ * item is the explicit request.
  *
- * The URL itself is never put in React state — only a `ready`/`unsupported`
- * classification is. Raw URL data is held only in the click handler while the
- * direct request is in flight; it is never put in React or TanStack Query
- * state, satisfying the
+ * Neither URL is ever put in React state: only a `ready`/`unsupported`
+ * classification and the result's source are. Raw URL data is held only inside
+ * the submitting function while the direct request is in flight; it is never
+ * put in React or TanStack Query state, satisfying the
  * never-render/never-persist requirement in docs/SECURITY_BOUNDARY.md.
  */
 export function Popup() {
@@ -46,9 +55,51 @@ export function Popup() {
   const [tabPhase, setTabPhase] = useState<TabPhase>('checking');
   const scanButtonRef = useRef<HTMLButtonElement>(null);
   const [isPending, setIsPending] = useState(false);
+  const [scanSource, setScanSource] = useState<ScanSource>('tab');
   const [scanResponse, setScanResponse] = useState<ScanResponse | null>(null);
   const [apiError, setApiError] = useState<NormalizedApiError | null>(null);
   const [webAppConfigError, setWebAppConfigError] = useState(false);
+
+  /**
+   * Reads one URL and submits it, recording only the outcome. `readUrl` returns
+   * null when the tab turned out to be unsupported.
+   */
+  const submitScan = useCallback(
+    async (readUrl: () => Promise<string | null>, requestLocale: Locale, source: ScanSource) => {
+      setScanSource(source);
+      setIsPending(true);
+      setScanResponse(null);
+      setApiError(null);
+
+      try {
+        const url = await readUrl();
+        if (url === null) {
+          setTabPhase('unsupported');
+          return;
+        }
+
+        setScanResponse(await postScan(url, { locale: requestLocale }));
+      } catch (error) {
+        setApiError(normalizeApiError(error));
+      } finally {
+        setIsPending(false);
+      }
+    },
+    [],
+  );
+
+  // A link chosen from the right-click menu. The stored language is read
+  // directly because the locale context may not have loaded it yet, and the
+  // server localizes the findings it returns.
+  useEffect(() => {
+    void takePendingLink().then(async (link) => {
+      if (link === null) {
+        return;
+      }
+      const requestLocale = (await localeStorage.get()) ?? getBrowserLocale();
+      await submitScan(async () => link, requestLocale, 'link');
+    });
+  }, [submitScan]);
 
   useEffect(() => {
     let cancelled = false;
@@ -87,23 +138,14 @@ export function Popup() {
       return;
     }
 
-    setIsPending(true);
-    setScanResponse(null);
-    setApiError(null);
-
-    try {
-      const lookup = await getActiveTabUrl();
-      if (!lookup.scannable) {
-        setTabPhase('unsupported');
-        return;
-      }
-
-      setScanResponse(await postScan(lookup.url, { locale }));
-    } catch (error) {
-      setApiError(normalizeApiError(error));
-    } finally {
-      setIsPending(false);
-    }
+    await submitScan(
+      async () => {
+        const lookup = await getActiveTabUrl();
+        return lookup.scannable ? lookup.url : null;
+      },
+      locale,
+      'tab',
+    );
   }
 
   function openWebApp(pathname: '' | '/history') {
@@ -118,6 +160,12 @@ export function Popup() {
   }
 
   const canScan = tabPhase === 'ready' && !isPending;
+  const showingLink = scanSource === 'link' && (isPending || scanResponse !== null);
+  const statusMessage = showingLink
+    ? isPending
+      ? t('popup.status.linkScanning')
+      : t('popup.status.linkResult')
+    : statusText(t, tabPhase);
 
   return (
     <main className="popup-shell">
@@ -127,7 +175,7 @@ export function Popup() {
             <img src="./icons/logo-mark.png" alt="" className="popup-brand-mark" />
           </span>
           <div className="popup-brand-copy">
-            <p className="popup-eyebrow">{t('popup.eyebrow')}</p>
+            <p className="popup-eyebrow">{showingLink ? t('popup.eyebrow.link') : t('popup.eyebrow')}</p>
             <h1 id={TITLE_ID}>{t('popup.title')}</h1>
           </div>
           <div className="popup-controls">
@@ -136,9 +184,15 @@ export function Popup() {
           </div>
         </header>
 
-        <p id={STATUS_ID} role="status" aria-live="polite" className="popup-tab-status" data-phase={tabPhase}>
+        <p
+          id={STATUS_ID}
+          role="status"
+          aria-live="polite"
+          className="popup-tab-status"
+          data-phase={showingLink ? (isPending ? 'checking' : 'ready') : tabPhase}
+        >
           <span aria-hidden="true" className="popup-status-dot" />
-          {statusText(t, tabPhase)}
+          {statusMessage}
         </p>
       </section>
 
@@ -162,7 +216,7 @@ export function Popup() {
           <span>
             {isPending
               ? t('popup.scan.button.scanning')
-              : scanResponse
+              : scanResponse && scanSource === 'tab'
                 ? t('popup.scan.button.scanAgain')
                 : t('popup.scan.button.scan')}
           </span>

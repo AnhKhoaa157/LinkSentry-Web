@@ -72,6 +72,9 @@ export const vi: Record<TranslationKey, string> = {
   'scanner.submit': 'Phân tích URL',
   'scanner.analyzing': 'Đang phân tích…',
   'scanner.initializing': 'Đang chuẩn bị cài đặt…',
+  'scanner.shared.receiving': 'Đang nhận liên kết bạn đã chia sẻ…',
+  'scanner.shared.missing':
+    'Không nhận được liên kết web từ nội dung bạn chia sẻ. Hãy dán liên kết vào ô bên dưới.',
   'scanner.resultHeading': 'Kết quả phân tích',
   'scanner.resultDescription': 'Kết quả do dịch vụ phân tích backend cung cấp.',
   'scanner.analyzedLink': 'Giá trị đã gửi (bản hiển thị đã ẩn)',
@@ -451,8 +454,13 @@ export const vi: Record<TranslationKey, string> = {
   'admin.confirm.revokeLicense': 'Thu hồi giấy phép “{label}”? Các thiết bị của giấy phép sẽ mất quyền.',
   'admin.confirm.revokeDevice': 'Thu hồi gán quyền của thiết bị này?',
 
+  'contextMenu.checkLink': 'Kiểm tra liên kết này bằng LinkSentry',
+
   'popup.eyebrow': 'Tab hiện tại',
+  'popup.eyebrow.link': 'Liên kết đã chọn',
   'popup.title': 'LinkSentry',
+  'popup.status.linkScanning': 'Đang kiểm tra liên kết bạn đã chọn…',
+  'popup.status.linkResult': 'Đang hiển thị kết quả cho liên kết bạn đã chọn.',
   'popup.status.checking': 'Đang kiểm tra tab này…',
   'popup.status.ready': 'Sẵn sàng phân tích tab hiện tại.',
   'popup.status.unsupported':

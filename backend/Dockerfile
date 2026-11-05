@@ -3,7 +3,7 @@
 # Two stages so the runtime image carries no build tooling and no source.
 
 # ---------- Build ----------
-FROM eclipse-temurin:26-jdk-alpine AS build
+FROM eclipse-temurin:25-jdk-alpine AS build
 WORKDIR /workspace
 
 # Wrapper and build scripts first: these change rarely, so the dependency
@@ -16,7 +16,7 @@ COPY src ./src
 RUN ./gradlew --no-daemon clean bootJar -x test
 
 # ---------- Runtime ----------
-FROM eclipse-temurin:26-jre-alpine AS runtime
+FROM eclipse-temurin:25-jre-alpine AS runtime
 
 # wget is used by the compose healthcheck.
 RUN apk add --no-cache wget \
@@ -33,6 +33,8 @@ USER linksentry
 EXPOSE 8080
 
 ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75.0 -Djava.security.egd=file:/dev/./urandom"
-ENV SPRING_PROFILES_ACTIVE=local
+# The image is what Render deploys, so it defaults to the production profile.
+# Docker Compose overrides this with `local` for development.
+ENV SPRING_PROFILES_ACTIVE=prod
 
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

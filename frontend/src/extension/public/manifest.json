@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "LinkSentry Scanner",
-  "version": "0.2.2",
-  "description": "Scans the current tab's link for lexical phishing risk signals using the LinkSentry API. Never visits the link.",
+  "version": "0.3.0",
+  "description": "Scans the current tab or a right-clicked link for lexical phishing risk signals with the LinkSentry API. Never visits the link.",
   "action": {
     "default_popup": "popup.html",
     "default_title": "Scan this tab with LinkSentry",
@@ -19,6 +19,10 @@
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png"
   },
-  "permissions": ["activeTab", "storage"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "permissions": ["activeTab", "contextMenus", "storage"],
   "host_permissions": ["https://linksentry-web.onrender.com/*"]
 }

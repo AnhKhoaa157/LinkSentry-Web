@@ -32,6 +32,19 @@ function stubActiveTab(url: string | undefined) {
   return query;
 }
 
+/** Like stubActiveTab, plus a link parked by the "Check this link" context-menu item. */
+function stubActiveTabWithPendingLink(url: string, pending: { url: string; expiresAt: number }) {
+  const query = vi.fn().mockResolvedValue([{ url }]);
+  const create = vi.fn().mockResolvedValue({});
+  const session = {
+    get: vi.fn().mockResolvedValue({ 'linksentry.pendingLinkScan': pending }),
+    remove: vi.fn().mockResolvedValue(undefined),
+  };
+  const action = { setBadgeText: vi.fn().mockResolvedValue(undefined) };
+  vi.stubGlobal('chrome', { tabs: { query, create }, storage: { session }, action });
+  return { query, session, action };
+}
+
 const SCAN_URL =
   'https://scan-user:scan-password@login.example.com.security-check.invalid/account?token=query-sentinel#fragment-sentinel';
 const RAW_URL_SENTINELS = [
@@ -251,6 +264,46 @@ describe('Popup', () => {
 
     // Even an explicit click on the disabled control must never reach the API.
     await user.click(scanButton());
+    expect(postSpy).not.toHaveBeenCalled();
+  });
+
+  it('scans a link handed over by the context menu as soon as it opens, without rendering it', async () => {
+    const { session, action } = stubActiveTabWithPendingLink('https://mail.example.com/inbox', {
+      url: SCAN_URL,
+      expiresAt: Date.now() + 30_000,
+    });
+    const postSpy = vi.spyOn(apiClient, 'post').mockResolvedValue({ data: validTrialScanResponse });
+
+    renderWithProviders(<Popup />);
+
+    expect(await screen.findByText('Showing the result for the link you selected.')).toBeInTheDocument();
+    expect(postSpy).toHaveBeenCalledOnce();
+    expect(postSpy).toHaveBeenCalledWith(
+      '/api/v1/scans',
+      { url: SCAN_URL },
+      { headers: { 'Accept-Language': 'en' } },
+    );
+    expect(session.remove).toHaveBeenCalledWith('linksentry.pendingLinkScan');
+    expect(action.setBadgeText).toHaveBeenCalledWith({ text: '' });
+    expect(screen.getByText('Selected link')).toBeInTheDocument();
+    expect(screen.getByText('Subdomain uses a sensitive-sounding word')).toBeInTheDocument();
+    // The next explicit action scans the tab, not the link again.
+    await waitFor(() => expect(scanButton()).toHaveTextContent('Scan this tab'));
+    for (const sentinel of RAW_URL_SENTINELS) {
+      expect(document.body.innerHTML).not.toContain(sentinel);
+    }
+    postSpy.mockReset();
+  });
+
+  it('ignores an expired context-menu hand-off and waits for an explicit click', async () => {
+    const { session } = stubActiveTabWithPendingLink(SCAN_URL, { url: SCAN_URL, expiresAt: Date.now() - 1 });
+    const postSpy = vi.spyOn(apiClient, 'post');
+
+    renderWithProviders(<Popup />);
+
+    await waitFor(() => expect(scanButton()).toBeEnabled());
+    expect(screen.getByText('Ready to scan the current tab.')).toBeInTheDocument();
+    expect(session.remove).toHaveBeenCalledWith('linksentry.pendingLinkScan');
     expect(postSpy).not.toHaveBeenCalled();
   });
 

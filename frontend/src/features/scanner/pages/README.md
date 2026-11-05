@@ -10,6 +10,6 @@ the persisted result route above.
 Requirements that apply to whatever lands here:
 
 - Never render an analysed URL as an anchor, and never call `window.open` with
-  one. Render it as text. See
-  [SECURITY_BOUNDARY.md](../../../../../docs/SECURITY_BOUNDARY.md).
+  one. Render it as text, as the security boundary in the maintainers'
+  design notes requires.
 - Never communicate risk by colour alone.

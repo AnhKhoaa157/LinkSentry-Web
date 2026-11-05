@@ -4,6 +4,8 @@ import com.lyanhkhoa.linksentry.admin.application.AdminAuthService;
 import com.lyanhkhoa.linksentry.admin.security.AdminSessionAuthenticationFilter;
 import com.lyanhkhoa.linksentry.common.config.AdminProperties;
 import com.lyanhkhoa.linksentry.common.config.CorsProperties;
+import com.lyanhkhoa.linksentry.common.ratelimit.ClientAddressProperties;
+import com.lyanhkhoa.linksentry.common.ratelimit.ClientAddressResolver;
 import com.lyanhkhoa.linksentry.common.ratelimit.RateLimitBucketStore;
 import com.lyanhkhoa.linksentry.common.ratelimit.RateLimitFilter;
 import com.lyanhkhoa.linksentry.common.ratelimit.RateLimitProperties;
@@ -90,6 +92,7 @@ class SecurityConfig {
             RateLimitProperties rateLimitProperties,
             RouteClassifier rateLimitRouteClassifier,
             RateLimitBucketStore rateLimitBucketStore,
+            ClientAddressProperties clientAddressProperties,
             AdminProperties adminProperties,
             AdminAuthService adminAuthService,
             DeviceService deviceService,
@@ -97,8 +100,11 @@ class SecurityConfig {
             DeviceTrialQuotaService deviceTrialQuotaService,
             Clock clock)
             throws Exception {
-        RateLimitFilter rateLimitFilter =
-                new RateLimitFilter(rateLimitProperties, rateLimitRouteClassifier, rateLimitBucketStore);
+        RateLimitFilter rateLimitFilter = new RateLimitFilter(
+                rateLimitProperties,
+                rateLimitRouteClassifier,
+                rateLimitBucketStore,
+                new ClientAddressResolver(clientAddressProperties.trustedHeader()));
         AdminApiKeyFilter adminApiKeyFilter = new AdminApiKeyFilter(adminProperties);
         AdminSessionAuthenticationFilter adminSessionAuthenticationFilter =
                 new AdminSessionAuthenticationFilter(adminAuthService);

@@ -1,7 +1,8 @@
 import { isLocale, type Locale } from '@/lib/i18n/locale';
 import { hasExtensionStorage } from '@/lib/device/environment';
 
-const STORAGE_KEY = 'linksentry.locale';
+/** Where the chosen UI language is stored; the extension's service worker reads it too. */
+export const LOCALE_STORAGE_KEY = 'linksentry.locale';
 
 /**
  * Where the chosen display language lives: `chrome.storage.local` inside the extension popup,
@@ -17,8 +18,8 @@ export interface LocaleStorage {
 const chromeStorageBackend: LocaleStorage = {
   async get() {
     try {
-      const result = await chrome.storage.local.get(STORAGE_KEY);
-      const value: unknown = result[STORAGE_KEY];
+      const result = await chrome.storage.local.get(LOCALE_STORAGE_KEY);
+      const value: unknown = result[LOCALE_STORAGE_KEY];
       return typeof value === 'string' && isLocale(value) ? value : null;
     } catch {
       return null;
@@ -26,7 +27,7 @@ const chromeStorageBackend: LocaleStorage = {
   },
   async set(locale) {
     try {
-      await chrome.storage.local.set({ [STORAGE_KEY]: locale });
+      await chrome.storage.local.set({ [LOCALE_STORAGE_KEY]: locale });
     } catch {
       // A blocked storage implementation leaves the choice unpersisted for this session only.
     }
@@ -36,7 +37,7 @@ const chromeStorageBackend: LocaleStorage = {
 const webStorageBackend: LocaleStorage = {
   async get() {
     try {
-      const value = localStorage.getItem(STORAGE_KEY);
+      const value = localStorage.getItem(LOCALE_STORAGE_KEY);
       return value !== null && isLocale(value) ? value : null;
     } catch {
       return null;
@@ -44,7 +45,7 @@ const webStorageBackend: LocaleStorage = {
   },
   async set(locale) {
     try {
-      localStorage.setItem(STORAGE_KEY, locale);
+      localStorage.setItem(LOCALE_STORAGE_KEY, locale);
     } catch {
       // No safer fallback.
     }

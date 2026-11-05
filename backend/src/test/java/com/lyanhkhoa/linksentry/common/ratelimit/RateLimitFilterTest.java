@@ -79,7 +79,7 @@ class RateLimitFilterTest {
     }
 
     @Test
-    @DisplayName("identity comes only from getRemoteAddr; spoofed forwarding headers change nothing")
+    @DisplayName("by default identity comes only from getRemoteAddr; spoofed forwarding headers change nothing")
     void identityIgnoresForwardingHeaders() throws Exception {
         RateLimitFilter filter = newFilter(properties(1, true));
 
@@ -152,9 +152,53 @@ class RateLimitFilterTest {
         assertThat(RateLimitFilter.retryAfterSeconds(60_000_000_000L)).isEqualTo(60);
     }
 
+    @Test
+    @DisplayName("with a trusted edge header, visitors behind the same proxy address get separate buckets")
+    void trustedEdgeHeaderSeparatesVisitorsBehindOneProxy() throws Exception {
+        RateLimitFilter filter = newFilter(properties(1, true), new ClientAddressResolver("CF-Connecting-IP"));
+
+        MockHttpServletRequest firstVisitor = postRequest("10.0.0.5");
+        firstVisitor.addHeader("CF-Connecting-IP", "203.0.113.10");
+        filter.doFilter(firstVisitor, new MockHttpServletResponse(), mock(FilterChain.class)); // exhausts .10
+
+        MockHttpServletRequest secondVisitor = postRequest("10.0.0.5");
+        secondVisitor.addHeader("CF-Connecting-IP", "198.51.100.20");
+        FilterChain secondChain = mock(FilterChain.class);
+        MockHttpServletResponse secondResponse = new MockHttpServletResponse();
+        filter.doFilter(secondVisitor, secondResponse, secondChain);
+        verify(secondChain).doFilter(secondVisitor, secondResponse);
+
+        MockHttpServletRequest firstVisitorAgain = postRequest("10.0.0.5");
+        firstVisitorAgain.addHeader("CF-Connecting-IP", "203.0.113.10");
+        MockHttpServletResponse againResponse = new MockHttpServletResponse();
+        filter.doFilter(firstVisitorAgain, againResponse, mock(FilterChain.class));
+        assertThat(againResponse.getStatus()).isEqualTo(429);
+    }
+
+    @Test
+    @DisplayName("with a trusted edge header configured, forwarding-chain headers still change nothing")
+    void trustedHeaderModeStillIgnoresForwardingChain() throws Exception {
+        RateLimitFilter filter = newFilter(properties(1, true), new ClientAddressResolver("CF-Connecting-IP"));
+
+        MockHttpServletRequest first = postRequest("10.0.0.5");
+        first.addHeader("X-Forwarded-For", "1.1.1.1");
+        filter.doFilter(first, new MockHttpServletResponse(), mock(FilterChain.class)); // exhausts 10.0.0.5
+
+        MockHttpServletRequest second = postRequest("10.0.0.5");
+        second.addHeader("X-Forwarded-For", "9.9.9.9");
+        second.addHeader("Forwarded", "for=8.8.8.8");
+        MockHttpServletResponse secondResponse = new MockHttpServletResponse();
+        filter.doFilter(second, secondResponse, mock(FilterChain.class));
+        assertThat(secondResponse.getStatus()).isEqualTo(429);
+    }
+
     private static RateLimitFilter newFilter(RateLimitProperties properties) {
+        return newFilter(properties, new ClientAddressResolver(null));
+    }
+
+    private static RateLimitFilter newFilter(RateLimitProperties properties, ClientAddressResolver resolver) {
         RateLimitBucketStore store = new RateLimitBucketStore(properties, Clock.fixed(NOW, ZoneOffset.UTC));
-        return new RateLimitFilter(properties, new RouteClassifier(), store);
+        return new RateLimitFilter(properties, new RouteClassifier(), store, resolver);
     }
 
     private static RateLimitProperties properties(int capacity, boolean enabled) {

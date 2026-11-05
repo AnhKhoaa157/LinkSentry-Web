@@ -9,10 +9,10 @@ version = "0.1.0"
 description = "LinkSentry — explainable phishing URL analysis API"
 
 java {
-    // Java 26 is the JDK configured for this repository and CI. Keep the
-    // toolchain version here aligned with docs/ARCHITECTURE.md section 7.
+    // Java 25 (LTS) is the JDK for this repository, CI, and the Docker image.
+    // Keep this toolchain, backend/Dockerfile, and backend-ci.yml aligned.
     toolchain {
-        languageVersion = JavaLanguageVersion.of(26)
+        languageVersion = JavaLanguageVersion.of(25)
     }
 }
 
@@ -30,9 +30,6 @@ dependencies {
 
     // --- Security ---
     implementation("org.springframework.boot:spring-boot-starter-security")
-    // Registration verification email goes out over the Resend HTTPS API via the
-    // JDK's built-in java.net.http.HttpClient — see auth.provider.ResendRegistrationCodeSender.
-    // No mail-specific dependency is needed.
     // Single-instance, in-memory token-bucket rate limiting. See common.ratelimit.
     implementation("com.bucket4j:bucket4j_jdk17-core:8.19.0")
 
@@ -87,4 +84,16 @@ tasks.withType<Test>().configureEach {
     testLogging {
         events("passed", "skipped", "failed")
     }
+}
+
+// Offline accuracy check: scores a labeled url,label CSV (the ml/ dataset schema)
+// with the production rules from application.yml and prints precision, recall,
+// and per-rule firing rates. Never prints a URL. Test-only tooling, so it is not
+// part of the boot jar. Pass your own dataset with --args="path/to/file.csv".
+tasks.register<JavaExec>("evaluateRules") {
+    group = "verification"
+    description = "Measures the production rule engine against a labeled URL dataset."
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass = "com.lyanhkhoa.linksentry.common.config.RuleEngineEvaluation"
+    args("../ml/data/sample_dataset.csv")
 }

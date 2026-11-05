@@ -75,6 +75,8 @@ export const en = {
   'scanner.submit': 'Analyze URL',
   'scanner.analyzing': 'Analyzing…',
   'scanner.initializing': 'Preparing this installation…',
+  'scanner.shared.receiving': 'Receiving the link you shared…',
+  'scanner.shared.missing': 'No web link came through with what you shared. Paste the link below instead.',
   'scanner.resultHeading': 'Analysis result',
   'scanner.resultDescription': 'A backend-owned reading of the submitted text.',
   'scanner.analyzedLink': 'Submitted value (redacted display)',
@@ -455,8 +457,13 @@ export const en = {
   'admin.confirm.revokeLicense': 'Revoke the license “{label}”? Its devices will lose access.',
   'admin.confirm.revokeDevice': 'Revoke this device assignment?',
 
+  'contextMenu.checkLink': 'Check this link with LinkSentry',
+
   'popup.eyebrow': 'Current tab',
+  'popup.eyebrow.link': 'Selected link',
   'popup.title': 'LinkSentry',
+  'popup.status.linkScanning': 'Checking the link you selected…',
+  'popup.status.linkResult': 'Showing the result for the link you selected.',
   'popup.status.checking': 'Checking this tab…',
   'popup.status.ready': 'Ready to scan the current tab.',
   'popup.status.unsupported':
