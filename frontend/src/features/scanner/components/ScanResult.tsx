@@ -22,7 +22,7 @@ export function ScanResult({ data }: Props) {
 
   return (
     <section className="mt-7 space-y-5" aria-live="polite" aria-labelledby="scan-result-heading">
-      <div className="border-border-default bg-surface-raised grid gap-5 rounded-[var(--radius-panel)] border p-5 sm:grid-cols-[1fr_auto] sm:items-center sm:p-7">
+      <div className="scanner-panel__score grid gap-5 rounded-[var(--radius-panel)] border p-5 sm:grid-cols-[1fr_auto] sm:items-center sm:p-7">
         <div>
           <p className="eyebrow">{t('scanner.scoreLabel')}</p>
           <div className="mt-2 flex flex-wrap items-end gap-3">

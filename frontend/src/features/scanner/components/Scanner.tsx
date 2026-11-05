@@ -119,8 +119,8 @@ export function Scanner() {
   const describedBy = activeErrorId === null ? HINT_ID : HINT_ID + ' ' + activeErrorId;
 
   return (
-    <section className="surface-panel overflow-hidden" aria-labelledby="scanner-heading">
-      <div className="border-border-default bg-surface-raised/70 border-b px-5 py-5 sm:px-7">
+    <section className="scanner-panel surface-panel overflow-hidden" aria-labelledby="scanner-heading">
+      <div className="scanner-panel__header border-border-default border-b px-5 py-5 sm:px-7 sm:py-6">
         <p className="eyebrow">{t('scanner.eyebrow')}</p>
         <h2 id="scanner-heading" className="section-title text-content-primary mt-2">
           {t('scanner.formTitle')}
