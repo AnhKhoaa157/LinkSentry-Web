@@ -1,6 +1,6 @@
 plugins {
     java
-    id("org.springframework.boot") version "4.1.0"
+    id("org.springframework.boot") version "4.1.2"
     id("io.spring.dependency-management") version "1.1.7"
 }
 
@@ -16,8 +16,8 @@ java {
     }
 }
 
-val springdocVersion = "3.1.0"
-val testcontainersVersion = "1.21.3"
+val springdocVersion = "3.2.0"
+val testcontainersVersion = "1.21.4"
 
 dependencies {
     // --- Web / API ---
@@ -25,13 +25,13 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:$springdocVersion")
-    implementation("com.google.guava:guava:33.4.8-jre")
+    implementation("com.google.guava:guava:33.7.2-jre")
     implementation("com.ibm.icu:icu4j:78.3")
 
     // --- Security ---
     implementation("org.springframework.boot:spring-boot-starter-security")
     // Single-instance, in-memory token-bucket rate limiting. See common.ratelimit.
-    implementation("com.bucket4j:bucket4j_jdk17-core:8.19.0")
+    implementation("com.bucket4j:bucket4j_jdk17-core:8.21.0")
 
     // --- AI explanation (optional, disabled by default) ---
     // No dedicated dependency: explanation.provider.DeepSeekExplanationProvider
@@ -66,7 +66,7 @@ dependencies {
     // runtime impact. Apache 2.0. Transitive footprint is just archunit-junit5-api ->
     // archunit (core, ASM shaded internally) + slf4j-api. See
     // docs/LinkSentry-Domain-Analysis-Roadmap.md M2 for the dependency assessment.
-    testImplementation("com.tngtech.archunit:archunit-junit5:1.5.0")
+    testImplementation("com.tngtech.archunit:archunit-junit5:1.5.1")
 
     // In-memory database for the `test` profile so context-loading tests run
     // without Docker. Real SQL must be verified against PostgreSQL instead.
