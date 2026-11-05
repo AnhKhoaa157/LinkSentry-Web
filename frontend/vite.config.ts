@@ -22,6 +22,18 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+    rollupOptions: {
+      // The service worker is a second entry, emitted as a fixed /sw.js at the
+      // site root so its scope covers the whole app. It imports only
+      // src/pwa/shareTarget.ts, so it builds into one self-contained file.
+      input: {
+        index: fileURLToPath(new URL('./index.html', import.meta.url)),
+        sw: fileURLToPath(new URL('./src/pwa/serviceWorker.ts', import.meta.url)),
+      },
+      output: {
+        entryFileNames: (chunk) => (chunk.name === 'sw' ? 'sw.js' : 'assets/[name]-[hash].js'),
+      },
+    },
   },
   test: {
     environment: 'jsdom',

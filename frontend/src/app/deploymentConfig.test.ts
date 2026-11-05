@@ -52,6 +52,7 @@ describe('Vercel deployment config', () => {
     expect(csp.get('object-src')).toEqual(["'none'"]);
     expect(csp.get('base-uri')).toEqual(["'none'"]);
     expect(csp.get('frame-ancestors')).toEqual(["'none'"]);
+    expect(csp.get('worker-src')).toEqual(["'self'"]);
     expect(headerValue('Content-Security-Policy')).not.toMatch(/unsafe-inline|unsafe-eval/);
   });
 

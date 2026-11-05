@@ -25,6 +25,7 @@ The registrable domain in this example is `evil-domain.xyz`. The string `vietcom
 | Browser extension | Implemented | Chrome/Edge Manifest V3 popup, plus a right-click "Check this link" menu item |
 | DeepSeek advisory | Optional, disabled by default | Available only for retained scans from licensed devices |
 | Local ML toolkit | Implemented independently | Offline train/evaluate/predict; does not affect production scores |
+| Share links into the app | Implemented (Android) | Installable web app; "Share → LinkSentry" scans the link without it reaching any server log |
 | Rule-engine evaluation | Implemented (offline tool) | `./gradlew evaluateRules` measures precision/recall on a labeled dataset |
 
 This README describes the current source code, including the M6 V6 migration and persistent quota keyed by `device_id`. Some M6 decision-package documents still contain historical `PROPOSED` or `DECISION_REQUIRED` labels. If those documents are used as an operational runbook, their labels and wire contracts must be synchronized separately.
@@ -594,6 +595,18 @@ Main routes:
 - `/admin/login` and `/admin` - administrator console separate from the public app.
 
 The frontend uses React, TypeScript, and Vite. It has a shared Axios client, TanStack Query for server state, and Zod for request/response validation. The frontend does not calculate scores, risk levels, or findings; the backend is the source of truth.
+
+#### Installing the app and sharing links into it
+
+The web app is an installable PWA (`public/manifest.webmanifest`). On Android, choose **Install app** or **Add to Home screen** in the browser menu. Afterwards, **Share → LinkSentry** from any app (Zalo, Messenger, SMS, the browser) opens LinkSentry and scans the shared link as soon as the installation is ready. iOS Safari does not support share targets.
+
+The shared link never reaches a server log or the browser history:
+
+1. The manifest's `share_target` sends the share as a `POST` to `/share-target`, so the link travels in the request body, not the URL.
+2. The service worker (`/sw.js`, built from `src/pwa/serviceWorker.ts`) answers that POST itself; it never reaches Vercel. It keeps the first http(s) link from the `url`, `text`, or `title` field in memory for at most 60 seconds and redirects to `/?shared=1`, a marker that carries no data.
+3. The page removes the marker from the address bar and takes the link from the service worker over a `MessageChannel`, exactly once.
+
+The service worker caches nothing and handles no other request.
 
 ### Extension
 

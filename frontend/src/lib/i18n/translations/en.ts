@@ -75,6 +75,8 @@ export const en = {
   'scanner.submit': 'Analyze URL',
   'scanner.analyzing': 'Analyzing…',
   'scanner.initializing': 'Preparing this installation…',
+  'scanner.shared.receiving': 'Receiving the link you shared…',
+  'scanner.shared.missing': 'No web link came through with what you shared. Paste the link below instead.',
   'scanner.resultHeading': 'Analysis result',
   'scanner.resultDescription': 'A backend-owned reading of the submitted text.',
   'scanner.analyzedLink': 'Submitted value (redacted display)',

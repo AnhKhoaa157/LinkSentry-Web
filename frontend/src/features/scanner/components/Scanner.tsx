@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 
 import { useLicense } from '@/features/license/context/useLicense';
@@ -9,6 +9,9 @@ import type { ScanResponse } from '@/features/scanner/schemas/scanResponse';
 import { normalizeApiError, type NormalizedApiError } from '@/lib/api/errors';
 import { localizeApiError, localizeValidationMessage } from '@/lib/i18n/messages';
 import { useLocale } from '@/lib/i18n/useLocale';
+import { claimSharedLaunch, hasPendingSharedLaunch, startSharedLaunch } from '@/pwa/sharedLaunch';
+
+type SharedNotice = 'receiving' | 'missing';
 
 const HINT_ID = 'scanner-url-hint';
 const CLIENT_ERROR_ID = 'scanner-url-error';
@@ -18,7 +21,11 @@ function displayMessage(t: ReturnType<typeof useLocale>['t'], error: NormalizedA
   return localizeApiError(t, error);
 }
 
-/** The real scanner: a validated text form plus a server-owned result. */
+/**
+ * The real scanner: a validated text form plus a server-owned result. A link
+ * shared into the installed app from the system share sheet is filled in and
+ * scanned as soon as the device installation is ready.
+ */
 export function Scanner() {
   const { isLicensed, isLoading: isLicenseLoading } = useLicense();
   const { locale, t } = useLocale();
@@ -27,6 +34,9 @@ export function Scanner() {
   const [isPending, setIsPending] = useState(false);
   const [scanResponse, setScanResponse] = useState<ScanResponse | null>(null);
   const [apiError, setApiError] = useState<NormalizedApiError | null>(null);
+  const [sharedNotice, setSharedNotice] = useState<SharedNotice | null>(() =>
+    hasPendingSharedLaunch() ? 'receiving' : null,
+  );
   const urlInputRef = useRef<HTMLInputElement>(null);
 
   const serverFieldError = apiError?.fieldErrors?.url ?? null;
@@ -37,32 +47,72 @@ export function Scanner() {
     }
   }, [serverFieldError]);
 
+  const submitUrl = useCallback(
+    (value: string) => {
+      const parsed = scanRequestSchema.safeParse({ url: value });
+      if (!parsed.success) {
+        setClientError(localizeValidationMessage(t, parsed.error.issues[0]?.message));
+        urlInputRef.current?.focus();
+        return;
+      }
+
+      setClientError(null);
+      setIsPending(true);
+      setScanResponse(null);
+      setApiError(null);
+      void postScan(parsed.data.url, { locale })
+        .then((response) => setScanResponse(response))
+        .catch((error: unknown) => setApiError(normalizeApiError(error)))
+        .finally(() => setIsPending(false));
+    },
+    [locale, t],
+  );
+
+  // Choosing LinkSentry in the share sheet is the request to scan. Taking the link
+  // starts right away; the scan waits until the device installation that the trial
+  // quota needs is ready.
+  useEffect(() => {
+    const shared = startSharedLaunch();
+    if (shared === null || isLicenseLoading) {
+      return undefined;
+    }
+    let active = true;
+    void shared.then((result) => {
+      if (!active || !claimSharedLaunch()) {
+        return;
+      }
+      if (result.kind === 'link') {
+        setSharedNotice(null);
+        setUrl(result.url);
+        submitUrl(result.url);
+      } else {
+        setSharedNotice(result.kind === 'missing' ? 'missing' : null);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [isLicenseLoading, submitUrl]);
+
   function handleChange(value: string) {
     setUrl(value);
     setClientError(null);
     setScanResponse(null);
     setApiError(null);
+    setSharedNotice(null);
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
-    const parsed = scanRequestSchema.safeParse({ url });
-    if (!parsed.success) {
-      setClientError(localizeValidationMessage(t, parsed.error.issues[0]?.message));
-      urlInputRef.current?.focus();
-      return;
-    }
-
-    setClientError(null);
-    setIsPending(true);
-    setScanResponse(null);
-    setApiError(null);
-    void postScan(parsed.data.url, { locale })
-      .then((response) => setScanResponse(response))
-      .catch((error: unknown) => setApiError(normalizeApiError(error)))
-      .finally(() => setIsPending(false));
+    submitUrl(url);
   }
+
+  const sharedStatus =
+    sharedNotice === 'receiving'
+      ? t('scanner.shared.receiving')
+      : sharedNotice === 'missing'
+        ? t('scanner.shared.missing')
+        : null;
 
   const activeErrorId =
     clientError !== null ? CLIENT_ERROR_ID : serverFieldError !== null ? SERVER_FIELD_ERROR_ID : null;
@@ -119,6 +169,12 @@ export function Scanner() {
           {clientError ? (
             <p id={CLIENT_ERROR_ID} role="alert" className="text-danger mt-2 text-sm">
               {clientError}
+            </p>
+          ) : null}
+
+          {sharedStatus ? (
+            <p role="status" className="body-secondary mt-2 text-sm">
+              {sharedStatus}
             </p>
           ) : null}
         </form>

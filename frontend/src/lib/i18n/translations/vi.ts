@@ -72,6 +72,9 @@ export const vi: Record<TranslationKey, string> = {
   'scanner.submit': 'Phân tích URL',
   'scanner.analyzing': 'Đang phân tích…',
   'scanner.initializing': 'Đang chuẩn bị cài đặt…',
+  'scanner.shared.receiving': 'Đang nhận liên kết bạn đã chia sẻ…',
+  'scanner.shared.missing':
+    'Không nhận được liên kết web từ nội dung bạn chia sẻ. Hãy dán liên kết vào ô bên dưới.',
   'scanner.resultHeading': 'Kết quả phân tích',
   'scanner.resultDescription': 'Kết quả do dịch vụ phân tích backend cung cấp.',
   'scanner.analyzedLink': 'Giá trị đã gửi (bản hiển thị đã ẩn)',

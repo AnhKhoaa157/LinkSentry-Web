@@ -7,7 +7,17 @@ import { Scanner } from '@/features/scanner/components/Scanner';
 import { getDeviceStatus } from '@/features/license/api/device';
 import { apiClient } from '@/lib/api/client';
 import { deviceCredentialStorage } from '@/lib/device/deviceCredentialStorage';
+import { claimSharedLaunch, hasPendingSharedLaunch, startSharedLaunch } from '@/pwa/sharedLaunch';
 import { renderWithProviders } from '@/test/renderWithProviders';
+
+// Share-target launches are driven per test; by default this is an ordinary page load.
+vi.mock('@/pwa/sharedLaunch', () => ({
+  hasPendingSharedLaunch: vi.fn(),
+  startSharedLaunch: vi.fn(),
+  claimSharedLaunch: vi.fn(),
+}));
+
+const SHARED_URL = 'http://login.example.com.security-check.invalid/account';
 
 function axiosErrorWithResponse(status: number, data: unknown) {
   const headers = new AxiosHeaders();
@@ -76,6 +86,61 @@ const validScanResponse = {
 describe('Scanner', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.mocked(hasPendingSharedLaunch).mockReturnValue(false);
+    vi.mocked(startSharedLaunch).mockReturnValue(null);
+    vi.mocked(claimSharedLaunch).mockReturnValue(true);
+  });
+
+  it('fills in and scans a link shared from the share sheet once the installation is ready', async () => {
+    vi.mocked(hasPendingSharedLaunch).mockReturnValue(true);
+    vi.mocked(startSharedLaunch).mockReturnValue(Promise.resolve({ kind: 'link', url: SHARED_URL }));
+    const postSpy = vi.spyOn(apiClient, 'post').mockResolvedValue({ data: validScanResponse });
+
+    renderWithProviders(<Scanner />);
+
+    expect(await screen.findByText('25')).toBeInTheDocument();
+    expect(postSpy).toHaveBeenCalledOnce();
+    expect(postSpy).toHaveBeenCalledWith('/api/v1/scans', { url: SHARED_URL }, expect.anything());
+    expect(urlInput()).toHaveValue(SHARED_URL);
+    expect(screen.queryByText('Receiving the link you shared…')).not.toBeInTheDocument();
+  });
+
+  it('shows a notice while the shared link is on its way', () => {
+    vi.mocked(hasPendingSharedLaunch).mockReturnValue(true);
+    vi.mocked(startSharedLaunch).mockReturnValue(new Promise(() => undefined));
+
+    renderWithProviders(<Scanner />);
+
+    expect(screen.getByText('Receiving the link you shared…')).toBeInTheDocument();
+  });
+
+  it('asks the user to paste the link when the share carried none, without calling the API', async () => {
+    vi.mocked(hasPendingSharedLaunch).mockReturnValue(true);
+    vi.mocked(startSharedLaunch).mockReturnValue(Promise.resolve({ kind: 'missing' }));
+    const postSpy = vi.spyOn(apiClient, 'post');
+    const user = userEvent.setup();
+
+    renderWithProviders(<Scanner />);
+
+    const notice = 'No web link came through with what you shared. Paste the link below instead.';
+    expect(await screen.findByText(notice)).toBeInTheDocument();
+    expect(postSpy).not.toHaveBeenCalled();
+
+    await user.type(urlInput(), 'h');
+    expect(screen.queryByText(notice)).not.toBeInTheDocument();
+  });
+
+  it('never scans a shared link that another mount already claimed', async () => {
+    vi.mocked(hasPendingSharedLaunch).mockReturnValue(true);
+    vi.mocked(startSharedLaunch).mockReturnValue(Promise.resolve({ kind: 'link', url: SHARED_URL }));
+    vi.mocked(claimSharedLaunch).mockReturnValue(false);
+    const postSpy = vi.spyOn(apiClient, 'post');
+
+    renderWithProviders(<Scanner />);
+
+    await waitFor(() => expect(claimSharedLaunch).toHaveBeenCalled());
+    expect(postSpy).not.toHaveBeenCalled();
+    expect(urlInput()).toHaveValue('');
   });
 
   it('describes the URL input with only the hint while nothing has failed', () => {
