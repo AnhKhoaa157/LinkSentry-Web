@@ -6,6 +6,6 @@
 # joblib           -- model artifact persistence (already a scikit-learn
 #                      dependency; pinned directly since we import it too)
 numpy>=2.5.4
-pandas>=2.1
+pandas>=3.1.0
 scikit-learn>=1.4
 joblib>=1.3
