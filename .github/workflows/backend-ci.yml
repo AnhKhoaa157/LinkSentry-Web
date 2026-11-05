@@ -42,7 +42,7 @@ jobs:
       - name: Set up Gradle
         # Handles the dependency and build caches, and validates the wrapper's
         # checksum against Gradle's published list.
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Test
         # The `test` profile uses in-memory H2, so no database service is needed.
