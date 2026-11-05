@@ -17,7 +17,7 @@ export function AppLayout() {
         {/* First tab stop, so keyboard users can bypass the navigation. */}
         <a
           href="#main-content"
-          className="sr-only-focusable bg-accent-500 text-ink-950 absolute top-4 left-4 z-20 rounded-md px-4 py-2 text-sm font-medium"
+          className="sr-only-focusable bg-accent text-surface-panel absolute top-4 left-4 z-20 rounded-md px-4 py-2 text-sm font-bold shadow-lg"
         >
           Skip to main content
         </a>

@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 
+import { Brand } from '@/components/layout/Brand';
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
+import { ThemeSwitcher } from '@/components/ui/ThemeSwitcher';
 import { Card } from '@/components/ui/Card';
 import { AdminLicenseManagement } from '@/features/admin/components/AdminLicenseManagement';
 import { useAdminAuth } from '@/features/admin/context/useAdminAuth';
@@ -24,29 +26,34 @@ export function AdminDashboardPage() {
   }
 
   return (
-    <div className="min-h-dvh px-4 py-8 sm:px-6">
-      <header className="mx-auto flex max-w-5xl flex-wrap items-start justify-between gap-4">
-        <div>
+    <div className="admin-shell min-h-dvh">
+      <header className="admin-topbar sticky top-0 z-10 backdrop-blur-xl">
+        <div className="page-container flex flex-wrap items-center justify-between gap-3 py-3">
+          <Brand />
+          <div className="flex items-center gap-2.5">
+            <ThemeSwitcher />
+            <LanguageSwitcher />
+            <button
+              type="button"
+              onClick={() => void handleLogout()}
+              disabled={isLoggingOut}
+              className="ui-button ui-button-secondary"
+            >
+              {isLoggingOut ? t('admin.dashboard.loggingOut') : t('admin.dashboard.logout')}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="page-container space-y-8 py-8 sm:py-12">
+        <header className="page-intro space-y-4">
           <p className="eyebrow">{t('admin.dashboard.eyebrow')}</p>
           <h1 className="display-title text-content-primary mt-3 text-4xl sm:text-5xl">
             {t('admin.dashboard.title')}
           </h1>
           <p className="body-secondary mt-4 max-w-xl text-sm leading-6">{t('admin.dashboard.description')}</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <LanguageSwitcher />
-          <button
-            type="button"
-            onClick={() => void handleLogout()}
-            disabled={isLoggingOut}
-            className="ui-button ui-button-secondary"
-          >
-            {isLoggingOut ? t('admin.dashboard.loggingOut') : t('admin.dashboard.logout')}
-          </button>
-        </div>
-      </header>
+        </header>
 
-      <main className="mx-auto mt-8 max-w-5xl space-y-6">
         <Card title={t('admin.dashboard.signedInAs')}>
           <dl className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <div>

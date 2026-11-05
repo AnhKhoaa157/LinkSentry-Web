@@ -18,7 +18,7 @@ export function MethodologyPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-12">
-      <header className="max-w-2xl space-y-4">
+      <header className="page-intro space-y-4">
         <p className="eyebrow">{t('methodology.eyebrow')}</p>
         <h1 className="display-title text-content-primary text-4xl sm:text-5xl">{t('methodology.title')}</h1>
         <p className="body-secondary text-base leading-7">{t('methodology.intro')}</p>

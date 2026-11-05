@@ -21,7 +21,7 @@ export function HistoryPage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-8">
-      <header className="max-w-3xl space-y-4">
+      <header className="page-intro space-y-4">
         <p className="eyebrow">{t('history.eyebrow')}</p>
         <h1 className="display-title text-content-primary text-4xl sm:text-5xl">{t('history.title')}</h1>
         <p className="body-secondary text-sm leading-6 sm:text-base">{t('history.description')}</p>

@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router';
 
+import { Brand } from '@/components/layout/Brand';
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
+import { ThemeSwitcher } from '@/components/ui/ThemeSwitcher';
 import { useAdminAuth } from '@/features/admin/context/useAdminAuth';
 import { adminLoginRequestSchema } from '@/features/admin/schemas/adminLoginRequest';
 import { normalizeApiError, type NormalizedApiError } from '@/lib/api/errors';
@@ -50,17 +52,23 @@ export function AdminLoginPage() {
   const activeError = validationError ?? (apiError ? localizeApiError(t, apiError) : null);
 
   return (
-    <div className="min-h-dvh px-4 py-8 sm:px-6">
-      <div className="mx-auto flex max-w-sm justify-end">
-        <LanguageSwitcher />
-      </div>
-      <main className="mx-auto flex min-h-[calc(100dvh-7rem)] max-w-sm items-center">
-        <div className="w-full">
+    <div className="admin-shell min-h-dvh">
+      <header className="admin-topbar backdrop-blur-xl">
+        <div className="page-container flex flex-wrap items-center justify-between gap-3 py-3">
+          <Brand />
+          <div className="flex items-center gap-2.5">
+            <ThemeSwitcher />
+            <LanguageSwitcher />
+          </div>
+        </div>
+      </header>
+      <main className="page-container flex min-h-[calc(100dvh-4.5rem)] items-center justify-center py-10 sm:py-14">
+        <div className="w-full max-w-md">
           <p className="eyebrow">{t('admin.login.eyebrow')}</p>
           <h1 className="display-title text-content-primary mt-3 text-4xl">{t('admin.login.title')}</h1>
           <p className="body-secondary mt-4 text-sm leading-6">{t('admin.login.description')}</p>
 
-          <form onSubmit={handleSubmit} noValidate className="surface-panel mt-7 space-y-5 p-5 sm:p-6">
+          <form onSubmit={handleSubmit} noValidate className="surface-panel mt-7 space-y-5 p-5 sm:p-7">
             <div>
               <label htmlFor="admin-username" className="ui-label">
                 {t('admin.login.username')}
