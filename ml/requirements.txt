@@ -5,7 +5,7 @@
 # scikit-learn     -- baseline models, group-aware splitting, metrics
 # joblib           -- model artifact persistence (already a scikit-learn
 #                      dependency; pinned directly since we import it too)
-numpy>=1.26
+numpy>=2.5.4
 pandas>=2.1
 scikit-learn>=1.4
 joblib>=1.3
