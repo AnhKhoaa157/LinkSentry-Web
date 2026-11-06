@@ -121,13 +121,18 @@ export function Scanner() {
   return (
     <section className="scanner-panel surface-panel overflow-hidden" aria-labelledby="scanner-heading">
       <div className="scanner-panel__header border-border-default border-b px-5 py-5 sm:px-7 sm:py-6">
-        <p className="eyebrow">{t('scanner.eyebrow')}</p>
-        <h2 id="scanner-heading" className="section-title text-content-primary mt-2">
-          {t('scanner.formTitle')}
-        </h2>
-        <p id={HINT_ID} className="body-secondary mt-2 max-w-2xl text-sm leading-6">
-          {t('scanner.hint')}
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="eyebrow">{t('scanner.eyebrow')}</p>
+            <h2 id="scanner-heading" className="section-title text-content-primary mt-2">
+              {t('scanner.formTitle')}
+            </h2>
+            <p id={HINT_ID} className="body-secondary mt-2 max-w-2xl text-sm leading-6">
+              {t('scanner.hint')}
+            </p>
+          </div>
+          <span className="scanner-panel__mode">{t('common.staticAnalysisOnly')}</span>
+        </div>
       </div>
 
       <div className="p-5 sm:p-7">

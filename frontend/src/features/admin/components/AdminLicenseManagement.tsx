@@ -44,6 +44,9 @@ export function AdminLicenseManagement() {
   const [deviceLookupCode, setDeviceLookupCode] = useState<string | null>(null);
   const deviceQuery = useAdminDeviceQuery(deviceLookupCode);
   const { locale, t } = useLocale();
+  const licenseSummaries = licensesQuery.data ?? [];
+  const activeDeviceCount = licenseSummaries.reduce((total, license) => total + license.activeDeviceCount, 0);
+  const totalDeviceCapacity = licenseSummaries.reduce((total, license) => total + license.maxDevices, 0);
 
   const [createLabel, setCreateLabel] = useState('');
   const [createExpiryDate, setCreateExpiryDate] = useState('');
@@ -204,17 +207,33 @@ export function AdminLicenseManagement() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="admin-management-layout">
       {feedback ? (
         <p
           role={feedback.kind === 'error' ? 'alert' : 'status'}
-          className={feedback.kind === 'error' ? 'ui-alert p-3 text-sm' : 'ui-success text-sm font-bold'}
+          className={
+            feedback.kind === 'error'
+              ? 'admin-management-feedback ui-alert p-3 text-sm'
+              : 'admin-management-feedback ui-success text-sm font-bold'
+          }
         >
           {feedback.message}
         </p>
       ) : null}
 
-      <Card title={t('admin.management.title')} description={t('admin.management.description')}>
+      {licensesQuery.isSuccess ? (
+        <section className="admin-stats-grid" aria-label={t('admin.dashboard.stats.heading')}>
+          <AdminStatCard label={t('admin.dashboard.stats.totalLicenses')} value={licensesQuery.data.length} />
+          <AdminStatCard label={t('admin.dashboard.stats.activeDevices')} value={activeDeviceCount} />
+          <AdminStatCard label={t('admin.dashboard.stats.totalCapacity')} value={totalDeviceCapacity} />
+        </section>
+      ) : null}
+
+      <Card
+        className="admin-management-card admin-management-card--licenses"
+        title={t('admin.management.title')}
+        description={t('admin.management.description')}
+      >
         <form onSubmit={handleCreate} noValidate className="surface-inset space-y-5 p-4 sm:p-5">
           <h3 className="text-content-primary text-sm font-bold">{t('admin.management.createTitle')}</h3>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -315,7 +334,11 @@ export function AdminLicenseManagement() {
         </div>
       </Card>
 
-      <Card title={t('admin.management.detailsTitle')} description={t('admin.management.detailsDescription')}>
+      <Card
+        className="admin-management-card admin-management-card--details"
+        title={t('admin.management.detailsTitle')}
+        description={t('admin.management.detailsDescription')}
+      >
         {selectedLicenseId === null ? (
           <p className="body-secondary text-sm">{t('admin.management.selectPrompt')}</p>
         ) : null}
@@ -349,6 +372,7 @@ export function AdminLicenseManagement() {
       </Card>
 
       <Card
+        className="admin-management-card admin-management-card--activations"
         title={t('admin.management.activationsTitle')}
         description={t('admin.management.activationsDescription')}
       >
@@ -414,6 +438,15 @@ interface LicenseDetailProps {
   readonly isGrantPending: boolean;
   readonly isExtendPending: boolean;
   readonly isRevokePending: boolean;
+}
+
+function AdminStatCard({ label, value }: { readonly label: string; readonly value: number }) {
+  return (
+    <div className="surface-panel admin-stat-card p-4">
+      <p className="body-muted text-xs font-bold tracking-wide uppercase">{label}</p>
+      <p className="text-content-primary mt-2 text-2xl font-bold tabular-nums">{value}</p>
+    </div>
+  );
 }
 
 function LicenseDetail({

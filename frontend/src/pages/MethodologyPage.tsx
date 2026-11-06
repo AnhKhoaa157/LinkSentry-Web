@@ -17,7 +17,7 @@ export function MethodologyPage() {
   const { t } = useLocale();
 
   return (
-    <div className="mx-auto max-w-4xl space-y-12">
+    <div className="methodology-page mx-auto w-full max-w-6xl space-y-10">
       <header className="page-intro space-y-4">
         <p className="eyebrow">{t('methodology.eyebrow')}</p>
         <h1 className="display-title text-content-primary text-4xl sm:text-5xl">{t('methodology.title')}</h1>

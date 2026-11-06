@@ -45,7 +45,7 @@ export function AdminDashboardPage() {
         </div>
       </header>
 
-      <main className="page-container space-y-8 py-8 sm:py-12">
+      <main className="admin-dashboard-main page-container space-y-8 py-8 sm:py-12">
         <header className="page-intro space-y-4">
           <p className="eyebrow">{t('admin.dashboard.eyebrow')}</p>
           <h1 className="display-title text-content-primary mt-3 text-4xl sm:text-5xl">
@@ -54,7 +54,7 @@ export function AdminDashboardPage() {
           <p className="body-secondary mt-4 max-w-xl text-sm leading-6">{t('admin.dashboard.description')}</p>
         </header>
 
-        <Card title={t('admin.dashboard.signedInAs')}>
+        <Card className="admin-dashboard__session" title={t('admin.dashboard.signedInAs')}>
           <dl className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <div>
               <dt className="body-muted text-xs font-bold tracking-wide uppercase">
