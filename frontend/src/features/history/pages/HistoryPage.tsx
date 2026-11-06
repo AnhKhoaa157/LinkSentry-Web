@@ -57,32 +57,36 @@ function LicensedHistory() {
   const { t } = useLocale();
 
   return (
-    <div className="space-y-8">
+    <div className="history-content">
       <HistoryFilters filters={filters} onChange={setFilters} t={t} />
 
-      {query.isPending ? (
-        <p role="status" aria-live="polite" className="surface-inset body-secondary p-5 text-sm">
-          {t('history.loading')}
-        </p>
-      ) : null}
+      <div className="history-dashboard-grid">
+        <div className="history-results-column">
+          {query.isPending ? (
+            <p role="status" aria-live="polite" className="surface-inset body-secondary p-5 text-sm">
+              {t('history.loading')}
+            </p>
+          ) : null}
 
-      {query.isError && query.data === undefined ? (
-        <HistoryError title={historyErrorTitle(t, query.error)}>
-          <p>{historyErrorBody(t, query.error)}</p>
-          <button
-            type="button"
-            onClick={() => void query.refetch()}
-            disabled={query.isFetching}
-            className="ui-button ui-button-secondary mt-5"
-          >
-            {query.isFetching ? t('common.retrying') : t('common.retry')}
-          </button>
-        </HistoryError>
-      ) : null}
+          {query.isError && query.data === undefined ? (
+            <HistoryError title={historyErrorTitle(t, query.error)}>
+              <p>{historyErrorBody(t, query.error)}</p>
+              <button
+                type="button"
+                onClick={() => void query.refetch()}
+                disabled={query.isFetching}
+                className="ui-button ui-button-secondary mt-5"
+              >
+                {query.isFetching ? t('common.retrying') : t('common.retry')}
+              </button>
+            </HistoryError>
+          ) : null}
 
-      {query.data !== undefined ? <HistoryResults query={query} t={t} /> : null}
+          {query.data !== undefined ? <HistoryResults query={query} t={t} /> : null}
+        </div>
 
-      <PersonalInsights />
+        <PersonalInsights />
+      </div>
     </div>
   );
 }

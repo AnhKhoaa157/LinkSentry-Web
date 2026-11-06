@@ -18,7 +18,7 @@ export function HomePage() {
   const { t } = useLocale();
 
   return (
-    <div className="home-page space-y-[var(--space-section)]">
+    <div className="home-page">
       <section
         className="home-hero grid items-end gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]"
         aria-labelledby="home-title"
@@ -31,10 +31,7 @@ export function HomePage() {
           <p className="body-secondary max-w-2xl text-base leading-7 sm:text-lg">{t('home.description')}</p>
         </div>
 
-        <aside
-          className="home-hero__note surface-inset hidden p-5 lg:block"
-          aria-label={t('common.staticAnalysisOnly')}
-        >
+        <aside className="home-hero__note surface-inset p-5" aria-label={t('common.staticAnalysisOnly')}>
           <p className="eyebrow">{t('common.staticAnalysisOnly')}</p>
           <p className="text-content-primary mt-3 text-sm font-bold">{t('home.boundary.1.title')}</p>
           <p className="body-secondary mt-2 text-sm leading-6">{t('home.boundary.1.body')}</p>
@@ -43,7 +40,7 @@ export function HomePage() {
 
       <Scanner />
 
-      <section aria-labelledby="boundary-heading" className="space-y-5">
+      <section aria-labelledby="boundary-heading" className="home-boundary-section space-y-5">
         <div className="max-w-2xl space-y-3">
           <p className="eyebrow">{t('common.staticAnalysisOnly')}</p>
           <h2 id="boundary-heading" className="section-title text-content-primary">
@@ -52,7 +49,7 @@ export function HomePage() {
           <p className="body-secondary text-sm leading-6">{t('home.boundaryIntro')}</p>
         </div>
 
-        <ul className="grid gap-4 md:grid-cols-3">
+        <ul className="home-boundary-grid grid gap-4 md:grid-cols-3">
           {boundaryKeys.map(([titleKey, bodyKey], index) => (
             <li key={titleKey} className="h-full">
               <Card className="h-full">

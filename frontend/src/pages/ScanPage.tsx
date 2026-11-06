@@ -52,7 +52,7 @@ export function ScanPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="scan-page mx-auto max-w-6xl">
       <header className="page-intro space-y-4">
         <p className="eyebrow">{t('scanPage.eyebrow')}</p>
         <h1 className="display-title text-content-primary text-4xl sm:text-5xl">{t('scanPage.title')}</h1>

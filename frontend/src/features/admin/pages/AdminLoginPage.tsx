@@ -62,13 +62,13 @@ export function AdminLoginPage() {
           </div>
         </div>
       </header>
-      <main className="page-container flex min-h-[calc(100dvh-4.5rem)] items-center justify-center py-10 sm:py-14">
-        <div className="w-full max-w-md">
+      <main className="admin-login-main page-container flex min-h-[calc(100dvh-4.5rem)] items-center justify-center py-10 sm:py-14">
+        <div className="admin-login-card surface-panel w-full max-w-md p-6 sm:p-8">
           <p className="eyebrow">{t('admin.login.eyebrow')}</p>
           <h1 className="display-title text-content-primary mt-3 text-4xl">{t('admin.login.title')}</h1>
           <p className="body-secondary mt-4 text-sm leading-6">{t('admin.login.description')}</p>
 
-          <form onSubmit={handleSubmit} noValidate className="surface-panel mt-7 space-y-5 p-5 sm:p-7">
+          <form onSubmit={handleSubmit} noValidate className="admin-login-form mt-7 space-y-5">
             <div>
               <label htmlFor="admin-username" className="ui-label">
                 {t('admin.login.username')}
