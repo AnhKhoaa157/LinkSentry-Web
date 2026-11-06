@@ -1,4 +1,4 @@
-import type { ScanResponse } from '@/features/scanner/schemas/scanResponse';
+import type { ScanData } from '@/features/scanner/schemas/scanResponse';
 import { scanRequestSchema } from '@/features/scanner/schemas/scanRequest';
 import type { NormalizedApiError } from '@/lib/api/errors';
 
@@ -60,16 +60,10 @@ export interface BatchScanCsvHeaders {
 }
 
 /** Builds a spreadsheet-safe report from backend-redacted result values only. */
-export function buildBatchScanCsv(results: readonly ScanResponse[], headers: BatchScanCsvHeaders): string {
+export function buildBatchScanCsv(results: readonly ScanData[], headers: BatchScanCsvHeaders): string {
   const rows: (readonly (string | number)[])[] = [
     [headers.input, headers.riskLevel, headers.score, headers.findings, headers.analyzedAt],
-    ...results.map(({ data }) => [
-      data.input,
-      data.riskLevel,
-      data.score,
-      data.findings.length,
-      data.analyzedAt,
-    ]),
+    ...results.map((data) => [data.input, data.riskLevel, data.score, data.findings.length, data.analyzedAt]),
   ];
 
   return rows.map((row) => row.map(csvCell).join(',')).join('\r\n');

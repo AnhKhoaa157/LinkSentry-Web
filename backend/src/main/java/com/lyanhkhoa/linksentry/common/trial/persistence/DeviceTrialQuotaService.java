@@ -1,6 +1,7 @@
 package com.lyanhkhoa.linksentry.common.trial.persistence;
 
 import com.lyanhkhoa.linksentry.common.trial.AnonymousTrialProperties;
+import com.lyanhkhoa.linksentry.common.trial.TrialScanAdmission;
 import com.lyanhkhoa.linksentry.license.domain.Device;
 import com.lyanhkhoa.linksentry.license.domain.DeviceRepository;
 import com.lyanhkhoa.linksentry.license.security.DeviceCredentialService;
@@ -31,7 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
  * response, the same "caught narrowly around that call only" discipline ADR 0010 specifies.
  */
 @Component
-public class DeviceTrialQuotaService {
+public class DeviceTrialQuotaService implements TrialScanAdmission {
 
     private final DeviceRepository deviceRepository;
     private final DeviceCredentialService credentialService;
@@ -57,6 +58,7 @@ public class DeviceTrialQuotaService {
      * {@code AnonymousTrialFilter} maps identically to {@code 401 TRIAL_DEVICE_REQUIRED}.
      */
     @Transactional(readOnly = true)
+    @Override
     public Optional<UUID> resolveDeviceId(String rawCredential) {
         if (rawCredential == null || rawCredential.isBlank() || rawCredential.length() > 256) {
             return Optional.empty();
@@ -75,6 +77,7 @@ public class DeviceTrialQuotaService {
      *     granting, matching the fail-closed posture the rest of this quota already takes)
      */
     @Transactional
+    @Override
     public boolean tryAdmit(UUID deviceId, Instant now) {
         Optional<Device> locked = deviceRepository.findByIdForUpdate(deviceId);
         if (locked.isEmpty()) {

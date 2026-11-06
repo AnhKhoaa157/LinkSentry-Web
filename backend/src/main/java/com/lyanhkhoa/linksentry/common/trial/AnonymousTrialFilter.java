@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.lyanhkhoa.linksentry.common.api.ErrorResponse;
-import com.lyanhkhoa.linksentry.common.trial.persistence.DeviceTrialQuotaService;
 import com.lyanhkhoa.linksentry.license.security.DeviceCredentialHeader;
 import com.lyanhkhoa.linksentry.license.security.LicensedDeviceContext;
 import jakarta.servlet.FilterChain;
@@ -29,8 +28,10 @@ import org.springframework.transaction.TransactionException;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * Gates unlicensed {@code POST /api/v1/scans} to a persistent, device-scoped rolling trial quota
- * (ADR 0010), independent of {@code RateLimitFilter}'s general anti-abuse control.
+ * Gates unlicensed scan creation to a persistent, device-scoped rolling trial quota (ADR 0010),
+ * independent of {@code RateLimitFilter}'s general anti-abuse control. Single scans are admitted
+ * here; batch scans resolve the same device identity here and admit each item in
+ * {@code BatchScanService}.
  *
  * <p>Placed immediately after {@code DeviceAuthenticationFilter} in the security chain (see
  * {@code SecurityConfig}) — after device authentication so {@link SecurityContextHolder} already
@@ -56,6 +57,9 @@ import org.springframework.web.filter.OncePerRequestFilter;
  */
 public final class AnonymousTrialFilter extends OncePerRequestFilter {
 
+    /** Request attribute containing the resolved unlicensed device id for batch admission. */
+    public static final String TRIAL_DEVICE_ID_ATTRIBUTE = AnonymousTrialFilter.class.getName() + ".trialDeviceId";
+
     private static final String EXHAUSTED_MESSAGE = "Request a license to continue scanning.";
     private static final String DEVICE_REQUIRED_MESSAGE = "A valid device credential is required to use the trial.";
     private static final String QUOTA_UNAVAILABLE_MESSAGE =
@@ -67,11 +71,14 @@ public final class AnonymousTrialFilter extends OncePerRequestFilter {
     private final RequestMatcher scanCreate =
             PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, "/api/v1/scans");
 
+    private final RequestMatcher batchScanCreate =
+            PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, "/api/v1/scans/batch");
+
     private final AnonymousTrialProperties properties;
-    private final DeviceTrialQuotaService quotaService;
+    private final TrialScanAdmission quotaService;
     private final Clock clock;
 
-    public AnonymousTrialFilter(AnonymousTrialProperties properties, DeviceTrialQuotaService quotaService, Clock clock) {
+    public AnonymousTrialFilter(AnonymousTrialProperties properties, TrialScanAdmission quotaService, Clock clock) {
         this.properties = properties;
         this.quotaService = quotaService;
         this.clock = clock;
@@ -81,7 +88,10 @@ public final class AnonymousTrialFilter extends OncePerRequestFilter {
     protected void doFilterInternal(
             HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        if (!properties.enabled() || !scanCreate.matches(request) || isAuthenticated()) {
+        boolean isBatchScan = batchScanCreate.matches(request);
+        if (!properties.enabled()
+                || (!scanCreate.matches(request) && !isBatchScan)
+                || isAuthenticated()) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -92,16 +102,26 @@ public final class AnonymousTrialFilter extends OncePerRequestFilter {
             return;
         }
 
-        boolean admitted;
+        UUID deviceId;
+        boolean admitted = true;
         try {
-            Optional<UUID> deviceId = quotaService.resolveDeviceId(rawCredential.get());
-            if (deviceId.isEmpty()) {
+            Optional<UUID> resolvedDeviceId = quotaService.resolveDeviceId(rawCredential.get());
+            if (resolvedDeviceId.isEmpty()) {
                 rejectWithDeviceRequired(response);
                 return;
             }
-            admitted = quotaService.tryAdmit(deviceId.get(), Instant.now(clock));
+            deviceId = resolvedDeviceId.get();
+            if (!isBatchScan) {
+                admitted = quotaService.tryAdmit(deviceId, Instant.now(clock));
+            }
         } catch (DataAccessException | TransactionException exception) {
             rejectWithQuotaUnavailable(response);
+            return;
+        }
+
+        if (isBatchScan) {
+            request.setAttribute(TRIAL_DEVICE_ID_ATTRIBUTE, deviceId);
+            filterChain.doFilter(request, response);
             return;
         }
 

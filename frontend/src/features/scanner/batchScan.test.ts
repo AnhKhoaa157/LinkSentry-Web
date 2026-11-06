@@ -6,38 +6,35 @@ import {
   parseBatchScanInput,
   shouldStopBatchAfter,
 } from '@/features/scanner/batchScan';
-import type { ScanResponse } from '@/features/scanner/schemas/scanResponse';
+import type { ScanData } from '@/features/scanner/schemas/scanResponse';
 import type { NormalizedApiError } from '@/lib/api/errors';
 
-function scanResponse(input: string): ScanResponse {
+function scanResponse(input: string): ScanData {
   return {
-    data: {
-      scanId: null,
-      input,
-      normalized: {
-        scheme: 'https',
-        host: 'example.invalid',
-        asciiHost: 'example.invalid',
-        registrableDomain: 'example.invalid',
-        port: null,
-        path: '/',
-        queryPresent: false,
-        fragmentPresent: false,
-      },
-      score: 10,
-      riskLevel: 'MODERATE',
-      findings: [
-        {
-          ruleId: 'SUSPICIOUS_KEYWORDS',
-          severity: 'LOW',
-          points: 10,
-          title: 'Suspicious keyword',
-          explanation: 'A static rule matched.',
-        },
-      ],
-      analyzedAt: '2026-11-06T00:00:00Z',
+    scanId: null,
+    input,
+    normalized: {
+      scheme: 'https',
+      host: 'example.invalid',
+      asciiHost: 'example.invalid',
+      registrableDomain: 'example.invalid',
+      port: null,
+      path: '/',
+      queryPresent: false,
+      fragmentPresent: false,
     },
-    meta: { engineVersion: '0.1.0' },
+    score: 10,
+    riskLevel: 'MODERATE',
+    findings: [
+      {
+        ruleId: 'SUSPICIOUS_KEYWORDS',
+        severity: 'LOW',
+        points: 10,
+        title: 'Suspicious keyword',
+        explanation: 'A static rule matched.',
+      },
+    ],
+    analyzedAt: '2026-11-06T00:00:00Z',
   };
 }
 

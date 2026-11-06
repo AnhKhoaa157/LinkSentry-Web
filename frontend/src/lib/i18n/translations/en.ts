@@ -110,7 +110,8 @@ export const en = {
   'scanner.batch.row': 'Line {number}',
   'scanner.batch.progress': 'Processed {completed} of {total} valid URLs.',
   'scanner.batch.resultsSummary': 'Completed {completed} of {total} valid URLs.',
-  'scanner.batch.stopped': 'The queue stopped after an API error. Completed results are still available.',
+  'scanner.batch.stopped':
+    'Batch processing stopped at a service limit or error. Completed results are still available.',
   'scanner.batch.status.invalid': 'Invalid',
   'scanner.batch.status.queued': 'Waiting',
   'scanner.batch.status.scanning': 'Scanning',

@@ -21,6 +21,9 @@ public class RouteClassifier {
     private final RequestMatcher scanCreate =
             PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, "/api/v1/scans");
 
+    private final RequestMatcher batchScanCreate =
+            PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, "/api/v1/scans/batch");
+
     private final RequestMatcher scanList =
             PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.GET, "/api/v1/scans");
 
@@ -56,7 +59,7 @@ public class RouteClassifier {
             PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, "/api/v1/admin-auth/login");
 
     Optional<RateLimitedRoute> classify(HttpServletRequest request) {
-        if (scanCreate.matches(request)) {
+        if (scanCreate.matches(request) || batchScanCreate.matches(request)) {
             return Optional.of(RateLimitedRoute.SCAN_CREATE);
         }
         if (scanList.matches(request)) {

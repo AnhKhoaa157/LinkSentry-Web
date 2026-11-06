@@ -8,12 +8,12 @@ import {
   shouldStopBatchAfter,
 } from '@/features/scanner/batchScan';
 import { useLicense } from '@/features/license/context/useLicense';
-import { postScan } from '@/features/scanner/api/postScan';
+import { postBatchScan } from '@/features/scanner/api/postBatchScan';
 import { RiskBadge } from '@/features/scanner/components/RiskBadge';
-import type { ScanResponse } from '@/features/scanner/schemas/scanResponse';
+import type { ScanData } from '@/features/scanner/schemas/scanResponse';
 import { localizeApiError, localizeValidationMessage } from '@/lib/i18n/messages';
 import type { TranslationKey } from '@/lib/i18n/translations';
-import { normalizeApiError, type NormalizedApiError } from '@/lib/api/errors';
+import { normalizeApiError, type ApiError, type NormalizedApiError } from '@/lib/api/errors';
 import { useLocale } from '@/lib/i18n/useLocale';
 
 type BatchRowStatus = 'invalid' | 'queued' | 'scanning' | 'complete' | 'failed' | 'skipped';
@@ -23,7 +23,7 @@ interface BatchRow {
   readonly status: BatchRowStatus;
   readonly validationMessage?: string;
   readonly error?: NormalizedApiError;
-  readonly response?: ScanResponse;
+  readonly result?: ScanData;
 }
 
 interface BatchScannerProps {
@@ -39,7 +39,7 @@ const BATCH_STATUS_KEYS: Record<BatchRowStatus, TranslationKey> = {
   skipped: 'scanner.batch.status.skipped',
 };
 
-/** Runs a bounded list through the existing single-URL endpoint, one request at a time. */
+/** Runs a bounded list through the backend batch endpoint and renders safe per-item outcomes. */
 export function BatchScanner({ onPendingChange }: BatchScannerProps) {
   const { isLoading: isLicenseLoading } = useLicense();
   const { locale, t } = useLocale();
@@ -62,7 +62,7 @@ export function BatchScanner({ onPendingChange }: BatchScannerProps) {
 
   const validRowCount = rows.filter((row) => row.status !== 'invalid').length;
   const processedRowCount = rows.filter((row) => row.status === 'complete' || row.status === 'failed').length;
-  const completedResponses = rows.flatMap((row) => (row.response ? [row.response] : []));
+  const completedResponses = rows.flatMap((row) => (row.result ? [row.result] : []));
 
   function handleInputChange(value: string) {
     setInput(value);
@@ -96,33 +96,63 @@ export function BatchScanner({ onPendingChange }: BatchScannerProps) {
         ...(line.validationMessage === null ? {} : { validationMessage: line.validationMessage }),
       })),
     );
+    const validLines = parsed.lines.filter(
+      (line): line is typeof line & { url: string } => line.url !== null,
+    );
+    if (validLines.length === 0) {
+      return;
+    }
+
     setIsPending(true);
     onPendingChange(true);
     const controller = new AbortController();
     activeRequestRef.current = controller;
 
     try {
-      for (const line of parsed.lines) {
-        if (line.url === null) {
+      for (const line of validLines) {
+        updateRow(line.lineNumber, { status: 'scanning' });
+      }
+
+      const response = await postBatchScan(
+        validLines.map((line) => line.url),
+        { locale, signal: controller.signal },
+      );
+      const resultIndices = new Set(response.data.results.map((item) => item.index));
+      if (
+        response.data.results.length !== validLines.length ||
+        resultIndices.size !== validLines.length ||
+        [...resultIndices].some((index) => index >= validLines.length)
+      ) {
+        throw new Error('The batch API returned an incomplete result list.');
+      }
+
+      for (const item of response.data.results) {
+        const line = validLines[item.index];
+        if (!line) {
           continue;
         }
-
-        updateRow(line.lineNumber, { status: 'scanning' });
-        try {
-          const response = await postScan(line.url, { locale, signal: controller.signal });
-          updateRow(line.lineNumber, { status: 'complete', response });
-        } catch (error: unknown) {
-          const normalizedError = normalizeApiError(error);
-          updateRow(line.lineNumber, { status: 'failed', error: normalizedError });
-          if (shouldStopBatchAfter(normalizedError)) {
-            setRows((current) =>
-              current.map((row) => (row.status === 'queued' ? { ...row, status: 'skipped' } : row)),
-            );
-            setIsStopped(true);
-            break;
-          }
+        if (item.status === 'COMPLETE') {
+          updateRow(line.lineNumber, { status: 'complete', result: item.result });
+        } else if (item.status === 'FAILED') {
+          updateRow(line.lineNumber, { status: 'failed', error: normalizeBatchItemError(item.error) });
+        } else {
+          updateRow(line.lineNumber, { status: 'skipped' });
         }
       }
+
+      setIsStopped(
+        response.data.results.some(
+          (item) =>
+            item.status === 'SKIPPED' ||
+            (item.status === 'FAILED' && shouldStopBatchAfter(normalizeBatchItemError(item.error))),
+        ),
+      );
+    } catch (error: unknown) {
+      const normalizedError = normalizeApiError(error);
+      for (const line of validLines) {
+        updateRow(line.lineNumber, { status: 'failed', error: normalizedError });
+      }
+      setIsStopped(true);
     } finally {
       activeRequestRef.current = null;
       setIsPending(false);
@@ -242,24 +272,24 @@ export function BatchScanner({ onPendingChange }: BatchScannerProps) {
                   <span className="body-muted text-xs font-bold">{t(BATCH_STATUS_KEYS[row.status])}</span>
                 </div>
 
-                {row.response ? (
+                {row.result ? (
                   <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
                     <p className="text-content-secondary min-w-0 font-mono text-sm break-all">
-                      {row.response.data.input}
+                      {row.result.input}
                     </p>
                     <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                      <RiskBadge riskLevel={row.response.data.riskLevel} />
+                      <RiskBadge riskLevel={row.result.riskLevel} />
                       <span className="text-content-primary text-sm font-bold">
-                        {row.response.data.score}
+                        {row.result.score}
                         {t('scanner.scoreOutOf')}
                       </span>
                       <span className="body-muted text-xs">
-                        {t('scanner.findingsCount', { count: row.response.data.findings.length })}
+                        {t('scanner.findingsCount', { count: row.result.findings.length })}
                       </span>
                     </div>
-                    {row.response.data.scanId ? (
+                    {row.result.scanId ? (
                       <Link
-                        to={'/scans/' + encodeURIComponent(row.response.data.scanId)}
+                        to={'/scans/' + encodeURIComponent(row.result.scanId)}
                         className="text-accent-strong text-sm font-bold underline underline-offset-4 sm:col-span-2"
                       >
                         {t('scanner.savedResultLink')}
@@ -277,7 +307,7 @@ export function BatchScanner({ onPendingChange }: BatchScannerProps) {
                 ) : null}
                 {row.error ? (
                   <div className="mt-2 space-y-2">
-                    <p className="text-danger text-sm">{localizeApiError(t, row.error)}</p>
+                    <p className="text-danger text-sm">{batchErrorMessage(t, row.error)}</p>
                     {row.error.code === 'ANONYMOUS_TRIAL_EXHAUSTED' ? (
                       <Link
                         to="/license"
@@ -295,4 +325,20 @@ export function BatchScanner({ onPendingChange }: BatchScannerProps) {
       ) : null}
     </div>
   );
+}
+
+function normalizeBatchItemError(error: ApiError): NormalizedApiError {
+  return {
+    message: error.message,
+    code: error.code,
+    fieldErrors: error.fieldErrors,
+    isNetworkError: false,
+  };
+}
+
+function batchErrorMessage(t: ReturnType<typeof useLocale>['t'], error: NormalizedApiError): string {
+  if (error.code === 'VALIDATION_ERROR' && error.fieldErrors?.url) {
+    return localizeValidationMessage(t, error.fieldErrors.url);
+  }
+  return localizeApiError(t, error);
 }
