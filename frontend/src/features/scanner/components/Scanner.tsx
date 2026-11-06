@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 
 import { useLicense } from '@/features/license/context/useLicense';
 import { postScan } from '@/features/scanner/api/postScan';
+import { BatchScanner } from '@/features/scanner/components/BatchScanner';
 import { ScanResult } from '@/features/scanner/components/ScanResult';
 import { scanRequestSchema } from '@/features/scanner/schemas/scanRequest';
 import type { ScanResponse } from '@/features/scanner/schemas/scanResponse';
@@ -32,6 +33,8 @@ export function Scanner() {
   const [url, setUrl] = useState('');
   const [clientError, setClientError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
+  const [isBatchPending, setIsBatchPending] = useState(false);
+  const [scannerMode, setScannerMode] = useState<'single' | 'batch'>('single');
   const [scanResponse, setScanResponse] = useState<ScanResponse | null>(null);
   const [apiError, setApiError] = useState<NormalizedApiError | null>(null);
   const [sharedNotice, setSharedNotice] = useState<SharedNotice | null>(() =>
@@ -136,109 +139,151 @@ export function Scanner() {
       </div>
 
       <div className="p-5 sm:p-7">
-        <form onSubmit={handleSubmit} noValidate>
-          <label htmlFor="scanner-url" className="ui-label">
-            {t('scanner.label')}
-          </label>
+        <div
+          role="group"
+          aria-label={t('scanner.modeLabel')}
+          className="surface-inset mb-6 inline-flex flex-wrap gap-1 p-1"
+        >
+          <button
+            type="button"
+            aria-pressed={scannerMode === 'single'}
+            disabled={isPending || isBatchPending}
+            onClick={() => setScannerMode('single')}
+            className={
+              scannerMode === 'single'
+                ? 'bg-surface-panel text-content-primary rounded-full px-4 py-2 text-sm font-bold shadow-sm'
+                : 'text-content-secondary hover:text-content-primary rounded-full px-4 py-2 text-sm font-bold'
+            }
+          >
+            {t('scanner.mode.single')}
+          </button>
+          <button
+            type="button"
+            aria-pressed={scannerMode === 'batch'}
+            disabled={isPending || isBatchPending}
+            onClick={() => setScannerMode('batch')}
+            className={
+              scannerMode === 'batch'
+                ? 'bg-surface-panel text-content-primary rounded-full px-4 py-2 text-sm font-bold shadow-sm'
+                : 'text-content-secondary hover:text-content-primary rounded-full px-4 py-2 text-sm font-bold'
+            }
+          >
+            {t('scanner.mode.batch')}
+          </button>
+        </div>
 
-          <div className="mt-3 flex flex-col gap-3 sm:flex-row">
-            <input
-              id="scanner-url"
-              name="url"
-              ref={urlInputRef}
-              type="text"
-              inputMode="url"
-              autoComplete="off"
-              spellCheck={false}
-              value={url}
-              onChange={(event) => handleChange(event.target.value)}
-              aria-describedby={describedBy}
-              aria-invalid={activeErrorId !== null}
-              placeholder={t('scanner.placeholder')}
-              className="ui-input min-w-0 flex-1 px-3.5 py-3 font-mono text-sm"
-            />
-            <button
-              type="submit"
-              disabled={isPending || isLicenseLoading}
-              aria-busy={isPending}
-              className="ui-button ui-button-primary shrink-0 px-6"
-            >
-              {isPending
-                ? t('scanner.analyzing')
-                : isLicenseLoading
-                  ? t('scanner.initializing')
-                  : t('scanner.submit')}
-            </button>
-          </div>
+        <div hidden={scannerMode !== 'single'}>
+          <form onSubmit={handleSubmit} noValidate>
+            <label htmlFor="scanner-url" className="ui-label">
+              {t('scanner.label')}
+            </label>
 
-          {clientError ? (
-            <p id={CLIENT_ERROR_ID} role="alert" className="text-danger mt-2 text-sm">
-              {clientError}
-            </p>
-          ) : null}
+            <div className="mt-3 flex flex-col gap-3 sm:flex-row">
+              <input
+                id="scanner-url"
+                name="url"
+                ref={urlInputRef}
+                type="text"
+                inputMode="url"
+                autoComplete="off"
+                spellCheck={false}
+                value={url}
+                onChange={(event) => handleChange(event.target.value)}
+                aria-describedby={describedBy}
+                aria-invalid={activeErrorId !== null}
+                placeholder={t('scanner.placeholder')}
+                className="ui-input min-w-0 flex-1 px-3.5 py-3 font-mono text-sm"
+              />
+              <button
+                type="submit"
+                disabled={isPending || isLicenseLoading}
+                aria-busy={isPending}
+                className="ui-button ui-button-primary shrink-0 px-6"
+              >
+                {isPending
+                  ? t('scanner.analyzing')
+                  : isLicenseLoading
+                    ? t('scanner.initializing')
+                    : t('scanner.submit')}
+              </button>
+            </div>
 
-          {sharedStatus ? (
-            <p role="status" className="body-secondary mt-2 text-sm">
-              {sharedStatus}
-            </p>
-          ) : null}
-        </form>
-
-        {apiError ? (
-          <div role="alert" className="ui-alert mt-5 p-4">
-            <p className="text-sm font-bold">{displayMessage(t, apiError)}</p>
-            {serverFieldError ? (
-              <p id={SERVER_FIELD_ERROR_ID} className="mt-1 text-sm opacity-90">
-                {localizeValidationMessage(t, serverFieldError)}
+            {clientError ? (
+              <p id={CLIENT_ERROR_ID} role="alert" className="text-danger mt-2 text-sm">
+                {clientError}
               </p>
             ) : null}
-            {apiError.code === 'ANONYMOUS_TRIAL_EXHAUSTED' ? (
-              <Link to="/license" className="text-accent-strong mt-3 inline-flex text-sm font-bold underline">
-                {t('scanner.trialResultLink')}
-              </Link>
-            ) : null}
-          </div>
-        ) : null}
 
-        {scanResponse ? (
-          <div className="border-border-default mt-8 border-t pt-7">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <p className="eyebrow">{t('scanner.resultHeading')}</p>
-                <p className="body-secondary mt-1 text-sm">{t('scanner.resultDescription')}</p>
+            {sharedStatus ? (
+              <p role="status" className="body-secondary mt-2 text-sm">
+                {sharedStatus}
+              </p>
+            ) : null}
+          </form>
+
+          {apiError ? (
+            <div role="alert" className="ui-alert mt-5 p-4">
+              <p className="text-sm font-bold">{displayMessage(t, apiError)}</p>
+              {serverFieldError ? (
+                <p id={SERVER_FIELD_ERROR_ID} className="mt-1 text-sm opacity-90">
+                  {localizeValidationMessage(t, serverFieldError)}
+                </p>
+              ) : null}
+              {apiError.code === 'ANONYMOUS_TRIAL_EXHAUSTED' ? (
+                <Link
+                  to="/license"
+                  className="text-accent-strong mt-3 inline-flex text-sm font-bold underline"
+                >
+                  {t('scanner.trialResultLink')}
+                </Link>
+              ) : null}
+            </div>
+          ) : null}
+
+          {scanResponse ? (
+            <div className="border-border-default mt-8 border-t pt-7">
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <p className="eyebrow">{t('scanner.resultHeading')}</p>
+                  <p className="body-secondary mt-1 text-sm">{t('scanner.resultDescription')}</p>
+                </div>
+                <p className="body-muted font-mono text-xs">
+                  {t('scanner.engineVersion', { version: scanResponse.meta.engineVersion })}
+                </p>
               </div>
-              <p className="body-muted font-mono text-xs">
-                {t('scanner.engineVersion', { version: scanResponse.meta.engineVersion })}
-              </p>
-            </div>
 
-            <ScanResult data={scanResponse.data} />
+              <ScanResult data={scanResponse.data} />
 
-            <div className="border-border-default mt-6 border-t pt-4">
-              {isLicensed && scanResponse.data.scanId ? (
-                <>
-                  <Link
-                    to={'/scans/' + encodeURIComponent(scanResponse.data.scanId)}
-                    className="text-accent-strong text-sm font-bold underline underline-offset-4"
-                  >
-                    {t('scanner.savedResultLink')}
-                  </Link>
-                  <p className="body-muted mt-1 text-xs">{t('scanner.savedResultDescription')}</p>
-                </>
-              ) : (
-                <>
-                  <p className="body-muted text-xs">{t('scanner.trialResult')}</p>
-                  <Link
-                    to="/license"
-                    className="text-accent-strong mt-1 inline-flex text-sm font-bold underline underline-offset-4"
-                  >
-                    {t('scanner.trialResultLink')}
-                  </Link>
-                </>
-              )}
+              <div className="border-border-default mt-6 border-t pt-4">
+                {isLicensed && scanResponse.data.scanId ? (
+                  <>
+                    <Link
+                      to={'/scans/' + encodeURIComponent(scanResponse.data.scanId)}
+                      className="text-accent-strong text-sm font-bold underline underline-offset-4"
+                    >
+                      {t('scanner.savedResultLink')}
+                    </Link>
+                    <p className="body-muted mt-1 text-xs">{t('scanner.savedResultDescription')}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="body-muted text-xs">{t('scanner.trialResult')}</p>
+                    <Link
+                      to="/license"
+                      className="text-accent-strong mt-1 inline-flex text-sm font-bold underline underline-offset-4"
+                    >
+                      {t('scanner.trialResultLink')}
+                    </Link>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
+
+        <div hidden={scannerMode !== 'batch'}>
+          <BatchScanner onPendingChange={setIsBatchPending} />
+        </div>
       </div>
     </section>
   );
