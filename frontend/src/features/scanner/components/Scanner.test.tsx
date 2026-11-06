@@ -418,4 +418,23 @@ describe('Scanner', () => {
     expect(urlInput()).toHaveAttribute('aria-invalid', 'false');
     expect(describedByText(urlInput())).toEqual([HINT_TEXT]);
   });
+
+  it('switches between single and batch scan modes without losing the single-scan form', async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(<Scanner />);
+
+    const singleMode = screen.getByRole('button', { name: 'Single URL' });
+    const batchMode = screen.getByRole('button', { name: 'Batch scan' });
+    expect(singleMode).toHaveAttribute('aria-pressed', 'true');
+    expect(batchMode).toHaveAttribute('aria-pressed', 'false');
+
+    await user.click(batchMode);
+    expect(screen.getByLabelText('URLs to analyze')).toBeVisible();
+    expect(batchMode).toHaveAttribute('aria-pressed', 'true');
+
+    await user.click(singleMode);
+    expect(urlInput()).toBeVisible();
+    expect(singleMode).toHaveAttribute('aria-pressed', 'true');
+  });
 });

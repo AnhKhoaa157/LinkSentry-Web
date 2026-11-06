@@ -8,6 +8,8 @@ const API_ERROR_KEYS: Partial<Record<string, TranslationKey>> = {
   INVALID_URL: 'errors.invalidUrl',
   RATE_LIMITED: 'errors.rateLimited',
   ANONYMOUS_TRIAL_EXHAUSTED: 'errors.trialExhausted',
+  TRIAL_DEVICE_REQUIRED: 'errors.trialDeviceRequired',
+  TRIAL_QUOTA_UNAVAILABLE: 'errors.trialQuotaUnavailable',
   SCAN_NOT_FOUND: 'errors.scanNotFound',
   UNAUTHORIZED: 'errors.unauthorized',
   FORBIDDEN: 'errors.forbidden',
