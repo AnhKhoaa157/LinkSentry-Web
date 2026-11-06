@@ -128,6 +128,27 @@ class DeviceAuthenticationFilterTest {
     }
 
     @Test
+    @DisplayName("a database failure on the batch scan route also fails closed as TRIAL_QUOTA_UNAVAILABLE")
+    void databaseFailureOnBatchScanFailsClosed() throws Exception {
+        DeviceService deviceService = mock(DeviceService.class);
+        when(deviceService.authenticate("some-credential"))
+                .thenThrow(new DataAccessResourceFailureException("simulated outage"));
+        DeviceAuthenticationFilter filter = new DeviceAuthenticationFilter(deviceService);
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/scans/batch");
+        request.addHeader("Authorization", "Device some-credential");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        filter.doFilter(request, response, chain);
+
+        verifyNoInteractions(chain);
+        assertThat(response.getStatus()).isEqualTo(503);
+        assertThat(response.getContentAsString())
+                .contains("\"code\":\"TRIAL_QUOTA_UNAVAILABLE\"")
+                .doesNotContain("some-credential", "simulated outage");
+    }
+
+    @Test
     @DisplayName("a database failure resolving the credential on a route other than scan-create is not swallowed")
     void databaseFailureOnOtherRoutePropagates() {
         DeviceService deviceService = mock(DeviceService.class);

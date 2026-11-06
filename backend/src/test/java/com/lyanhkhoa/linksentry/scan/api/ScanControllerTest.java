@@ -2,6 +2,7 @@ package com.lyanhkhoa.linksentry.scan.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
@@ -20,10 +21,12 @@ import com.lyanhkhoa.linksentry.analysis.domain.RiskLevel;
 import com.lyanhkhoa.linksentry.analysis.domain.RuleExecutionException;
 import com.lyanhkhoa.linksentry.analysis.domain.Severity;
 import com.lyanhkhoa.linksentry.common.api.ResponseLocale;
+import com.lyanhkhoa.linksentry.common.api.ErrorResponse;
 import com.lyanhkhoa.linksentry.common.exception.GlobalExceptionHandler;
 import com.lyanhkhoa.linksentry.history.application.InvalidScanHistoryRequestException;
 import com.lyanhkhoa.linksentry.history.application.ScanNotFoundException;
 import com.lyanhkhoa.linksentry.scan.application.ScanService;
+import com.lyanhkhoa.linksentry.scan.application.BatchScanService;
 import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -60,6 +63,78 @@ class ScanControllerTest {
 
     @MockitoBean
     private ScanService scanService;
+
+    @MockitoBean
+    private BatchScanService batchScanService;
+
+    @Test
+    @DisplayName("batch scan returns a safe per-item result and the engine version")
+    void batchScanReturnsPerItemResults() throws Exception {
+        BatchScanResponse response = new BatchScanResponse(
+                new BatchScanResponse.Data(List.of(new BatchScanResponse.Item(
+                        0, BatchScanResponse.Status.COMPLETE, sampleResponse().data(), null))),
+                new BatchScanResponse.Meta("0.1.0"));
+        given(batchScanService.scan(anyList(), isNull(), isNull(), eq(ResponseLocale.ENGLISH))).willReturn(response);
+
+        mockMvc.perform(post("/api/v1/scans/batch")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"urls\":[\"https://example.com/account?token=raw-secret\"]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.results[0].index").value(0))
+                .andExpect(jsonPath("$.data.results[0].status").value("COMPLETE"))
+                .andExpect(jsonPath("$.data.results[0].result.input").value("https://example.com/account"))
+                .andExpect(jsonPath("$.meta.engineVersion").value("0.1.0"))
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("raw-secret"))));
+    }
+
+    @Test
+    @DisplayName("batch scan preserves a per-item error envelope and safe skipped state")
+    void batchScanReturnsPerItemFailures() throws Exception {
+        BatchScanResponse response = new BatchScanResponse(
+                new BatchScanResponse.Data(List.of(
+                        new BatchScanResponse.Item(0, BatchScanResponse.Status.FAILED, null, ErrorResponse.ofFieldErrors(
+                                "INVALID_URL",
+                                "The submitted value is not a supported HTTP or HTTPS URL.",
+                                java.util.Map.of("url", "Enter a valid HTTP or HTTPS URL."),
+                                "trace-invalid")),
+                        new BatchScanResponse.Item(1, BatchScanResponse.Status.SKIPPED, null, null))),
+                new BatchScanResponse.Meta("0.1.0"));
+        given(batchScanService.scan(anyList(), isNull(), isNull(), eq(ResponseLocale.ENGLISH))).willReturn(response);
+
+        mockMvc.perform(post("/api/v1/scans/batch")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"urls\":[\"ftp://private.invalid/secret\",\"https://example.com\"]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.results[0].status").value("FAILED"))
+                .andExpect(jsonPath("$.data.results[0].error.code").value("INVALID_URL"))
+                .andExpect(jsonPath("$.data.results[0].error.fieldErrors.url").exists())
+                .andExpect(jsonPath("$.data.results[1].status").value("SKIPPED"))
+                .andExpect(jsonPath("$.data.results[1].error").doesNotExist())
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("secret"))));
+    }
+
+    @Test
+    @DisplayName("batch scan rejects an empty or oversized list before reaching the service")
+    void batchScanValidatesListBounds() throws Exception {
+        mockMvc.perform(post("/api/v1/scans/batch")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"urls\":[]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.fieldErrors.urls").exists());
+
+        String tooManyUrls = objectMapper.writeValueAsString(java.util.Map.of(
+                "urls", java.util.Collections.nCopies(11, "https://example.invalid")));
+        mockMvc.perform(post("/api/v1/scans/batch")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(tooManyUrls))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+
+        verifyNoInteractions(batchScanService);
+    }
 
     @Test
     @DisplayName("a valid URL returns 200 with the analysis result")

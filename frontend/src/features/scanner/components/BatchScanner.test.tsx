@@ -7,28 +7,33 @@ import { apiClient } from '@/lib/api/client';
 import { BatchScanner } from '@/features/scanner/components/BatchScanner';
 import { renderWithProviders } from '@/test/renderWithProviders';
 
-function scanResponse(input: string) {
+function scanData(input: string) {
   return {
-    data: {
-      scanId: null,
-      input,
-      normalized: {
-        scheme: 'https',
-        host: 'redacted.invalid',
-        asciiHost: 'redacted.invalid',
-        registrableDomain: 'redacted.invalid',
-        port: null,
-        path: '/',
-        queryPresent: false,
-        fragmentPresent: false,
-      },
-      score: 10,
-      riskLevel: 'MODERATE',
-      findings: [],
-      analyzedAt: '2026-11-06T00:00:00Z',
+    scanId: null,
+    input,
+    normalized: {
+      scheme: 'https',
+      host: 'redacted.invalid',
+      asciiHost: 'redacted.invalid',
+      registrableDomain: 'redacted.invalid',
+      port: null,
+      path: '/',
+      queryPresent: false,
+      fragmentPresent: false,
     },
-    meta: { engineVersion: '0.1.0' },
+    score: 10,
+    riskLevel: 'MODERATE',
+    findings: [],
+    analyzedAt: '2026-11-06T00:00:00Z',
   };
+}
+
+function batchResponse(results: unknown[]) {
+  return { data: { results }, meta: { engineVersion: '0.1.0' } };
+}
+
+function completeItem(index: number, input: string) {
+  return { index, status: 'COMPLETE', result: scanData(input) };
 }
 
 function axiosErrorWithResponse(status: number, data: unknown) {
@@ -50,15 +55,12 @@ describe('BatchScanner', () => {
     vi.restoreAllMocks();
   });
 
-  it('scans valid lines sequentially and renders only the redacted server values as inert text', async () => {
-    let resolveFirst: ((value: { data: unknown }) => void) | undefined;
-    const firstResponse = new Promise<{ data: unknown }>((resolve) => {
-      resolveFirst = resolve;
+  it('submits one batch request and renders only the redacted server values as inert text', async () => {
+    let resolveBatch: ((value: { data: unknown }) => void) | undefined;
+    const batchPromise = new Promise<{ data: unknown }>((resolve) => {
+      resolveBatch = resolve;
     });
-    const postSpy = vi
-      .spyOn(apiClient, 'post')
-      .mockReturnValueOnce(firstResponse as never)
-      .mockResolvedValueOnce({ data: scanResponse('https://redacted.invalid/second') });
+    const postSpy = vi.spyOn(apiClient, 'post').mockReturnValueOnce(batchPromise as never);
     const user = userEvent.setup();
     const { container } = renderWithProviders(<BatchScanner onPendingChange={vi.fn()} />);
 
@@ -71,17 +73,24 @@ describe('BatchScanner', () => {
 
     await waitFor(() => expect(postSpy).toHaveBeenCalledOnce());
     expect(postSpy).toHaveBeenCalledWith(
-      '/api/v1/scans',
-      { url: 'https://private.invalid/first?token=raw-secret' },
+      '/api/v1/scans/batch',
+      {
+        urls: ['https://private.invalid/first?token=raw-secret', 'https://private.invalid/second'],
+      },
       expect.anything(),
     );
-    expect(screen.getByText('Scanning')).toBeInTheDocument();
+    expect(screen.getAllByText('Scanning')).toHaveLength(2);
 
-    resolveFirst?.({ data: scanResponse('https://redacted.invalid/first?[redacted]') });
+    resolveBatch?.({
+      data: batchResponse([
+        completeItem(0, 'https://redacted.invalid/first?[redacted]'),
+        completeItem(1, 'https://redacted.invalid/second'),
+      ]),
+    });
 
     expect(await screen.findByText('https://redacted.invalid/first?[redacted]')).toBeInTheDocument();
     expect(await screen.findByText('https://redacted.invalid/second')).toBeInTheDocument();
-    expect(postSpy).toHaveBeenCalledTimes(2);
+    expect(postSpy).toHaveBeenCalledOnce();
     expect(screen.getByRole('button', { name: /download CSV/i })).toBeEnabled();
     expect(container.querySelector('a[href*="private.invalid"]')).toBeNull();
     expect(container.querySelector('a[href*="redacted.invalid"]')).toBeNull();
@@ -91,11 +100,13 @@ describe('BatchScanner', () => {
     expect(screen.getByRole('list', { name: 'Batch results' })).not.toHaveTextContent('raw-secret');
   });
 
-  it('marks an invalid line without echoing it and continues with valid lines', async () => {
-    const postSpy = vi
-      .spyOn(apiClient, 'post')
-      .mockResolvedValueOnce({ data: scanResponse('https://redacted.invalid/first') })
-      .mockResolvedValueOnce({ data: scanResponse('https://redacted.invalid/third') });
+  it('marks a client-invalid line and maps batch outcomes back to their original lines', async () => {
+    const postSpy = vi.spyOn(apiClient, 'post').mockResolvedValueOnce({
+      data: batchResponse([
+        completeItem(0, 'https://redacted.invalid/first'),
+        completeItem(1, 'https://redacted.invalid/third'),
+      ]),
+    });
     const user = userEvent.setup();
 
     renderWithProviders(<BatchScanner onPendingChange={vi.fn()} />);
@@ -106,11 +117,12 @@ describe('BatchScanner', () => {
     expect(await screen.findByText('https://redacted.invalid/third')).toBeInTheDocument();
     expect(screen.getByText('Line 2')).toBeInTheDocument();
     expect(screen.getByText('Enter a URL starting with http:// or https://')).toBeInTheDocument();
-    expect(postSpy).toHaveBeenCalledTimes(2);
-    expect(postSpy.mock.calls.map((call) => (call[1] as { url: string }).url)).toEqual([
-      'https://private.invalid/first',
-      'https://private.invalid/third',
-    ]);
+    expect(postSpy).toHaveBeenCalledOnce();
+    expect(postSpy).toHaveBeenCalledWith(
+      '/api/v1/scans/batch',
+      { urls: ['https://private.invalid/first', 'https://private.invalid/third'] },
+      expect.anything(),
+    );
   });
 
   it('rejects more than ten URLs before making any API request', async () => {
@@ -129,17 +141,22 @@ describe('BatchScanner', () => {
     expect(postSpy).not.toHaveBeenCalled();
   });
 
-  it('keeps completed results and stops the remaining queue when the trial quota is exhausted', async () => {
-    const postSpy = vi
-      .spyOn(apiClient, 'post')
-      .mockResolvedValueOnce({ data: scanResponse('https://redacted.invalid/first') })
-      .mockRejectedValueOnce(
-        axiosErrorWithResponse(429, {
-          code: 'ANONYMOUS_TRIAL_EXHAUSTED',
-          message: 'Request a license to continue scanning.',
-          traceId: 'trace-trial',
-        }),
-      );
+  it('keeps completed results and marks quota-exhausted and remaining items', async () => {
+    const postSpy = vi.spyOn(apiClient, 'post').mockResolvedValueOnce({
+      data: batchResponse([
+        completeItem(0, 'https://redacted.invalid/first'),
+        {
+          index: 1,
+          status: 'FAILED',
+          error: {
+            code: 'ANONYMOUS_TRIAL_EXHAUSTED',
+            message: 'Request a license to continue scanning.',
+            traceId: 'trace-trial',
+          },
+        },
+        { index: 2, status: 'SKIPPED' },
+      ]),
+    });
     const user = userEvent.setup();
 
     renderWithProviders(<BatchScanner onPendingChange={vi.fn()} />);
@@ -152,13 +169,37 @@ describe('BatchScanner', () => {
 
     expect(await screen.findByText('https://redacted.invalid/first')).toBeInTheDocument();
     expect(
-      await screen.findByText('The queue stopped after an API error. Completed results are still available.'),
+      await screen.findByText(
+        'Batch processing stopped at a service limit or error. Completed results are still available.',
+      ),
     ).toBeInTheDocument();
     expect(screen.getByText('Skipped')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /get a license to save future scans/i })).toHaveAttribute(
       'href',
       '/license',
     );
-    expect(postSpy).toHaveBeenCalledTimes(2);
+    expect(postSpy).toHaveBeenCalledOnce();
+  });
+
+  it('marks every valid line failed when the batch request itself fails', async () => {
+    const postSpy = vi.spyOn(apiClient, 'post').mockRejectedValueOnce(
+      axiosErrorWithResponse(503, {
+        code: 'TRIAL_QUOTA_UNAVAILABLE',
+        message: 'The trial scan quota is temporarily unavailable. Please try again shortly.',
+        traceId: 'trace-quota',
+      }),
+    );
+    const user = userEvent.setup();
+
+    renderWithProviders(<BatchScanner onPendingChange={vi.fn()} />);
+    await user.type(batchInput(), 'https://private.invalid/first\nhttps://private.invalid/second');
+    await waitFor(() => expect(startButton()).toBeEnabled());
+    await user.click(startButton());
+
+    expect(
+      await screen.findAllByText('The trial scan limit is temporarily unavailable. Please try again later.'),
+    ).toHaveLength(2);
+    expect(screen.getAllByText('Failed')).toHaveLength(2);
+    expect(postSpy).toHaveBeenCalledOnce();
   });
 });

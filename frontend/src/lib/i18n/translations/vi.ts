@@ -109,7 +109,8 @@ export const vi: Record<TranslationKey, string> = {
   'scanner.batch.row': 'Dòng {number}',
   'scanner.batch.progress': 'Đã xử lý {completed}/{total} URL hợp lệ.',
   'scanner.batch.resultsSummary': 'Đã hoàn tất {completed}/{total} URL hợp lệ.',
-  'scanner.batch.stopped': 'Hàng đợi đã dừng sau lỗi API. Các kết quả đã hoàn tất vẫn được giữ lại.',
+  'scanner.batch.stopped':
+    'Đợt phân tích đã dừng do giới hạn hoặc lỗi dịch vụ. Các kết quả đã hoàn tất vẫn được giữ lại.',
   'scanner.batch.status.invalid': 'Không hợp lệ',
   'scanner.batch.status.queued': 'Đang chờ',
   'scanner.batch.status.scanning': 'Đang quét',

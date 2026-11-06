@@ -1,7 +1,9 @@
 package com.lyanhkhoa.linksentry.scan.api;
 
 import com.lyanhkhoa.linksentry.common.api.ResponseLocale;
+import com.lyanhkhoa.linksentry.common.trial.AnonymousTrialFilter;
 import com.lyanhkhoa.linksentry.license.security.LicensedDeviceContext;
+import com.lyanhkhoa.linksentry.scan.application.BatchScanService;
 import com.lyanhkhoa.linksentry.scan.application.ScanService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -13,6 +15,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -33,9 +36,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class ScanController {
 
     private final ScanService scanService;
+    private final BatchScanService batchScanService;
 
-    public ScanController(ScanService scanService) {
+    public ScanController(ScanService scanService, BatchScanService batchScanService) {
         this.scanService = scanService;
+        this.batchScanService = batchScanService;
     }
 
     @PostMapping
@@ -51,6 +56,22 @@ public class ScanController {
         LicensedDeviceContext device = optionalLicensedDevice(authentication);
         ResponseLocale locale = ResponseLocale.negotiate(acceptLanguage);
         return scanService.scan(request.url(), device == null ? null : device.licenseId(), locale);
+    }
+
+    @PostMapping("/batch")
+    @Operation(
+            summary = "Analyse up to ten URLs and return an outcome for each item",
+            description = "Treats submitted URLs as text only; trial quota admission is applied once per item.")
+    public BatchScanResponse scanBatch(
+            @Valid @RequestBody BatchScanRequest request,
+            @RequestHeader(value = HttpHeaders.ACCEPT_LANGUAGE, required = false) String acceptLanguage,
+            @RequestAttribute(value = AnonymousTrialFilter.TRIAL_DEVICE_ID_ATTRIBUTE, required = false)
+                    UUID trialDeviceId,
+            Authentication authentication) {
+        LicensedDeviceContext device = optionalLicensedDevice(authentication);
+        ResponseLocale locale = ResponseLocale.negotiate(acceptLanguage);
+        return batchScanService.scan(
+                request.urls(), device == null ? null : device.licenseId(), trialDeviceId, locale);
     }
 
     @GetMapping

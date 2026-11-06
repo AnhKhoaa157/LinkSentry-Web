@@ -66,6 +66,9 @@ public final class DeviceAuthenticationFilter extends OncePerRequestFilter {
     private final RequestMatcher scanCreate =
             PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, "/api/v1/scans");
 
+    private final RequestMatcher batchScanCreate =
+            PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, "/api/v1/scans/batch");
+
     private final DeviceService deviceService;
 
     public DeviceAuthenticationFilter(DeviceService deviceService) {
@@ -81,7 +84,7 @@ public final class DeviceAuthenticationFilter extends OncePerRequestFilter {
                     .flatMap(deviceService::authenticate)
                     .ifPresent(this::installAuthentication);
         } catch (DataAccessException | TransactionException exception) {
-            if (scanCreate.matches(request)) {
+            if (scanCreate.matches(request) || batchScanCreate.matches(request)) {
                 rejectWithQuotaUnavailable(response);
                 return;
             }

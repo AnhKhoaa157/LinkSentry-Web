@@ -62,6 +62,41 @@ class AnonymousTrialFilterTest {
     }
 
     @Test
+    @DisplayName("a batch request resolves a trial device but leaves per-item admissions to the batch use case")
+    void batchRequestPassesResolvedDeviceToController() throws Exception {
+        DeviceTrialQuotaService quotaService = mock(DeviceTrialQuotaService.class);
+        when(quotaService.resolveDeviceId("valid-credential")).thenReturn(Optional.of(DEVICE_ID));
+        AnonymousTrialFilter filter = newFilter(properties(3, true), quotaService);
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/scans/batch");
+        request.addHeader("Authorization", "Device valid-credential");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        filter.doFilter(request, response, chain);
+
+        verify(chain).doFilter(request, response);
+        verifyNoInteractionsAfterResolve(quotaService);
+        assertThat(request.getAttribute(AnonymousTrialFilter.TRIAL_DEVICE_ID_ATTRIBUTE)).isEqualTo(DEVICE_ID);
+    }
+
+    @Test
+    @DisplayName("a batch request without a known device is rejected before reaching the controller")
+    void batchRequestRequiresTrialDevice() throws Exception {
+        DeviceTrialQuotaService quotaService = mock(DeviceTrialQuotaService.class);
+        AnonymousTrialFilter filter = newFilter(properties(3, true), quotaService);
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/scans/batch");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        filter.doFilter(request, response, chain);
+
+        verifyNoInteractions(quotaService);
+        verifyNoInteractions(chain);
+        assertThat(response.getStatus()).isEqualTo(401);
+        assertThat(response.getContentAsString()).contains("\"code\":\"TRIAL_DEVICE_REQUIRED\"");
+    }
+
+    @Test
     @DisplayName("a resolved device beyond quota is rejected with a safe 429 and never reaches the chain")
     void exhaustedDeviceIsRejected() throws Exception {
         DeviceTrialQuotaService quotaService = mock(DeviceTrialQuotaService.class);
@@ -255,5 +290,10 @@ class AnonymousTrialFilterTest {
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/scans");
         request.addHeader("Authorization", "Device " + credential);
         return request;
+    }
+
+    private static void verifyNoInteractionsAfterResolve(DeviceTrialQuotaService quotaService) {
+        verify(quotaService).resolveDeviceId("valid-credential");
+        org.mockito.Mockito.verify(quotaService, org.mockito.Mockito.never()).tryAdmit(any(), any());
     }
 }

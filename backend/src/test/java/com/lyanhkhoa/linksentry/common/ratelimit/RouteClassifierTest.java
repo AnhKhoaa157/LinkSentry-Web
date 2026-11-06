@@ -19,6 +19,8 @@ class RouteClassifierTest {
     @DisplayName("POST /api/v1/scans classifies as SCAN_CREATE")
     void classifiesScanCreate() {
         assertThat(classifier.classify(request("POST", "/api/v1/scans"))).contains(RateLimitedRoute.SCAN_CREATE);
+        assertThat(classifier.classify(request("POST", "/api/v1/scans/batch")))
+                .contains(RateLimitedRoute.SCAN_CREATE);
     }
 
     @Test
