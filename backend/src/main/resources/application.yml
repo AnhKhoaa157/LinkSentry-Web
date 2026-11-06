@@ -18,7 +18,9 @@ spring:
     password: ${SPRING_DATASOURCE_PASSWORD:local-development-only}
     hikari:
       pool-name: linksentry-pool
-      maximum-pool-size: 10
+      # Render overlaps instances during deploy; keep Supabase session clients below its 15-client cap.
+      minimum-idle: 1
+      maximum-pool-size: 4
   jpa:
     # Lazy loading outside a transaction hides N+1 queries; keep it off.
     open-in-view: false
