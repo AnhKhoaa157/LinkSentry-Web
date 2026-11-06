@@ -58,7 +58,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public final class AnonymousTrialFilter extends OncePerRequestFilter {
 
     /** Request attribute containing the resolved unlicensed device id for batch admission. */
-    public static final String TRIAL_DEVICE_ID_ATTRIBUTE = AnonymousTrialFilter.class.getName() + ".trialDeviceId";
+    public static final String TRIAL_DEVICE_ID_ATTRIBUTE = "com.lyanhkhoa.linksentry.common.trial.trialDeviceId";
 
     private static final String EXHAUSTED_MESSAGE = "Request a license to continue scanning.";
     private static final String DEVICE_REQUIRED_MESSAGE = "A valid device credential is required to use the trial.";
