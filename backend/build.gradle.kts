@@ -25,13 +25,13 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:$springdocVersion")
-    implementation("com.google.guava:guava:33.7.2-jre")
+    implementation("com.google.guava:guava:33.8.0-jre")
     implementation("com.ibm.icu:icu4j:79.1")
 
     // --- Security ---
     implementation("org.springframework.boot:spring-boot-starter-security")
     // Single-instance, in-memory token-bucket rate limiting. See common.ratelimit.
-    implementation("com.bucket4j:bucket4j_jdk17-core:8.21.0")
+    implementation("com.bucket4j:bucket4j_jdk17-core:8.22.0")
 
     // --- AI explanation (optional, disabled by default) ---
     // No dedicated dependency: explanation.provider.DeepSeekExplanationProvider
